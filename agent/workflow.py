@@ -61,6 +61,7 @@ class StartupState(TypedDict):
     problem_statement: str
     target_audience: str
     executive_summary: str
+    language: str
 
 
 # ─────────────────────────────────────────────
@@ -83,9 +84,10 @@ def get_llm() -> ChatGroq:
     )
 
 
-async def llm_invoke(system_prompt: str, user_content: str) -> str:
+async def llm_invoke(system_prompt: str, user_content: str, language: str = "English") -> str:
     """Call the LLM and return the response text."""
     llm = get_llm()
+    system_prompt += f"\n\nCRITICAL: Respond entirely in the {language} language. Do not mix English unless the user explicitly uses English words, technical terms, or product names."
     messages = [
         SystemMessage(content=system_prompt),
         HumanMessage(content=user_content),
@@ -118,6 +120,7 @@ async def node_decompose_idea(state: StartupState) -> dict:
     response = await llm_invoke(
         "You are an expert startup strategist. Always respond with valid JSON only.",
         prompt,
+        state.get("language", "English")
     )
 
     try:
@@ -282,13 +285,14 @@ async def node_analyze_gaps(state: StartupState) -> dict:
 
     gap_prompt = MARKET_GAP_PROMPT.format(
         idea=state["idea"],
-        market_research=full_market[:3000],
-        competitor_analysis=state["competitor_analysis"][:2000],
+        market_research=full_market[:800],
+        competitor_analysis=state["competitor_analysis"][:600],
     )
 
     market_gap = await llm_invoke(
         "You are a strategic market analyst. Be specific and insightful.",
         gap_prompt,
+        state.get("language", "English")
     )
 
     await emit(sid, {
@@ -317,13 +321,14 @@ async def node_generate_solution(state: StartupState) -> dict:
 
     solution_prompt = SOLUTION_PROMPT.format(
         idea=state["idea"],
-        market_gap=state["market_gap"],
-        market_research=state["market_research"][:2000],
+        market_gap=state["market_gap"][:500],
+        market_research=state["market_research"][:600],
     )
 
     solution = await llm_invoke(
         "You are a visionary product strategist. Be compelling and specific.",
         solution_prompt,
+        state.get("language", "English")
     )
 
     await emit(sid, {
@@ -349,12 +354,13 @@ async def node_generate_features(state: StartupState) -> dict:
 
     features_prompt = FEATURES_PROMPT.format(
         idea=state["idea"],
-        solution=state["solution_strategy"],
+        solution=state["solution_strategy"][:600],
     )
 
     features = await llm_invoke(
         "You are a senior product manager. Create practical, valuable features.",
         features_prompt,
+        state.get("language", "English")
     )
 
     await emit(sid, {
@@ -380,13 +386,14 @@ async def node_generate_revenue(state: StartupState) -> dict:
 
     revenue_prompt = REVENUE_PROMPT.format(
         idea=state["idea"],
-        solution=state["solution_strategy"],
-        market_research=state["market_research"][:1500],
+        solution=state["solution_strategy"][:500],
+        market_research=state["market_research"][:500],
     )
 
     revenue = await llm_invoke(
         "You are a startup financial strategist. Be specific with numbers.",
         revenue_prompt,
+        state.get("language", "English")
     )
 
     await emit(sid, {
@@ -412,13 +419,14 @@ async def node_generate_roadmap(state: StartupState) -> dict:
 
     roadmap_prompt = ROADMAP_PROMPT.format(
         idea=state["idea"],
-        features=state["core_features"],
-        revenue=state["revenue_model"],
+        features=state["core_features"][:400],
+        revenue=state["revenue_model"][:400],
     )
 
     roadmap = await llm_invoke(
         "You are a startup CTO. Create realistic, achievable milestones.",
         roadmap_prompt,
+        state.get("language", "English")
     )
 
     await emit(sid, {
@@ -444,14 +452,15 @@ async def node_generate_pitch(state: StartupState) -> dict:
 
     pitch_prompt = PITCH_PROMPT.format(
         idea=state["idea"],
-        solution=state["solution_strategy"],
-        revenue=state["revenue_model"],
-        market_research=state["market_research"][:1500],
+        solution=state["solution_strategy"][:400],
+        revenue=state["revenue_model"][:400],
+        market_research=state["market_research"][:500],
     )
 
     pitch = await llm_invoke(
         "You are a top startup pitch coach. Create a compelling narrative.",
         pitch_prompt,
+        state.get("language", "English")
     )
 
     await emit(sid, {
@@ -479,13 +488,13 @@ async def node_compile_plan(state: StartupState) -> dict:
     })
 
     all_context = f"""
-Market Research: {state['market_research'][:800]}
-Competitor Analysis: {state['competitor_analysis'][:800]}
-Market Gap: {state['market_gap']}
-Solution: {state['solution_strategy']}
-Features: {state['core_features']}
-Revenue: {state['revenue_model']}
-Roadmap: {state['implementation_roadmap'][:500]}
+Market Research: {state['market_research'][:400]}
+Competitor Analysis: {state['competitor_analysis'][:400]}
+Market Gap: {state['market_gap'][:300]}
+Solution: {state['solution_strategy'][:300]}
+Features: {state['core_features'][:300]}
+Revenue: {state['revenue_model'][:300]}
+Roadmap: {state['implementation_roadmap'][:300]}
 """
 
     compile_prompt = COMPILE_PROMPT.format(
@@ -496,6 +505,7 @@ Roadmap: {state['implementation_roadmap'][:500]}
     compiled = await llm_invoke(
         "You are a senior business analyst. Be compelling and precise.",
         compile_prompt,
+        state.get("language", "English")
     )
 
     # Parse the structured response
@@ -668,7 +678,7 @@ agent_graph = build_graph()
 # Main entry point for running the agent
 # ─────────────────────────────────────────────
 
-async def run_agent(idea: str, session_id: str):
+async def run_agent(idea: str, session_id: str, language: str = "English"):
     """
     Run the full 12-step autonomous agent workflow.
     Events are streamed via the global event_queues dict.
@@ -691,6 +701,7 @@ async def run_agent(idea: str, session_id: str):
         "problem_statement": "",
         "target_audience": "",
         "executive_summary": "",
+        "language": language,
     }
 
     try:

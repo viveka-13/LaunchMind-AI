@@ -11,10 +11,9 @@ def search_web(query: str, max_results: int = 4) -> str:
     Returns formatted search results as a string.
     """
     try:
-        from duckduckgo_search import DDGS
+        from ddgs import DDGS
         time.sleep(random.uniform(0.5, 1.5))  # polite delay
-        with DDGS() as ddgs:
-            results = list(ddgs.text(query, max_results=max_results))
+        results = list(DDGS().text(query, max_results=max_results))
         if not results:
             return f"No results found for: {query}"
         formatted = []

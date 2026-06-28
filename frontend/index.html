@@ -107,6 +107,53 @@
     .badge-purple { color: var(--purple); border-color: rgba(168,85,247,0.3); background: rgba(168,85,247,0.05); }
     .badge-amber { color: var(--amber); border-color: rgba(245,158,11,0.3); background: rgba(245,158,11,0.05); }
 
+    .lang-select {
+      background: var(--surface2);
+      color: var(--cyan);
+      border: 1px solid rgba(0,229,255,0.3);
+      border-radius: 8px;
+      padding: 6px 12px;
+      font-family: 'Rajdhani', sans-serif;
+      font-size: 13px;
+      font-weight: 600;
+      letter-spacing: 1px;
+      outline: none;
+      cursor: pointer;
+    }
+    .lang-select option {
+      background: var(--surface);
+      color: var(--text-bright);
+    }
+    .mic-btn {
+      background: var(--surface2);
+      border: 1px solid rgba(0,229,255,0.15);
+      border-radius: 12px;
+      color: var(--text-bright);
+      font-size: 20px;
+      width: 56px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+    .mic-btn:hover {
+      border-color: rgba(0,229,255,0.5);
+      background: rgba(0,229,255,0.05);
+    }
+    .mic-btn.recording {
+      color: var(--red);
+      border-color: var(--red);
+      background: rgba(244,63,94,0.1);
+      box-shadow: 0 0 15px rgba(244,63,94,0.4);
+      animation: micPulse 1.5s infinite;
+    }
+    @keyframes micPulse {
+      0% { box-shadow: 0 0 0 0 rgba(244,63,94,0.4); }
+      70% { box-shadow: 0 0 0 10px rgba(244,63,94,0); }
+      100% { box-shadow: 0 0 0 0 rgba(244,63,94,0); }
+    }
+
     /* ── Hero Section ── */
     .hero {
       text-align: center;
@@ -714,6 +761,15 @@
       </div>
     </div>
     <div class="header-badges">
+      <select id="langSelect" class="lang-select" onchange="onLanguageChange()">
+        <option value="English">English</option>
+        <option value="Telugu">Telugu</option>
+        <option value="Hindi">Hindi</option>
+        <option value="Tamil">Tamil</option>
+        <option value="Kannada">Kannada</option>
+        <option value="Malayalam">Malayalam</option>
+        <option value="Marathi">Marathi</option>
+      </select>
       <span class="badge badge-cyan">LangGraph</span>
       <span class="badge badge-purple">ChromaDB RAG</span>
       <span class="badge badge-amber">12-Step Workflow</span>
@@ -723,15 +779,15 @@
   <!-- Hero -->
   <div class="hero">
     <div class="hero-tag">⚡ Powered by Echo Verse</div>
-    <h1>Turn Any Idea Into a<br/><span>Complete Startup</span></h1>
-    <p class="hero-sub">
+    <h1 id="hero-title">Turn Any Idea Into a<br/><span>Complete Startup</span></h1>
+    <p class="hero-sub" id="hero-sub">
       Our AI agent autonomously researches markets, analyzes competitors, identifies gaps, and generates a full business plan — with zero human intervention.
     </p>
   </div>
 
   <!-- Input -->
   <div class="input-card">
-    <label class="input-label">💬 Your Startup Idea</label>
+    <label class="input-label" id="input-label">💬 Your Startup Idea</label>
     <div class="input-row">
       <input
         id="ideaInput"
@@ -740,12 +796,13 @@
         maxlength="300"
         autocomplete="off"
       />
+      <button id="micBtn" class="mic-btn" onclick="toggleRecording()" title="Voice Input">🎤</button>
       <button class="btn-generate" id="generateBtn" onclick="startGeneration()">
         ⚡ Generate
       </button>
     </div>
     <div class="example-chips">
-      <span class="chip-label">Try:</span>
+      <span class="chip-label" id="chip-label">Try:</span>
       <span class="chip" onclick="setIdea('AI app for farmers')">AI app for farmers</span>
       <span class="chip" onclick="setIdea('smart waste management platform')">Smart waste management</span>
       <span class="chip" onclick="setIdea('AI career guidance for graduates')">AI career guidance</span>
@@ -761,7 +818,7 @@
     <div class="agent-panel">
       <div class="agent-panel-header">
         <div class="pulse-dot idle" id="pulseIndicator"></div>
-        <h3>Agent Execution Log</h3>
+        <h3 id="agent-log-title">Agent Execution Log</h3>
       </div>
       <div class="progress-bar">
         <div class="progress-fill" id="progressFill"></div>
@@ -785,14 +842,14 @@
   <!-- History -->
   <div class="history-section">
     <div class="section-header">
-      <h2 class="section-title">History</h2>
+      <h2 class="section-title" id="history-title">History</h2>
       <div class="section-line"></div>
-      <button onclick="loadHistory()" style="background:rgba(0,229,255,0.08);border:1px solid rgba(0,229,255,0.2);color:var(--cyan);border-radius:8px;padding:6px 14px;cursor:pointer;font-family:'Rajdhani',sans-serif;font-size:12px;letter-spacing:1px;text-transform:uppercase;">
+      <button id="history-refresh" onclick="loadHistory()" style="background:rgba(0,229,255,0.08);border:1px solid rgba(0,229,255,0.2);color:var(--cyan);border-radius:8px;padding:6px 14px;cursor:pointer;font-family:'Rajdhani',sans-serif;font-size:12px;letter-spacing:1px;text-transform:uppercase;">
         Refresh
       </button>
     </div>
     <div class="history-grid" id="historyGrid">
-      <div class="empty-history">No startup plans generated yet. Create your first one above!</div>
+      <div class="empty-history" id="empty-history">No startup plans generated yet. Create your first one above!</div>
     </div>
   </div>
 
@@ -808,6 +865,256 @@
 </div>
 
 <script>
+  // ── Language & Localization ──
+  const langMap = {
+    'English': 'en-US',
+    'Telugu': 'te-IN',
+    'Hindi': 'hi-IN',
+    'Tamil': 'ta-IN',
+    'Kannada': 'kn-IN',
+    'Malayalam': 'ml-IN',
+    'Marathi': 'mr-IN'
+  };
+
+  const translations = {
+    'English': {
+      heroTitle: 'Turn Any Idea Into a<br/><span>Complete Startup</span>',
+      heroSub: 'Our AI agent autonomously researches markets, analyzes competitors, identifies gaps, and generates a full business plan — with zero human intervention.',
+      inputLabel: '💬 Your Startup Idea',
+      inputPlaceholder: 'e.g., AI app for farmers, smart waste management platform...',
+      generateBtn: '⚡ Generate',
+      chipLabel: 'Try:',
+      agentLogTitle: 'Agent Execution Log',
+      historyTitle: 'History',
+      refreshBtn: 'Refresh',
+      emptyHistory: 'No startup plans generated yet. Create your first one above!',
+      micUnsupported: 'Microphone is not supported in this browser.',
+      statusStarting: '🧠 Agent Starting...',
+      statusInitMsg: 'Initializing 12-step autonomous workflow for: ',
+      statusError: '❌ Error',
+      statusAgentErr: '❌ Agent Error'
+    },
+    'Hindi': {
+      heroTitle: 'किसी भी विचार को<br/><span>पूर्ण स्टार्टअप</span> में बदलें',
+      heroSub: 'हमारा AI एजेंट स्वायत्त रूप से बाजारों पर शोध करता है, प्रतिस्पर्धियों का विश्लेषण करता है, अंतराल की पहचान करता है, और शून्य मानवीय हस्तक्षेप के साथ एक पूर्ण व्यवसाय योजना तैयार करता है।',
+      inputLabel: '💬 आपका स्टार्टअप विचार',
+      inputPlaceholder: 'उदाहरण के लिए, किसानों के लिए AI ऐप, स्मार्ट कचरा प्रबंधन प्लेटफॉर्म...',
+      generateBtn: '⚡ जेनरेट करें',
+      chipLabel: 'प्रयास करें:',
+      agentLogTitle: 'एजेंट निष्पादन लॉग',
+      historyTitle: 'इतिहास',
+      refreshBtn: 'रीफ़्रेश करें',
+      emptyHistory: 'अभी तक कोई स्टार्टअप योजना तैयार नहीं की गई है। ऊपर अपनी पहली योजना बनाएं!',
+      micUnsupported: 'इस ब्राउज़र में माइक्रोफ़ोन समर्थित नहीं है।',
+      statusStarting: '🧠 एजेंट शुरू हो रहा है...',
+      statusInitMsg: 'के लिए 12-चरणीय स्वायत्त कार्यप्रवाह प्रारंभ किया जा रहा है: ',
+      statusError: '❌ त्रुटि',
+      statusAgentErr: '❌ एजेंट त्रुटि'
+    },
+    'Telugu': {
+      heroTitle: 'ఏదైనా ఆలోచనను<br/><span>పూర్తి స్టార్టప్‌గా</span> మార్చండి',
+      heroSub: 'మా AI ఏజెంట్ స్వయంప్రతిపత్తితో మార్కెట్‌లను పరిశోధిస్తుంది, పోటీదారులను విశ్లేషిస్తుంది, అంతరాలను గుర్తిస్తుంది మరియు మానవ ప్రమేయం లేకుండా పూర్తి వ్యాపార ప్రణాళికను రూపొందిస్తుంది.',
+      inputLabel: '💬 మీ స్టార్టప్ ఆలోచన',
+      inputPlaceholder: 'ఉదాహరణకు, రైతుల కోసం AI యాప్, స్మార్ట్ వ్యర్థాల నిర్వహణ ప్లాట్‌ఫారమ్...',
+      generateBtn: '⚡ సృష్టించండి',
+      chipLabel: 'ప్రయత్నించండి:',
+      agentLogTitle: 'ఏజెంట్ ఎగ్జిక్యూషన్ లాగ్',
+      historyTitle: 'చరిత్ర',
+      refreshBtn: 'రిఫ్రెష్ చేయండి',
+      emptyHistory: 'ఇంకా స్టార్టప్ ప్లాన్‌లు ఏవీ సృష్టించబడలేదు. పైన మీ మొదటి ప్లాన్‌ను సృష్టించండి!',
+      micUnsupported: 'ఈ బ్రౌజర్‌లో మైక్రోఫోన్ పని చేయదు.',
+      statusStarting: '🧠 ఏజెంట్ ప్రారంభమవుతోంది...',
+      statusInitMsg: 'దీని కోసం 12-దశల స్వయంప్రతిపత్త వర్క్‌ఫ్లో ప్రారంభించబడుతోంది: ',
+      statusError: '❌ లోపం',
+      statusAgentErr: '❌ ఏజెంట్ లోపం'
+    },
+    'Tamil': {
+      heroTitle: 'எந்தவொரு யோசனையையும்<br/><span>முழுமையான ஸ்டார்ட்அப்</span> ஆக மாற்றவும்',
+      heroSub: 'எங்கள் AI ஏஜென்ட் தன்னிச்சையாக சந்தைகளை ஆராய்கிறது, போட்டியாளர்களை பகுப்பாய்வு செய்கிறது, இடைவெளிகளை அடையாளம் காட்டுகிறது மற்றும் மனித தலையீடு இல்லாமல் முழு வணிகத் திட்டத்தையும் உருவாக்குகிறது.',
+      inputLabel: '💬 உங்கள் ஸ்டார்ட்அப் யோசனை',
+      inputPlaceholder: 'எ.கா., விவசாயிகளுக்கான AI ஆப், ஸ்மார்ட் கழிவு மேலாண்மை தளம்...',
+      generateBtn: '⚡ உருவாக்கு',
+      chipLabel: 'முயற்சிக்கவும்:',
+      agentLogTitle: 'ஏஜென்ட் செயல்பாட்டு பதிவு',
+      historyTitle: 'வரலாறு',
+      refreshBtn: 'புதுப்பி',
+      emptyHistory: 'இதுவரை எந்த ஸ்டார்ட்அப் திட்டங்களும் உருவாக்கப்படவில்லை. மேலே உங்கள் முதல் திட்டத்தை உருவாக்கவும்!',
+      micUnsupported: 'இந்த உலாவியில் மைக்ரோஃபோன் ஆதரிக்கப்படவில்லை.',
+      statusStarting: '🧠 ஏஜென்ட் தொடங்குகிறது...',
+      statusInitMsg: 'இதற்கான 12-படி தன்னாட்சி பணிப்பாய்வு தொடங்கப்படுகிறது: ',
+      statusError: '❌ பிழை',
+      statusAgentErr: '❌ ஏஜென்ட் பிழை'
+    },
+    'Kannada': {
+      heroTitle: 'ಯಾವುದೇ ಕಲ್ಪನೆಯನ್ನು<br/><span>ಸಂಪೂರ್ಣ ಸ್ಟಾರ್ಟ್ಅಪ್</span> ಆಗಿ ಪರಿವರ್ತಿಸಿ',
+      heroSub: 'ನಮ್ಮ AI ಏಜೆಂಟ್ ಸ್ವಾಯತ್ತವಾಗಿ ಮಾರುಕಟ್ಟೆಗಳನ್ನು ಸಂಶೋಧಿಸುತ್ತದೆ, ಪ್ರತಿಸ್ಪರ್ಧಿಗಳನ್ನು ವಿಶ್ಲೇಷಿಸುತ್ತದೆ, ಅಂತರಗಳನ್ನು ಗುರುತಿಸುತ್ತದೆ ಮತ್ತು ಯಾವುದೇ ಮಾನವ ಹಸ್ತಕ್ಷೇಪವಿಲ್ಲದೆ ಸಂಪೂರ್ಣ ವ್ಯಾಪಾರ ಯೋಜನೆಯನ್ನು ರಚಿಸುತ್ತದೆ.',
+      inputLabel: '💬 ನಿಮ್ಮ ಸ್ಟಾರ್ಟ್ಅಪ್ ಕಲ್ಪನೆ',
+      inputPlaceholder: 'ಉದಾಹರಣೆಗೆ, ರೈತರಿಗಾಗಿ AI ಅಪ್ಲಿಕೇಶನ್, ಸ್ಮಾರ್ಟ್ ತ್ಯಾಜ್ಯ ನಿರ್ವಹಣಾ ವೇದಿಕೆ...',
+      generateBtn: '⚡ ರಚಿಸಿ',
+      chipLabel: 'ಪ್ರಯತ್ನಿಸಿ:',
+      agentLogTitle: 'ಏಜೆಂಟ್ ಎಕ್ಸಿಕ್ಯೂಶನ್ ಲಾಗ್',
+      historyTitle: 'ಇತಿಹಾಸ',
+      refreshBtn: 'ರಿಫ್ರೆಶ್ ಮಾಡಿ',
+      emptyHistory: 'ಇನ್ನೂ ಯಾವುದೇ ಸ್ಟಾರ್ಟ್ಅಪ್ ಯೋಜನೆಗಳನ್ನು ರಚಿಸಲಾಗಿಲ್ಲ. ಮೇಲೆ ನಿಮ್ಮ ಮೊದಲನೆಯದನ್ನು ರಚಿಸಿ!',
+      micUnsupported: 'ಈ ಬ್ರೌಸರ್‌ನಲ್ಲಿ ಮೈಕ್ರೊಫೋನ್ ಬೆಂಬಲಿತವಾಗಿಲ್ಲ.',
+      statusStarting: '🧠 ಏಜೆಂಟ್ ಪ್ರಾರಂಭವಾಗುತ್ತಿದೆ...',
+      statusInitMsg: 'ಇದಕ್ಕಾಗಿ 12-ಹಂತದ ಸ್ವಾಯತ್ತ ವರ್ಕ್‌ಫ್ಲೋ ಪ್ರಾರಂಭಿಸಲಾಗುತ್ತಿದೆ: ',
+      statusError: '❌ ದೋಷ',
+      statusAgentErr: '❌ ಏಜೆಂಟ್ ದೋಷ'
+    },
+    'Malayalam': {
+      heroTitle: 'ഏത് ആശയത്തെയും<br/><span>പൂർണ്ണ സ്റ്റാർട്ടപ്പാക്കി</span> മാറ്റുക',
+      heroSub: 'ഞങ്ങളുടെ AI ഏജൻ്റ് സ്വയംഭരണാധികാരത്തോടെ വിപണികളെക്കുറിച്ച് ഗവേഷണം നടത്തുന്നു, എതിരാളികളെ വിശകലനം ചെയ്യുന്നു, വിടവുകൾ കണ്ടെത്തുന്നു, മനുഷ്യൻ്റെ ഇടപെടലില്ലാതെ പൂർണ്ണമായ ബിസിനസ്സ് പ്ലാൻ തയ്യാറാക്കുന്നു.',
+      inputLabel: '💬 നിങ്ങളുടെ സ്റ്റാർട്ടപ്പ് ആശയം',
+      inputPlaceholder: 'ഉദാഹരണത്തിന്, കർഷകർക്കുള്ള AI ആപ്പ്, സ്മാർട്ട് മാലിന്യ സംസ്കരണ പ്ലാറ്റ്ഫോം...',
+      generateBtn: '⚡ സൃഷ്ടിക്കുക',
+      chipLabel: 'ശ്രമിക്കുക:',
+      agentLogTitle: 'ഏജൻ്റ് എക്സിക്യൂഷൻ ലോഗ്',
+      historyTitle: 'ചരിത്രം',
+      refreshBtn: 'റിഫ്രഷ് ചെയ്യുക',
+      emptyHistory: 'ഇതുവരെ സ്റ്റാർട്ടപ്പ് പ്ലാനുകളൊന്നും സൃഷ്ടിച്ചിട്ടില്ല. മുകളിൽ നിങ്ങളുടെ ആദ്യത്തേത് സൃഷ്ടിക്കുക!',
+      micUnsupported: 'ഈ ബ്രൗസറിൽ മൈക്രോഫോൺ പിന്തുണയ്ക്കുന്നില്ല.',
+      statusStarting: '🧠 ഏജൻ്റ് ആരംഭിക്കുന്നു...',
+      statusInitMsg: 'ഇതിനായി 12-ഘട്ട സ്വയംഭരണ വർക്ക്ഫ്ലോ ആരംഭിക്കുന്നു: ',
+      statusError: '❌ പിശക്',
+      statusAgentErr: '❌ ഏജൻ്റ് പിശക്'
+    },
+    'Marathi': {
+      heroTitle: 'कोणतीही कल्पना<br/><span>पूर्ण स्टार्टअप</span> मध्ये बदला',
+      heroSub: 'आमचा AI एजंट स्वायत्तपणे बाजारांचे संशोधन करतो, प्रतिस्पर्ध्यांचे विश्लेषण करतो, अंतर ओळखतो आणि मानवी हस्तक्षेपाशिवाय संपूर्ण व्यवसाय योजना तयार करतो.',
+      inputLabel: '💬 तुमची स्टार्टअप कल्पना',
+      inputPlaceholder: 'उदा., शेतकऱ्यांसाठी AI ॲप, स्मार्ट कचरा व्यवस्थापन प्लॅटफॉर्म...',
+      generateBtn: '⚡ तयार करा',
+      chipLabel: 'प्रयत्न करा:',
+      agentLogTitle: 'एजंट एक्झिक्यूशन लॉग',
+      historyTitle: 'इतिहास',
+      refreshBtn: 'रिफ्रेश करा',
+      emptyHistory: 'अद्याप कोणतीही स्टार्टअप योजना तयार केलेली नाही. वर तुमची पहिली योजना तयार करा!',
+      micUnsupported: 'या ब्राउझरमध्ये मायक्रोफोन समर्थित नाही.',
+      statusStarting: '🧠 एजंट सुरू होत आहे...',
+      statusInitMsg: 'यासाठी 12-टप्प्यांची स्वायत्त वर्कफ्लो सुरू केली जात आहे: ',
+      statusError: '❌ त्रुटी',
+      statusAgentErr: '❌ एजंट त्रुटी'
+    }
+  };
+
+  let currentLang = 'English';
+
+  function initLanguage() {
+    let savedLang = localStorage.getItem('selectedLanguage');
+    if (!savedLang) {
+      const browserLang = navigator.language;
+      const localeMatch = Object.entries(langMap).find(([name, locale]) => browserLang.startsWith(locale.split('-')[0]));
+      savedLang = localeMatch ? localeMatch[0] : 'English';
+    }
+    currentLang = savedLang;
+    const select = document.getElementById('langSelect');
+    if (select) select.value = currentLang;
+    applyTranslations();
+  }
+
+  function onLanguageChange() {
+    const select = document.getElementById('langSelect');
+    currentLang = select.value;
+    localStorage.setItem('selectedLanguage', currentLang);
+    applyTranslations();
+    if (recognition) {
+        recognition.lang = langMap[currentLang];
+    }
+  }
+
+  function applyTranslations() {
+    const t = translations[currentLang] || translations['English'];
+    const safeHtml = (id, html) => { const el = document.getElementById(id); if (el) el.innerHTML = html; };
+    const safeText = (id, text) => { const el = document.getElementById(id); if (el) el.textContent = text; };
+    
+    safeHtml('hero-title', t.heroTitle);
+    safeText('hero-sub', t.heroSub);
+    safeText('input-label', t.inputLabel);
+    
+    const input = document.getElementById('ideaInput');
+    if (input && !isRecording) input.placeholder = t.inputPlaceholder;
+    
+    safeHtml('generateBtn', t.generateBtn);
+    safeText('chip-label', t.chipLabel);
+    safeText('agent-log-title', t.agentLogTitle);
+    safeText('history-title', t.historyTitle);
+    safeText('history-refresh', t.refreshBtn);
+    
+    const emptyEl = document.getElementById('empty-history');
+    if (emptyEl) emptyEl.textContent = t.emptyHistory;
+  }
+
+  // --- Voice Input ---
+  const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+  let recognition = null;
+  let isRecording = false;
+
+  if (SpeechRecognition) {
+    recognition = new SpeechRecognition();
+    recognition.continuous = false;
+    recognition.interimResults = true;
+    
+    recognition.onstart = () => {
+      isRecording = true;
+      document.getElementById('micBtn').classList.add('recording');
+      document.getElementById('ideaInput').placeholder = 'Listening...';
+    };
+    
+    recognition.onresult = (event) => {
+      let interimTranscript = '';
+      let finalTranscript = '';
+      
+      for (let i = event.resultIndex; i < event.results.length; ++i) {
+        if (event.results[i].isFinal) {
+          finalTranscript += event.results[i][0].transcript;
+        } else {
+          interimTranscript += event.results[i][0].transcript;
+        }
+      }
+      
+      const input = document.getElementById('ideaInput');
+      if (finalTranscript) {
+         input.value = finalTranscript;
+      } else if (interimTranscript) {
+         input.value = interimTranscript;
+      }
+    };
+    
+    recognition.onerror = (event) => {
+      console.error('Speech recognition error', event.error);
+      stopRecording();
+    };
+    
+    recognition.onend = () => {
+      stopRecording();
+    };
+  }
+
+  function toggleRecording() {
+    if (!SpeechRecognition) {
+      alert(translations[currentLang].micUnsupported || translations['English'].micUnsupported);
+      return;
+    }
+    
+    if (isRecording) {
+      stopRecording();
+    } else {
+      recognition.lang = langMap[currentLang];
+      recognition.start();
+    }
+  }
+
+  function stopRecording() {
+    if (recognition && isRecording) {
+      recognition.stop();
+    }
+    isRecording = false;
+    document.getElementById('micBtn').classList.remove('recording');
+    const t = translations[currentLang] || translations['English'];
+    document.getElementById('ideaInput').placeholder = t.inputPlaceholder;
+  }
+
   // ── State ──
   let isGenerating = false;
   let currentEventSource = null;
@@ -990,13 +1297,14 @@
     document.getElementById('progressFill').style.width = '0%';
     document.getElementById('pulseIndicator').classList.remove('idle');
 
+    const t = translations[currentLang] || translations['English'];
     const resultsPanel = document.getElementById('resultsPanel');
     resultsPanel.innerHTML = `
       <div class="status-card" id="statusCard">
         <div class="status-spinner" id="statusSpinner"></div>
         <div class="status-text">
-          <h4 id="statusTitle">🧠 Agent Starting...</h4>
-          <p id="statusMsg">Initializing 12-step autonomous workflow for: "${idea}"</p>
+          <h4 id="statusTitle">${t.statusStarting}</h4>
+          <p id="statusMsg">${t.statusInitMsg} "${idea}"</p>
         </div>
       </div>
     `;
@@ -1008,7 +1316,7 @@
       const response = await fetch('/api/generate', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ idea }),
+        body: JSON.stringify({ idea, language: currentLang }),
       });
 
       if (!response.ok) {
@@ -1039,7 +1347,8 @@
       }
     } catch (err) {
       console.error(err);
-      updateStatus('❌ Error', err.message || 'Something went wrong. Check your API key and try again.');
+      const t = translations[currentLang] || translations['English'];
+      updateStatus(t.statusError, err.message || 'Something went wrong. Check your API key and try again.');
       document.getElementById('pulseIndicator').classList.add('idle');
     } finally {
       isGenerating = false;
@@ -1117,7 +1426,8 @@
         break;
 
       case 'error':
-        updateStatus('❌ Agent Error', event.message);
+        const tr = translations[currentLang] || translations['English'];
+        updateStatus(tr.statusAgentErr, event.message);
         document.getElementById('pulseIndicator').classList.add('idle');
         break;
     }
@@ -1213,7 +1523,8 @@
     if (e.key === 'Enter') startGeneration();
   });
 
-  // ── Load history on page load ──
+  // ── Init language and load history ──
+  initLanguage();
   loadHistory();
 </script>
 </body>

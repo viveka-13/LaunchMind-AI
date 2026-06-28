@@ -56,8 +56,9 @@ app.add_middleware(
 
 class IdeaRequest(BaseModel):
     idea: str
+    language: str = "English"
 
-    model_config = {"json_schema_extra": {"example": {"idea": "AI app for farmers"}}}
+    model_config = {"json_schema_extra": {"example": {"idea": "AI app for farmers", "language": "English"}}}
 
 
 # ─────────────────────────────────────────────
@@ -92,10 +93,10 @@ async def generate_startup_plan(request: IdeaRequest):
     async def event_generator():
         """Async generator that yields SSE events from the agent."""
         # Emit initial event
-        yield f"data: {json.dumps({'type': 'start', 'session_id': session_id, 'idea': idea})}\n\n"
+        yield f"data: {json.dumps({'type': 'start', 'session_id': session_id, 'idea': idea, 'language': request.language})}\n\n"
 
         # Start the agent workflow in the background
-        task = asyncio.create_task(run_agent(idea, session_id))
+        task = asyncio.create_task(run_agent(idea, session_id, request.language))
 
         try:
             while True:
