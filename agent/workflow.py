@@ -26,6 +26,7 @@ from agent.prompts import (
     PITCH_PROMPT,
     COMPILE_PROMPT,
 )
+from agent.ppt_generator import generate_pitch_deck_ppt
 
 # ─────────────────────────────────────────────
 # Global event queue registry (per session)
@@ -615,6 +616,15 @@ async def node_save_plan(state: StartupState) -> dict:
         state["idea"],
         plan_data["startup_title"],
         plan_data,
+    )
+
+    # Generate PPT
+    ppt_path = f"./data/presentations/{state['plan_id']}.pptx"
+    await loop.run_in_executor(
+        None,
+        generate_pitch_deck_ppt,
+        plan_data,
+        ppt_path
     )
 
     # Emit the complete final plan

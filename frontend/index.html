@@ -1230,7 +1230,10 @@
     titleCard.className = 'result-card full card-cyan';
     titleCard.innerHTML = `
       <div class="card-label"><span class="card-label-icon">🚀</span>Startup Name</div>
-      <div class="card-title">${plan.startup_title || 'Your Startup'}</div>
+      <div style="display:flex; justify-content:space-between; align-items:flex-start;">
+        <div class="card-title" style="margin:0;">${plan.startup_title || 'Your Startup'}</div>
+        <a href="/api/download_ppt/${plan.id}" class="generate-btn" style="text-decoration:none; padding:0.5rem 1rem; font-size:0.9rem; width:auto; display:inline-flex; border-radius:0.5rem;"><span class="btn-text">📥 Download PPT</span></a>
+      </div>
       <div class="card-content" style="margin-top:12px;">${plan.problem_statement || ''}</div>
     `;
     panel.insertBefore(titleCard, panel.firstChild.nextSibling);
@@ -1416,6 +1419,7 @@
         break;
 
       case 'complete':
+        event.plan.id = event.plan_id;
         renderFinalPlan(event.plan);
         break;
 
@@ -1494,7 +1498,10 @@
     }).join('');
 
     document.getElementById('modalContent').innerHTML = `
-      <div class="modal-title">${plan.startup_title || 'Startup Plan'}</div>
+      <div style="display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:1rem;">
+        <div class="modal-title" style="margin:0;">${plan.startup_title || 'Startup Plan'}</div>
+        <a href="/api/download_ppt/${plan.id}" class="generate-btn" style="text-decoration:none; padding:0.5rem 1rem; font-size:0.9rem; width:auto; margin:0;"><span class="btn-text">📥 Download PPT</span></a>
+      </div>
       <div class="modal-idea">💡 Original idea: ${plan.idea} &nbsp;·&nbsp; ${formatDate(plan.created_at)}</div>
       ${content}
     `;

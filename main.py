@@ -9,7 +9,7 @@ from pathlib import Path
 from dotenv import load_dotenv
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import StreamingResponse, HTMLResponse
+from fastapi.responses import StreamingResponse, HTMLResponse, FileResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 
@@ -147,6 +147,15 @@ async def get_idea(plan_id: str):
     if not plan:
         raise HTTPException(status_code=404, detail="Plan not found.")
     return plan
+
+
+@app.get("/api/download_ppt/{plan_id}")
+async def download_ppt(plan_id: str):
+    """Download the generated PowerPoint pitch deck."""
+    file_path = f"./data/presentations/{plan_id}.pptx"
+    if not os.path.exists(file_path):
+        raise HTTPException(status_code=404, detail="PPT not found.")
+    return FileResponse(file_path, media_type="application/vnd.openxmlformats-officedocument.presentationml.presentation", filename=f"Startup_Pitch_{plan_id}.pptx")
 
 
 @app.get("/api/health")
