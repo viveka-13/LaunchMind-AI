@@ -20,7 +20,7 @@ load_dotenv()
 
 # Validate API key
 if not os.getenv("GROQ_API_KEY"):
-    print("⚠️  WARNING: GROQ_API_KEY not set. Please create a .env file.")
+    print("[WARNING] GROQ_API_KEY not set. Please create a .env file.")
 
 # Initialize database on startup
 from agent.memory import init_database, get_all_plans, get_plan_by_id
@@ -177,9 +177,9 @@ if __name__ == "__main__":
 
     port = int(os.getenv("PORT", 8000))
     print("\n" + "=" * 55)
-    print("  🚀  AutoStartup AI — Starting Server")
-    print(f"  🌐  Open: http://localhost:{port}")
-    print(f"  📖  API Docs: http://localhost:{port}/docs")
+    print("  [*]  AutoStartup AI -- Starting Server")
+    print(f"  [>]  Open: http://localhost:{port}")
+    print(f"  [?]  API Docs: http://localhost:{port}/docs")
     print("=" * 55 + "\n")
 
     uvicorn.run(

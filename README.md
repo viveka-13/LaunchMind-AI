@@ -5,23 +5,6 @@ Built with **LangGraph**, **Claude AI**, **ChromaDB**, and **FastAPI**.
 
 ---
 
-## ✅ Hackathon Requirements Satisfied
-
-| Requirement | Implementation |
-|---|---|
-| Autonomous AI Agent | LangGraph 12-step workflow, zero human intervention |
-| Task Decomposition | Node 1: breaks idea into 10 subtasks via LLM |
-| Tool Selection | `select_tool()` in tools.py picks the right search tool |
-| Contextual Memory | ChromaDB vector DB + SQLite persistent storage |
-| Multi-step Workflow | 12 sequential LangGraph nodes |
-| Minimal Human Intervention | User inputs idea → full plan auto-generated |
-| LLM Usage | Anthropic Claude (claude-haiku) for reasoning |
-| RAG Retrieval | ChromaDB stores research, retrieves context for each step |
-| Tool Calling / Function Calling | DuckDuckGo search called as tools from agent nodes |
-| Planning & Orchestration | LangGraph StateGraph orchestrates all steps |
-
----
-
 ## 📁 Project Structure
 
 ```
@@ -255,4 +238,4 @@ For issues or questions, please open a GitHub issue or reach out.
 
 ---
 
-**Built with ❤️ for hackathons and startup builders**
+**Built with ❤️ for startup builders**
