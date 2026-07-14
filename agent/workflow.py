@@ -27,6 +27,9 @@ from agent.prompts import (
     COMPILE_PROMPT,
 )
 from agent.ppt_generator import generate_pitch_deck_ppt
+from agent.word_generator import generate_business_plan_word
+from agent.pdf_generator import generate_business_plan_pdf
+from agent.image_service import fetch_images_for_startup, generate_flowchart
 
 # ─────────────────────────────────────────────
 # Global event queue registry (per session)
@@ -63,6 +66,8 @@ class StartupState(TypedDict):
     target_audience: str
     executive_summary: str
     language: str
+    doc_format: str
+    images: List[str]
 
 
 # ─────────────────────────────────────────────
@@ -577,18 +582,20 @@ Roadmap: {state['implementation_roadmap'][:300]}
 
 async def node_save_plan(state: StartupState) -> dict:
     """
-    Node 12: Save to SQLite Memory
-    Persists the complete plan to the database.
-    Demonstrates: Contextual memory, multi-step workflow completion
+    Node 12: Save to SQLite Memory & Generate Documents
+    Routes to PPT, PDF, or Word generator based on doc_format.
+    Also fetches Pexels images and a system flowchart for embedding.
     """
     sid = state["session_id"]
+    doc_format = state.get("doc_format", "ppt")
+
     await emit(sid, {
         "type": "step",
         "step": 12,
         "total": 12,
-        "icon": "✅",
-        "title": "Saving to Memory & Finalizing",
-        "message": "Storing complete plan in SQLite. Workflow complete!",
+        "icon": "[OK]",
+        "title": f"Saving Plan & Generating {doc_format.upper()} Document",
+        "message": "Storing complete plan in SQLite. Generating your professional document...",
     })
 
     plan_data = {
@@ -606,9 +613,12 @@ async def node_save_plan(state: StartupState) -> dict:
         "pitch_deck_outline": state.get("pitch_deck_outline", ""),
         "executive_summary": state.get("executive_summary", ""),
         "tasks": state.get("tasks", []),
+        "doc_format": doc_format,
     }
 
     loop = asyncio.get_event_loop()
+
+    # Persist plan to SQLite
     await loop.run_in_executor(
         None,
         save_startup_plan,
@@ -618,16 +628,40 @@ async def node_save_plan(state: StartupState) -> dict:
         plan_data,
     )
 
-    # Generate PPT
-    ppt_path = f"./data/presentations/{state['plan_id']}.pptx"
-    await loop.run_in_executor(
-        None,
-        generate_pitch_deck_ppt,
-        plan_data,
-        ppt_path
-    )
+    # ── Phase 4: Fetch images from Pexels (non-blocking) ──
+    images = []
+    flowchart_path = None
+    try:
+        images = await loop.run_in_executor(
+            None, fetch_images_for_startup, state["idea"], 3
+        )
+        flowchart_path = await loop.run_in_executor(
+            None, generate_flowchart, state["plan_id"]
+        )
+    except Exception as e:
+        print(f"[Workflow] Image/flowchart fetch failed (non-fatal): {e}")
 
-    # Emit the complete final plan
+    os.makedirs("./data/documents", exist_ok=True)
+    os.makedirs("./data/presentations", exist_ok=True)
+
+    # ── Phase 5: Route to correct document generator ──
+    if doc_format == "word":
+        doc_path = f"./data/documents/{state['plan_id']}.docx"
+        await loop.run_in_executor(
+            None, generate_business_plan_word, plan_data, doc_path, images, flowchart_path
+        )
+    elif doc_format == "pdf":
+        doc_path = f"./data/documents/{state['plan_id']}.pdf"
+        await loop.run_in_executor(
+            None, generate_business_plan_pdf, plan_data, doc_path, images, flowchart_path
+        )
+    else:  # default: ppt
+        ppt_path = f"./data/presentations/{state['plan_id']}.pptx"
+        await loop.run_in_executor(
+            None, generate_pitch_deck_ppt, plan_data, ppt_path, images, flowchart_path
+        )
+
+    # Emit the complete final plan (include doc_format so frontend shows right button)
     await emit(sid, {
         "type": "complete",
         "plan_id": state["plan_id"],
@@ -637,7 +671,7 @@ async def node_save_plan(state: StartupState) -> dict:
     # Signal end of stream
     await emit(sid, None)
 
-    return {}
+    return {"images": images}
 
 
 # ─────────────────────────────────────────────
@@ -688,7 +722,7 @@ agent_graph = build_graph()
 # Main entry point for running the agent
 # ─────────────────────────────────────────────
 
-async def run_agent(idea: str, session_id: str, language: str = "English"):
+async def run_agent(idea: str, session_id: str, language: str = "English", doc_format: str = "ppt"):
     """
     Run the full 12-step autonomous agent workflow.
     Events are streamed via the global event_queues dict.
@@ -712,6 +746,8 @@ async def run_agent(idea: str, session_id: str, language: str = "English"):
         "target_audience": "",
         "executive_summary": "",
         "language": language,
+        "doc_format": doc_format,
+        "images": [],
     }
 
     try:

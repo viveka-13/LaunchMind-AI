@@ -1,7 +1,15 @@
-# 🚀 LaunchMind-AI— Autonomous Startup Generator
+# 🚀 LaunchMind-AI — Autonomous Startup Generator
 
-An autonomous AI agent that takes a startup idea and generates a complete business plan.
+An autonomous AI agent that takes a startup idea and generates a complete, professional business plan.
 Built with **LangGraph**, **Claude AI**, **ChromaDB**, and **FastAPI**.
+
+## ✨ Key Features
+
+- **Autonomous Agent Workflow**: Decomposes an idea into 10 subtasks and researches them using web tools.
+- **RAG Memory**: Uses ChromaDB to store and retrieve research context during generation.
+- **Multi-Format Export**: Generates professional documents in **PowerPoint (PPTX)**, **PDF**, and **Word (DOCX)** formats.
+- **Auto-Embedded Images**: Integrates with the **Pexels API** to automatically find and embed high-quality, relevant images into your generated documents.
+- **System Architecture Flowcharts**: Automatically designs and generates a system architecture flowchart for your app/startup using Mermaid.ink.
 
 ---
 
@@ -17,18 +25,23 @@ autostartup-ai/
 │   ├── workflow.py         # LangGraph 12-node agent graph
 │   ├── tools.py            # DuckDuckGo search tools
 │   ├── memory.py           # ChromaDB (RAG) + SQLite memory
+│   ├── image_service.py    # Pexels API & Mermaid flowchart generator
+│   ├── ppt_generator.py    # Generates PPTX pitch decks
+│   ├── pdf_generator.py    # Generates PDF business plans
+│   ├── word_generator.py   # Generates DOCX business plans
 │   └── prompts.py          # All LLM prompts
 ├── frontend/
-│   └── index.html          # Complete web UI
-└── data/                   # Auto-created: chroma_db + SQLite
+│   └── index.html          # Complete web UI with format selector
+└── data/                   # Auto-created: chroma_db + SQLite + images
 ```
 
 ---
 
 ## ⚡ Quick Start
 
-### Step 1 — Get API Key
-Get a free Anthropic API key at: https://console.anthropic.com
+### Step 1 — Get API Keys
+1. Get a free Anthropic API key at: https://console.anthropic.com
+2. Get a free Pexels API key at: https://www.pexels.com/api/ *(Required for auto-embedding images)*
 
 ### Step 2 — Setup Environment
 ```bash
@@ -54,61 +67,33 @@ cp .env.example .env
 
 ### Step 3 — Add Your API Keys
 Edit `.env` and add:
-```
-ANTHROPIC_API_KEY=your-api-key-here
+```env
+ANTHROPIC_API_KEY=your_anthropic_api_key_here
+PEXELS_API_KEY=your_pexels_api_key_here
 ```
 
 ### Step 4 — Run the Server
 ```bash
-uvicorn main:app --reload
+python main.py
 ```
 
 Visit `http://localhost:8000` to access the web interface.
 
 ---
 
-## 🔧 API Endpoints
-
-- `POST /generate-startup` - Generate startup plan from idea
-- `GET /` - Serve web UI
-- Server-Sent Events (SSE) streaming for real-time updates
-
----
-
 ## 💡 How It Works
 
-1. **User Input**: Submit a startup idea
-2. **Task Decomposition**: AI breaks it into 10 subtasks
-3. **Research Phase**: Agent researches each subtask using DuckDuckGo
-4. **Vector DB Storage**: Results stored in ChromaDB for retrieval
-5. **Plan Generation**: AI synthesizes research into comprehensive business plan
-6. **Streaming Response**: Results streamed to frontend in real-time
+1. **User Input**: Submit a startup idea and select your desired output format (PPT, PDF, Word).
+2. **Task Decomposition**: AI breaks the idea into 10 subtasks.
+3. **Research Phase**: Agent researches each subtask using DuckDuckGo.
+4. **Vector DB Storage**: Results stored in ChromaDB for retrieval.
+5. **Asset Generation**: Fetches relevant images via Pexels and generates a system flowchart.
+6. **Plan Generation**: AI synthesizes research into a comprehensive business plan document.
+7. **Streaming Response**: Progress is streamed to the frontend in real-time until the download is ready.
 
 ---
 
-## 📚 Dependencies Overview
-```bash
-cp .env.example .env
-# Edit .env and add your ANTHROPIC_API_KEY
-```
-
-### Step 3 — Install & Run
-```bash
-python -m venv venv
-source venv/bin/activate   # Windows: venv\Scripts\activate
-pip install -r requirements.txt
-python main.py
-$env:GROQ_API_KEY='paste_your_new_key_here'
-```
-
-### Step 4 — Open Browser
-```
-http://localhost:8000
-```
-
----
-
-## 🧠 How the Agent Works
+## 🧠 The Agent Graph
 
 ```
 User Idea
@@ -147,24 +132,11 @@ Node 10: Generate Pitch Deck → LLM
 Node 11: Compile Full Plan → LLM synthesis
     │
     ▼
-Node 12: Save to SQLite → persistent history
+Node 12: Save Plan & Assets → Fetch Images, Generate Flowchart, Create PPT/PDF/Word
     │
     ▼
-Complete Business Plan → displayed in UI
+Complete Business Document → Ready for download!
 ```
-
----
-
-## 💡 Example Startup Ideas to Test
-
-1. `AI app for farmers`
-2. `smart waste management platform`
-3. `AI career guidance for graduates`
-4. `mental health app for teenagers`
-5. `hyperlocal food delivery startup`
-6. `EdTech platform for rural students`
-7. `AI legal assistant for small businesses`
-8. `sustainable fashion marketplace`
 
 ---
 
@@ -172,10 +144,12 @@ Complete Business Plan → displayed in UI
 
 - **Backend**: Python, FastAPI, Server-Sent Events
 - **AI Agent**: LangGraph (StateGraph), LangChain
-- **LLM**: Anthropic Claude (claude-haiku)
+- **LLM**: Anthropic Claude
 - **Vector DB**: ChromaDB (local, persistent)
 - **Web Search**: DuckDuckGo (free, no API key)
 - **Memory**: SQLite (history) + ChromaDB (RAG)
+- **Asset APIs**: Pexels API (Images), Mermaid.ink (Flowcharts)
+- **Document Gen**: `python-pptx`, `fpdf2`, `python-docx`
 - **Frontend**: Vanilla HTML/CSS/JS
 
 ---
@@ -188,19 +162,17 @@ Complete Business Plan → displayed in UI
 | `/api/generate` | POST | Start agent (SSE stream) |
 | `/api/history` | GET | All previous plans |
 | `/api/idea/{id}` | GET | Specific plan details |
-| `/api/health` | GET | Health check |
+| `/api/download_ppt/{id}` | GET | Download generated PPTX |
+| `/api/download_pdf/{id}` | GET | Download generated PDF |
+| `/api/download_word/{id}` | GET | Download generated DOCX |
 | `/docs` | GET | Interactive API docs |
 
 ---
 
 ## ❓ Troubleshooting
 
-### Issue: "ANTHROPIC_API_KEY not found"
-**Solution**: Make sure you've created `.env` file and added your API key:
-```bash
-cp .env.example .env
-# Then edit .env and add your key
-```
+### Issue: Images aren't showing up in my documents
+**Solution**: Ensure you have added `PEXELS_API_KEY` to your `.env` file. If the key is missing or invalid, the app will gracefully skip image generation.
 
 ### Issue: "Port 8000 is already in use"
 **Solution**: Run on a different port:
@@ -220,22 +192,3 @@ rm -rf data/
 ## 📝 License
 
 MIT License - feel free to use this project for personal or commercial purposes.
-
----
-
-## 🤝 Contributing
-
-Contributions are welcome! Feel free to:
-- Report bugs
-- Suggest features
-- Submit pull requests
-
----
-
-## 📧 Support
-
-For issues or questions, please open a GitHub issue or reach out.
-
----
-
-**Built with ❤️ for startup builders**

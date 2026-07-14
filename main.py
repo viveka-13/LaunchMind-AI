@@ -57,8 +57,9 @@ app.add_middleware(
 class IdeaRequest(BaseModel):
     idea: str
     language: str = "English"
+    doc_format: str = "ppt"
 
-    model_config = {"json_schema_extra": {"example": {"idea": "AI app for farmers", "language": "English"}}}
+    model_config = {"json_schema_extra": {"example": {"idea": "AI app for farmers", "language": "English", "doc_format": "ppt"}}}
 
 
 # ─────────────────────────────────────────────
@@ -96,7 +97,7 @@ async def generate_startup_plan(request: IdeaRequest):
         yield f"data: {json.dumps({'type': 'start', 'session_id': session_id, 'idea': idea, 'language': request.language})}\n\n"
 
         # Start the agent workflow in the background
-        task = asyncio.create_task(run_agent(idea, session_id, request.language))
+        task = asyncio.create_task(run_agent(idea, session_id, request.language, request.doc_format))
 
         try:
             while True:
@@ -156,6 +157,24 @@ async def download_ppt(plan_id: str):
     if not os.path.exists(file_path):
         raise HTTPException(status_code=404, detail="PPT not found.")
     return FileResponse(file_path, media_type="application/vnd.openxmlformats-officedocument.presentationml.presentation", filename=f"Startup_Pitch_{plan_id}.pptx")
+
+
+@app.get("/api/download_pdf/{plan_id}")
+async def download_pdf(plan_id: str):
+    """Download the generated PDF business plan."""
+    file_path = f"./data/documents/{plan_id}.pdf"
+    if not os.path.exists(file_path):
+        raise HTTPException(status_code=404, detail="PDF not found.")
+    return FileResponse(file_path, media_type="application/pdf", filename=f"Startup_Plan_{plan_id}.pdf")
+
+
+@app.get("/api/download_word/{plan_id}")
+async def download_word(plan_id: str):
+    """Download the generated Word document business plan."""
+    file_path = f"./data/documents/{plan_id}.docx"
+    if not os.path.exists(file_path):
+        raise HTTPException(status_code=404, detail="Word Document not found.")
+    return FileResponse(file_path, media_type="application/vnd.openxmlformats-officedocument.wordprocessingml.document", filename=f"Startup_Plan_{plan_id}.docx")
 
 
 @app.get("/api/health")

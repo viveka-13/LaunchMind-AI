@@ -107,7 +107,7 @@
     .badge-purple { color: var(--purple); border-color: rgba(168,85,247,0.3); background: rgba(168,85,247,0.05); }
     .badge-amber { color: var(--amber); border-color: rgba(245,158,11,0.3); background: rgba(245,158,11,0.05); }
 
-    .lang-select {
+    .lang-select, .format-select {
       background: var(--surface2);
       color: var(--cyan);
       border: 1px solid rgba(0,229,255,0.3);
@@ -120,7 +120,7 @@
       outline: none;
       cursor: pointer;
     }
-    .lang-select option {
+    .lang-select option, .format-select option {
       background: var(--surface);
       color: var(--text-bright);
     }
@@ -796,6 +796,11 @@
         maxlength="300"
         autocomplete="off"
       />
+      <select id="formatSelect" class="format-select" title="Output Format">
+        <option value="ppt">PPT</option>
+        <option value="pdf">PDF</option>
+        <option value="word">Word</option>
+      </select>
       <button id="micBtn" class="mic-btn" onclick="toggleRecording()" title="Voice Input">🎤</button>
       <button class="btn-generate" id="generateBtn" onclick="startGeneration()">
         ⚡ Generate
@@ -1225,6 +1230,15 @@
   function renderFinalPlan(plan) {
     const panel = document.getElementById('resultsPanel');
 
+    let downloadEndpoint = `/api/download_ppt/${plan.id}`;
+    let downloadText = "📥 Download PPT";
+    if (plan.doc_format === 'pdf') { downloadEndpoint = `/api/download_pdf/${plan.id}`; downloadText = "📥 Download PDF"; }
+    if (plan.doc_format === 'word') { downloadEndpoint = `/api/download_word/${plan.id}`; downloadText = "📥 Download Word"; }
+        
+    const actionBtnHtml = `
+    <a href="${downloadEndpoint}" class="generate-btn" style="text-decoration:none; padding:0.5rem 1rem; font-size:0.9rem; width:auto; display:inline-flex; border-radius:0.5rem;"><span class="btn-text">${downloadText}</span></a>
+    `;
+
     // Title + Problem card
     const titleCard = document.createElement('div');
     titleCard.className = 'result-card full card-cyan';
@@ -1232,7 +1246,7 @@
       <div class="card-label"><span class="card-label-icon">🚀</span>Startup Name</div>
       <div style="display:flex; justify-content:space-between; align-items:flex-start;">
         <div class="card-title" style="margin:0;">${plan.startup_title || 'Your Startup'}</div>
-        <a href="/api/download_ppt/${plan.id}" class="generate-btn" style="text-decoration:none; padding:0.5rem 1rem; font-size:0.9rem; width:auto; display:inline-flex; border-radius:0.5rem;"><span class="btn-text">📥 Download PPT</span></a>
+        ${actionBtnHtml}
       </div>
       <div class="card-content" style="margin-top:12px;">${plan.problem_statement || ''}</div>
     `;
@@ -1286,16 +1300,19 @@
 
   // ── Main Generation Function ──
   async function startGeneration() {
-    const idea = document.getElementById('ideaInput').value.trim();
-    if (!idea) {
-      document.getElementById('ideaInput').focus();
-      return;
-    }
-    if (isGenerating) return;
-    isGenerating = true;
+    const input = document.getElementById('ideaInput');
+    const idea = input.value.trim();
+    if(!idea) return;
+
+    const lang = document.getElementById('langSelect').value;
+    const docFormat = document.getElementById('formatSelect').value;
+    const generateBtn = document.getElementById('generateBtn');
+    
+    // Reset state
+    input.disabled = true;
+    generateBtn.disabled = true;
 
     // Reset UI
-    document.getElementById('generateBtn').disabled = true;
     document.getElementById('stepsContainer').innerHTML = '';
     document.getElementById('progressFill').style.width = '0%';
     document.getElementById('pulseIndicator').classList.remove('idle');
@@ -1305,7 +1322,7 @@
     resultsPanel.innerHTML = `
       <div class="status-card" id="statusCard">
         <div class="status-spinner" id="statusSpinner"></div>
-        <div class="status-text">
+        <div class="status-text" id="statusText">
           <h4 id="statusTitle">${t.statusStarting}</h4>
           <p id="statusMsg">${t.statusInitMsg} "${idea}"</p>
         </div>
@@ -1319,7 +1336,7 @@
       const response = await fetch('/api/generate', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ idea, language: currentLang }),
+        body: JSON.stringify({ idea: idea, language: lang, doc_format: docFormat }),
       });
 
       if (!response.ok) {
