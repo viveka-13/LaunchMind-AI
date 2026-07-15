@@ -30,6 +30,7 @@ from agent.ppt_generator import generate_pitch_deck_ppt
 from agent.word_generator import generate_business_plan_word
 from agent.pdf_generator import generate_business_plan_pdf
 from agent.image_service import fetch_images_for_startup, generate_flowchart
+from agent.roadmap_generator import generate_roadmap_svg
 
 # ─────────────────────────────────────────────
 # Global event queue registry (per session)
@@ -660,6 +661,16 @@ async def node_save_plan(state: StartupState) -> dict:
         await loop.run_in_executor(
             None, generate_pitch_deck_ppt, plan_data, ppt_path, images, flowchart_path
         )
+
+    # ── Phase 6: Generate Business Roadmap SVG ──
+    os.makedirs("./data/roadmaps", exist_ok=True)
+    roadmap_path = f"./data/roadmaps/{state['plan_id']}.svg"
+    try:
+        await loop.run_in_executor(
+            None, generate_roadmap_svg, plan_data, roadmap_path
+        )
+    except Exception as e:
+        print(f"[Workflow] Roadmap SVG generation failed (non-fatal): {e}")
 
     # Emit the complete final plan (include doc_format so frontend shows right button)
     await emit(sid, {

@@ -1236,7 +1236,10 @@
     if (plan.doc_format === 'word') { downloadEndpoint = `/api/download_word/${plan.id}`; downloadText = "📥 Download Word"; }
         
     const actionBtnHtml = `
-    <a href="${downloadEndpoint}" class="generate-btn" style="text-decoration:none; padding:0.5rem 1rem; font-size:0.9rem; width:auto; display:inline-flex; border-radius:0.5rem;"><span class="btn-text">${downloadText}</span></a>
+    <div style="display:flex; gap: 8px;">
+      <a href="${downloadEndpoint}" class="generate-btn" style="text-decoration:none; padding:0.5rem 1rem; font-size:0.9rem; width:auto; display:inline-flex; border-radius:0.5rem;"><span class="btn-text">${downloadText}</span></a>
+      <a href="/api/download_roadmap/${plan.id}" class="generate-btn" style="text-decoration:none; padding:0.5rem 1rem; font-size:0.9rem; width:auto; display:inline-flex; border-radius:0.5rem; background: linear-gradient(135deg, var(--purple), var(--cyan)); color: #fff;"><span class="btn-text">🖼️ Download Roadmap</span></a>
+    </div>
     `;
 
     // Title + Problem card
@@ -1517,7 +1520,10 @@
     document.getElementById('modalContent').innerHTML = `
       <div style="display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:1rem;">
         <div class="modal-title" style="margin:0;">${plan.startup_title || 'Startup Plan'}</div>
-        <a href="/api/download_ppt/${plan.id}" class="generate-btn" style="text-decoration:none; padding:0.5rem 1rem; font-size:0.9rem; width:auto; margin:0;"><span class="btn-text">📥 Download PPT</span></a>
+        <div style="display:flex; gap: 8px;">
+          <a href="/api/download_ppt/${plan.id}" class="generate-btn" style="text-decoration:none; padding:0.5rem 1rem; font-size:0.9rem; width:auto; margin:0;"><span class="btn-text">📥 Download PPT</span></a>
+          <a href="/api/download_roadmap/${plan.id}" class="generate-btn" style="text-decoration:none; padding:0.5rem 1rem; font-size:0.9rem; width:auto; margin:0; background: linear-gradient(135deg, var(--purple), var(--cyan)); color: #fff;"><span class="btn-text">🖼️ Download Roadmap</span></a>
+        </div>
       </div>
       <div class="modal-idea">💡 Original idea: ${plan.idea} &nbsp;·&nbsp; ${formatDate(plan.created_at)}</div>
       ${content}

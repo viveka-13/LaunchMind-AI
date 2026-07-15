@@ -7,17 +7,33 @@ PEXELS_BASE_URL = "https://api.pexels.com/v1/search"
 
 
 def _get_query_from_idea(idea: str) -> str:
-    """Derives a good search query from the startup idea."""
-    idea_lower = idea.lower()
-    if any(kw in idea_lower for kw in ["ai", "robot", "machine learning", "deep learning"]): return "technology innovation"
-    if any(kw in idea_lower for kw in ["health", "medical", "hospital", "clinic"]): return "healthcare"
-    if any(kw in idea_lower for kw in ["food", "restaurant", "delivery", "meal"]): return "food technology"
-    if any(kw in idea_lower for kw in ["farm", "agri", "crop", "harvest"]): return "agriculture technology"
-    if any(kw in idea_lower for kw in ["finance", "fintech", "bank", "payment"]): return "finance technology"
-    if any(kw in idea_lower for kw in ["education", "learn", "school", "student"]): return "education technology"
-    if any(kw in idea_lower for kw in ["waste", "environment", "green", "solar"]): return "sustainability"
-    if any(kw in idea_lower for kw in ["mental", "wellness", "therapy"]): return "wellness"
-    return "startup business technology"
+    """
+    Derives a business-specific Pexels search query from the user's startup idea.
+    Strips generic filler words so the query targets the actual business niche.
+    Example: "AI-powered mental health app for teenagers" → "mental health teenagers"
+    Example: "smart coffee shop loyalty platform"        → "coffee shop loyalty"
+    """
+    import re
+    # Generic filler words that produce irrelevant stock photos
+    STRIP_WORDS = {
+        "ai", "app", "application", "platform", "system", "software", "tool",
+        "startup", "business", "smart", "powered", "based", "using", "for",
+        "the", "a", "an", "of", "and", "with", "in", "on", "to", "by",
+        "automated", "autonomous", "intelligent", "digital", "online",
+        "machine", "learning", "deep", "model", "saas", "web", "mobile",
+        "solution", "service", "services", "management", "generator",
+    }
+    # Clean: lowercase, remove punctuation, split
+    words = re.sub(r"[^a-zA-Z0-9\s]", " ", idea.lower()).split()
+    meaningful = [w for w in words if w not in STRIP_WORDS and len(w) > 1]
+
+    if len(meaningful) >= 2:
+        # Take up to the first 4 meaningful words for a focused query
+        return " ".join(meaningful[:4])
+    elif meaningful:
+        return meaningful[0]
+    # Ultimate fallback — use the raw idea trimmed
+    return idea.strip()[:40]
 
 
 def fetch_images_for_startup(idea: str, num_images: int = 3) -> list:
