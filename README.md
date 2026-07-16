@@ -8,8 +8,9 @@ Built with **LangGraph**, **Claude AI**, **ChromaDB**, and **FastAPI**.
 - **Autonomous Agent Workflow**: Decomposes an idea into 10 subtasks and researches them using web tools.
 - **RAG Memory**: Uses ChromaDB to store and retrieve research context during generation.
 - **Multi-Format Export**: Generates professional documents in **PowerPoint (PPTX)**, **PDF**, and **Word (DOCX)** formats.
-- **Auto-Embedded Images**: Integrates with the **Pexels API** to automatically find and embed high-quality, relevant images into your generated documents.
-- **System Architecture Flowcharts**: Automatically designs and generates a system architecture flowchart for your app/startup using Mermaid.ink.
+- **Intelligent Image Integration**: Intelligently extracts business-specific keywords from your startup idea to fetch highly relevant niche images via the **Pexels API**, seamlessly embedding them into all generated documents.
+- **Graphical Business Roadmap**: Programmatically designs and generates a beautiful, 15-stage timeline SVG graphic visualizing your execution roadmap from idea to final outcome.
+- **System Architecture Flowcharts**: Automatically designs and generates a system architecture flowchart for your app/startup.
 
 ---
 
@@ -25,7 +26,8 @@ autostartup-ai/
 │   ├── workflow.py         # LangGraph 12-node agent graph
 │   ├── tools.py            # DuckDuckGo search tools
 │   ├── memory.py           # ChromaDB (RAG) + SQLite memory
-│   ├── image_service.py    # Pexels API & Mermaid flowchart generator
+│   ├── image_service.py    # Pexels API & flowchart generator
+│   ├── roadmap_generator.py# Generates 15-stage SVG visual timelines
 │   ├── ppt_generator.py    # Generates PPTX pitch decks
 │   ├── pdf_generator.py    # Generates PDF business plans
 │   ├── word_generator.py   # Generates DOCX business plans
@@ -87,9 +89,9 @@ Visit `http://localhost:8000` to access the web interface.
 2. **Task Decomposition**: AI breaks the idea into 10 subtasks.
 3. **Research Phase**: Agent researches each subtask using DuckDuckGo.
 4. **Vector DB Storage**: Results stored in ChromaDB for retrieval.
-5. **Asset Generation**: Fetches relevant images via Pexels and generates a system flowchart.
-6. **Plan Generation**: AI synthesizes research into a comprehensive business plan document.
-7. **Streaming Response**: Progress is streamed to the frontend in real-time until the download is ready.
+5. **Asset Generation**: Intelligent Pexels queries fetch targeted business images, and the system generates architectural flowcharts and a 15-stage roadmap SVG.
+6. **Plan Generation**: AI synthesizes research into a comprehensive business plan document formatted perfectly as PPT, PDF, or Word.
+7. **Streaming Response**: Progress is streamed to the frontend in real-time until all downloads are ready.
 
 ---
 
@@ -132,7 +134,7 @@ Node 10: Generate Pitch Deck → LLM
 Node 11: Compile Full Plan → LLM synthesis
     │
     ▼
-Node 12: Save Plan & Assets → Fetch Images, Generate Flowchart, Create PPT/PDF/Word
+Node 12: Save Plan & Assets → Fetch Intelligent Images, Generate Flowchart, Generate Roadmap SVG, Create PPT/PDF/Word
     │
     ▼
 Complete Business Document → Ready for download!
@@ -165,6 +167,7 @@ Complete Business Document → Ready for download!
 | `/api/download_ppt/{id}` | GET | Download generated PPTX |
 | `/api/download_pdf/{id}` | GET | Download generated PDF |
 | `/api/download_word/{id}` | GET | Download generated DOCX |
+| `/api/download_roadmap/{id}` | GET | Download graphical Roadmap SVG |
 | `/docs` | GET | Interactive API docs |
 
 ---
