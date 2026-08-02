@@ -14,7 +14,10 @@ from langchain_groq import ChatGroq
 from langchain_core.messages import HumanMessage, SystemMessage
 from langgraph.graph import StateGraph, END
 
-from agent.tools import research_market, research_competitors, select_tool, AVAILABLE_TOOLS
+from agent.tools import (
+    research_market, research_competitors, select_tool, AVAILABLE_TOOLS,
+    search_crunchbase, search_google_trends, search_sentiment
+)
 from agent.memory import store_research, retrieve_similar, save_startup_plan
 from agent.prompts import (
     DECOMPOSE_PROMPT,
@@ -25,6 +28,12 @@ from agent.prompts import (
     ROADMAP_PROMPT,
     PITCH_PROMPT,
     COMPILE_PROMPT,
+)
+from agent.prompts_research_validation import (
+    RESEARCH_SYNTHESIS_PROMPT,
+    MARKET_SIZING_PROMPT,
+    COMPETITOR_SWOT_PROMPT,
+    DEVILS_ADVOCATE_PROMPT,
 )
 from agent.ppt_generator import generate_pitch_deck_ppt
 from agent.word_generator import generate_business_plan_word
@@ -63,6 +72,11 @@ class StartupState(TypedDict):
     implementation_roadmap: str
     pitch_deck_outline: str
     startup_title: str
+    research_by_source: dict
+    research_brief: str
+    market_sizing: str
+    competitor_swot: str
+    critique: str
     problem_statement: str
     target_audience: str
     executive_summary: str
@@ -103,8 +117,35 @@ async def llm_invoke(system_prompt: str, user_content: str, language: str = "Eng
     return response.content.strip()
 
 
+async def safe_json_parse(prompt: str, language: str = "English", system_prompt: str = "You are an AI assistant. Always respond with valid JSON only.") -> dict:
+    """
+    Helper to execute an LLM call and parse JSON safely.
+    Implements 1 retry if the initial JSON is malformed.
+    """
+    response_text = await llm_invoke(system_prompt, prompt, language)
+    
+    def extract_json(text):
+        clean = text.strip()
+        if clean.startswith("```json"):
+            clean = clean[7:]
+        if clean.endswith("```"):
+            clean = clean[:-3]
+        return clean.strip()
+        
+    try:
+        return json.loads(extract_json(response_text))
+    except Exception as e:
+        # Retry once
+        retry_prompt = f"{prompt}\n\nYOUR LAST RESPONSE WAS NOT VALID JSON. Return ONLY valid JSON this time. Error: {str(e)}"
+        retry_response = await llm_invoke(system_prompt, retry_prompt, language)
+        try:
+            return json.loads(extract_json(retry_response))
+        except Exception:
+            return {}
+
+
 # ─────────────────────────────────────────────
-# LangGraph Node Functions (12 steps)
+# LangGraph Node Functions (16 steps)
 # ─────────────────────────────────────────────
 
 async def node_decompose_idea(state: StartupState) -> dict:
@@ -117,7 +158,7 @@ async def node_decompose_idea(state: StartupState) -> dict:
     await emit(sid, {
         "type": "step",
         "step": 1,
-        "total": 12,
+        "total": 16,
         "icon": "🧠",
         "title": "Decomposing Idea into Subtasks",
         "message": f"Analyzing '{state['idea']}' and breaking it into research subtasks...",
@@ -171,7 +212,7 @@ async def node_research_market(state: StartupState) -> dict:
     await emit(sid, {
         "type": "step",
         "step": 2,
-        "total": 12,
+        "total": 16,
         "icon": "🔍",
         "title": "Researching Market",
         "message": f"Selecting tool: [{selected_tool}] → Searching market data for '{state['idea']}'...",
@@ -205,7 +246,7 @@ async def node_research_competitors(state: StartupState) -> dict:
     await emit(sid, {
         "type": "step",
         "step": 3,
-        "total": 12,
+        "total": 16,
         "icon": "⚔️",
         "title": "Analyzing Competitors",
         "message": f"Selecting tool: [{selected_tool}] → Finding competitors for '{state['idea']}'...",
@@ -235,8 +276,8 @@ async def node_store_research(state: StartupState) -> dict:
     sid = state["session_id"]
     await emit(sid, {
         "type": "step",
-        "step": 4,
-        "total": 12,
+        "step": 6,
+        "total": 16,
         "icon": "💾",
         "title": "Storing Research in Vector Memory",
         "message": "Embedding research data into ChromaDB for RAG retrieval...",
@@ -262,6 +303,98 @@ async def node_store_research(state: StartupState) -> dict:
     return {}
 
 
+async def node_synthesize_research(state: StartupState) -> dict:
+    """
+    Node 3.5a: Multi-Source Research Synthesizer
+    Aggregates DuckDuckGo, Crunchbase, Google Trends, and Sentiment data.
+    """
+    sid = state["session_id"]
+    await emit(sid, {
+        "type": "step",
+        "step": 4,
+        "total": 16,
+        "icon": "🧠",
+        "title": "Synthesizing Research",
+        "message": "Aggregating data from DuckDuckGo, Crunchbase, Google Trends, and Sentiment APIs...",
+    })
+
+    loop = asyncio.get_event_loop()
+    idea = state["idea"]
+    cb_data = await loop.run_in_executor(None, search_crunchbase, idea)
+    gt_data = await loop.run_in_executor(None, search_google_trends, idea)
+    sent_data = await loop.run_in_executor(None, search_sentiment, idea)
+
+    research_sources = {
+        "duckduckgo": state["market_research"] + "\n" + state["competitor_analysis"],
+        "crunchbase": cb_data,
+        "google_trends": gt_data,
+        "sentiment": sent_data,
+    }
+
+    prompt = RESEARCH_SYNTHESIS_PROMPT.format(
+        idea=idea,
+        duckduckgo=research_sources["duckduckgo"][:1000],
+        crunchbase=research_sources["crunchbase"],
+        google_trends=research_sources["google_trends"],
+        sentiment=research_sources["sentiment"],
+    )
+
+    brief = await safe_json_parse(prompt, state.get("language", "English"))
+    
+    brief_html = f"<b>Executive Summary:</b><br/>{brief.get('executive_summary', '')}<br/><br/>"
+    brief_html += "<b>Key Findings:</b><ul>"
+    for f in brief.get('key_findings', []): brief_html += f"<li>{f}</li>"
+    brief_html += "</ul><br/>"
+    brief_html += f"<b>Market Sentiment:</b> {brief.get('market_sentiment', '')}"
+    
+    await emit(sid, {
+        "type": "section",
+        "label": "Research Brief",
+        "content": brief_html,
+    })
+
+    return {"research_by_source": research_sources, "research_brief": json.dumps(brief, ensure_ascii=False)}
+
+
+async def node_competitor_swot(state: StartupState) -> dict:
+    """
+    Node 3.5b: Competitor Matrix & SWOT Analysis
+    """
+    sid = state["session_id"]
+    await emit(sid, {
+        "type": "step",
+        "step": 5,
+        "total": 16,
+        "icon": "📊",
+        "title": "Building Competitor Analysis",
+        "message": "Generating Competitor Matrix and SWOT Analysis...",
+    })
+
+    prompt = COMPETITOR_SWOT_PROMPT.format(
+        startup_idea=state["idea"],
+        research_brief=state.get("research_brief", "{}"),
+    )
+
+    swot_data = await safe_json_parse(prompt, state.get("language", "English"))
+
+    swot_html = "<b>Competitors:</b><ul>"
+    for c in swot_data.get('competitors', []):
+        swot_html += f"<li><b>{c.get('name', '')}</b>: {c.get('strengths', '')} / {c.get('weaknesses', '')}</li>"
+    swot_html += "</ul><br/><b>SWOT Analysis:</b><ul>"
+    swot_html += f"<li><b>Strengths:</b> {', '.join(swot_data.get('swot_analysis', {}).get('strengths', []))}</li>"
+    swot_html += f"<li><b>Weaknesses:</b> {', '.join(swot_data.get('swot_analysis', {}).get('weaknesses', []))}</li>"
+    swot_html += f"<li><b>Opportunities:</b> {', '.join(swot_data.get('swot_analysis', {}).get('opportunities', []))}</li>"
+    swot_html += f"<li><b>Threats:</b> {', '.join(swot_data.get('swot_analysis', {}).get('threats', []))}</li></ul>"
+
+    await emit(sid, {
+        "type": "section",
+        "label": "Competitor SWOT",
+        "content": swot_html,
+    })
+
+    return {"competitor_swot": json.dumps(swot_data, ensure_ascii=False)}
+
+
 async def node_analyze_gaps(state: StartupState) -> dict:
     """
     Node 5: Identify Market Gaps
@@ -271,8 +404,8 @@ async def node_analyze_gaps(state: StartupState) -> dict:
     sid = state["session_id"]
     await emit(sid, {
         "type": "step",
-        "step": 5,
-        "total": 12,
+        "step": 7,
+        "total": 16,
         "icon": "🎯",
         "title": "Identifying Market Gaps",
         "message": "Retrieving context from ChromaDB → Analyzing gaps with LLM...",
@@ -285,15 +418,16 @@ async def node_analyze_gaps(state: StartupState) -> dict:
         f"market gap opportunity {state['idea']}", state["session_id"]
     )
 
-    # Augment with retrieved context
+    # Augment with retrieved context and new research brief
     full_market = state["market_research"]
+    research_brief = state.get("research_brief", "")
     if rag_context:
-        full_market = f"[RAG Retrieved Context]\n{rag_context}\n\n[Full Research]\n{full_market}"
+        full_market = f"[RAG Retrieved Context]\n{rag_context}\n\n[Research Brief]\n{research_brief}\n\n[Full Research]\n{full_market}"
 
     gap_prompt = MARKET_GAP_PROMPT.format(
         idea=state["idea"],
         market_research=full_market[:800],
-        competitor_analysis=state["competitor_analysis"][:600],
+        competitor_analysis=state.get("competitor_swot", state["competitor_analysis"])[:600],
     )
 
     market_gap = await llm_invoke(
@@ -311,6 +445,41 @@ async def node_analyze_gaps(state: StartupState) -> dict:
     return {"market_gap": market_gap}
 
 
+async def node_calculate_market_size(state: StartupState) -> dict:
+    """
+    Node 5.5: TAM / SAM / SOM Calculator
+    """
+    sid = state["session_id"]
+    await emit(sid, {
+        "type": "step",
+        "step": 8,
+        "total": 16,
+        "icon": "📈",
+        "title": "Calculating Market Size",
+        "message": "Estimating TAM, SAM, and SOM...",
+    })
+
+    prompt = MARKET_SIZING_PROMPT.format(
+        startup_idea=state["idea"],
+        research_brief=state.get("research_brief", "{}"),
+    )
+
+    market_sizing = await safe_json_parse(prompt, state.get("language", "English"))
+
+    size_html = f"<b>TAM (Total Addressable Market):</b> {market_sizing.get('TAM', '')}<br/>"
+    size_html += f"<b>SAM (Serviceable Available Market):</b> {market_sizing.get('SAM', '')}<br/>"
+    size_html += f"<b>SOM (Serviceable Obtainable Market):</b> {market_sizing.get('SOM', '')}<br/><br/>"
+    size_html += f"<b>Growth Rate (CAGR):</b> {market_sizing.get('growth_rate_cagr', '')}"
+
+    await emit(sid, {
+        "type": "section",
+        "label": "Market Sizing",
+        "content": size_html,
+    })
+
+    return {"market_sizing": json.dumps(market_sizing, ensure_ascii=False)}
+
+
 async def node_generate_solution(state: StartupState) -> dict:
     """
     Node 6: Generate Solution Strategy
@@ -319,8 +488,8 @@ async def node_generate_solution(state: StartupState) -> dict:
     sid = state["session_id"]
     await emit(sid, {
         "type": "step",
-        "step": 6,
-        "total": 12,
+        "step": 9,
+        "total": 16,
         "icon": "💡",
         "title": "Generating Solution Strategy",
         "message": "Designing solution based on market gap analysis...",
@@ -329,7 +498,7 @@ async def node_generate_solution(state: StartupState) -> dict:
     solution_prompt = SOLUTION_PROMPT.format(
         idea=state["idea"],
         market_gap=state["market_gap"][:500],
-        market_research=state["market_research"][:600],
+        market_research=state["market_research"][:600] + "\nCompetitors: " + state.get("competitor_swot", "")[:300],
     )
 
     solution = await llm_invoke(
@@ -352,8 +521,8 @@ async def node_generate_features(state: StartupState) -> dict:
     sid = state["session_id"]
     await emit(sid, {
         "type": "step",
-        "step": 7,
-        "total": 12,
+        "step": 10,
+        "total": 16,
         "icon": "⚡",
         "title": "Designing Core Features",
         "message": "Generating product features based on solution strategy...",
@@ -361,7 +530,7 @@ async def node_generate_features(state: StartupState) -> dict:
 
     features_prompt = FEATURES_PROMPT.format(
         idea=state["idea"],
-        solution=state["solution_strategy"][:600],
+        solution=state["solution_strategy"][:600] + "\nCompetitors: " + state.get("competitor_swot", "")[:300],
     )
 
     features = await llm_invoke(
@@ -384,8 +553,8 @@ async def node_generate_revenue(state: StartupState) -> dict:
     sid = state["session_id"]
     await emit(sid, {
         "type": "step",
-        "step": 8,
-        "total": 12,
+        "step": 11,
+        "total": 16,
         "icon": "💰",
         "title": "Modeling Revenue Streams",
         "message": "Creating revenue model and business model...",
@@ -394,7 +563,7 @@ async def node_generate_revenue(state: StartupState) -> dict:
     revenue_prompt = REVENUE_PROMPT.format(
         idea=state["idea"],
         solution=state["solution_strategy"][:500],
-        market_research=state["market_research"][:500],
+        market_research=state["market_research"][:500] + "\nSizing: " + state.get("market_sizing", "")[:300],
     )
 
     revenue = await llm_invoke(
@@ -417,8 +586,8 @@ async def node_generate_roadmap(state: StartupState) -> dict:
     sid = state["session_id"]
     await emit(sid, {
         "type": "step",
-        "step": 9,
-        "total": 12,
+        "step": 12,
+        "total": 16,
         "icon": "🗺️",
         "title": "Building Implementation Roadmap",
         "message": "Planning 12-month execution roadmap...",
@@ -450,8 +619,8 @@ async def node_generate_pitch(state: StartupState) -> dict:
     sid = state["session_id"]
     await emit(sid, {
         "type": "step",
-        "step": 10,
-        "total": 12,
+        "step": 13,
+        "total": 16,
         "icon": "🎤",
         "title": "Creating Pitch Deck Outline",
         "message": "Structuring investor pitch deck...",
@@ -487,8 +656,8 @@ async def node_compile_plan(state: StartupState) -> dict:
     sid = state["session_id"]
     await emit(sid, {
         "type": "step",
-        "step": 11,
-        "total": 12,
+        "step": 14,
+        "total": 16,
         "icon": "📋",
         "title": "Compiling Executive Summary",
         "message": "Synthesizing all research into final startup report...",
@@ -581,6 +750,59 @@ Roadmap: {state['implementation_roadmap'][:300]}
     }
 
 
+async def node_adversarial_review(state: StartupState) -> dict:
+    """
+    Node 11.5: Devil's Advocate / Adversarial Review
+    """
+    sid = state["session_id"]
+    await emit(sid, {
+        "type": "step",
+        "step": 15,
+        "total": 16,
+        "icon": "⚖️",
+        "title": "Running Investor Review",
+        "message": "Performing adversarial review to find critical flaws...",
+    })
+
+    compiled_plan = f"Title: {state.get('startup_title', '')}\nSummary: {state.get('executive_summary', '')}\nProblem: {state.get('problem_statement', '')}\nSolution: {state.get('solution_strategy', '')}\nRevenue: {state.get('revenue_model', '')}"
+
+    prompt = DEVILS_ADVOCATE_PROMPT.format(
+        startup_idea=state.get('startup_idea', '')[:1000],
+        compiled_plan=compiled_plan[:10000],
+    )
+
+    critique = await safe_json_parse(prompt, state.get("language", "English"))
+
+    # Extract score & verdict
+    scores = critique.get('scores', {})
+    final = critique.get('final_verdict', {})
+    action_plan = critique.get('action_plan', {})
+
+    crit_html = f"<b>Overall Feasibility Score:</b> {scores.get('overall_feasibility_score', 'N/A')}/100<br/>"
+    crit_html += f"<b>Final Verdict:</b> {final.get('verdict', 'N/A')}<br/><br/>"
+    
+    crit_html += f"<b>Why:</b> {final.get('why', '')}<br/><br/>"
+
+    crit_html += f"<b>Key Score Breakdown:</b><ul>"
+    crit_html += f"<li>Problem Validation: {scores.get('problem_validation', 'N/A')}/10</li>"
+    crit_html += f"<li>Market Opportunity: {scores.get('market_opportunity', 'N/A')}/10</li>"
+    crit_html += f"<li>Revenue Model: {scores.get('revenue_model', 'N/A')}/10</li>"
+    crit_html += "</ul><br/>"
+
+    crit_html += "<b>Priority 1 Actions (Critical):</b><ul>"
+    for a in action_plan.get('priority_1', []):
+        crit_html += f"<li><b>{a.get('problem', '')}</b>: {a.get('solution', '')} (Impact: {a.get('expected_impact', '')})</li>"
+    crit_html += "</ul>"
+
+    await emit(sid, {
+        "type": "section",
+        "label": "Investor Review",
+        "content": crit_html,
+    })
+
+    return {"critique": json.dumps(critique, ensure_ascii=False)}
+
+
 async def node_save_plan(state: StartupState) -> dict:
     """
     Node 12: Save to SQLite Memory & Generate Documents
@@ -592,8 +814,8 @@ async def node_save_plan(state: StartupState) -> dict:
 
     await emit(sid, {
         "type": "step",
-        "step": 12,
-        "total": 12,
+        "step": 16,
+        "total": 16,
         "icon": "[OK]",
         "title": f"Saving Plan & Generating {doc_format.upper()} Document",
         "message": "Storing complete plan in SQLite. Generating your professional document...",
@@ -615,6 +837,9 @@ async def node_save_plan(state: StartupState) -> dict:
         "executive_summary": state.get("executive_summary", ""),
         "tasks": state.get("tasks", []),
         "doc_format": doc_format,
+        "market_sizing": state.get("market_sizing", "{}"),
+        "competitor_swot": state.get("competitor_swot", "{}"),
+        "critique": state.get("critique", "{}"),
     }
 
     loop = asyncio.get_event_loop()
@@ -693,33 +918,41 @@ def build_graph() -> StateGraph:
     """Build and compile the LangGraph state machine."""
     workflow = StateGraph(StartupState)
 
-    # Add all 12 nodes
+    # Add all 16 nodes
     workflow.add_node("decompose", node_decompose_idea)
     workflow.add_node("research_market", node_research_market)
     workflow.add_node("research_competitors", node_research_competitors)
+    workflow.add_node("synthesize_research", node_synthesize_research)
+    workflow.add_node("competitor_swot", node_competitor_swot)
     workflow.add_node("store_research", node_store_research)
     workflow.add_node("analyze_gaps", node_analyze_gaps)
+    workflow.add_node("calculate_market_size", node_calculate_market_size)
     workflow.add_node("generate_solution", node_generate_solution)
     workflow.add_node("generate_features", node_generate_features)
     workflow.add_node("generate_revenue", node_generate_revenue)
     workflow.add_node("generate_roadmap", node_generate_roadmap)
     workflow.add_node("generate_pitch", node_generate_pitch)
     workflow.add_node("compile_plan", node_compile_plan)
+    workflow.add_node("adversarial_review", node_adversarial_review)
     workflow.add_node("save_plan", node_save_plan)
 
     # Sequential edges
     workflow.set_entry_point("decompose")
     workflow.add_edge("decompose", "research_market")
     workflow.add_edge("research_market", "research_competitors")
-    workflow.add_edge("research_competitors", "store_research")
+    workflow.add_edge("research_competitors", "synthesize_research")
+    workflow.add_edge("synthesize_research", "competitor_swot")
+    workflow.add_edge("competitor_swot", "store_research")
     workflow.add_edge("store_research", "analyze_gaps")
-    workflow.add_edge("analyze_gaps", "generate_solution")
+    workflow.add_edge("analyze_gaps", "calculate_market_size")
+    workflow.add_edge("calculate_market_size", "generate_solution")
     workflow.add_edge("generate_solution", "generate_features")
     workflow.add_edge("generate_features", "generate_revenue")
     workflow.add_edge("generate_revenue", "generate_roadmap")
     workflow.add_edge("generate_roadmap", "generate_pitch")
     workflow.add_edge("generate_pitch", "compile_plan")
-    workflow.add_edge("compile_plan", "save_plan")
+    workflow.add_edge("compile_plan", "adversarial_review")
+    workflow.add_edge("adversarial_review", "save_plan")
     workflow.add_edge("save_plan", END)
 
     return workflow.compile()
@@ -735,7 +968,7 @@ agent_graph = build_graph()
 
 async def run_agent(idea: str, session_id: str, language: str = "English", doc_format: str = "ppt"):
     """
-    Run the full 12-step autonomous agent workflow.
+    Run the full 16-step autonomous agent workflow.
     Events are streamed via the global event_queues dict.
     """
     initial_state: StartupState = {
@@ -753,6 +986,11 @@ async def run_agent(idea: str, session_id: str, language: str = "English", doc_f
         "implementation_roadmap": "",
         "pitch_deck_outline": "",
         "startup_title": "",
+        "research_by_source": {},
+        "research_brief": "",
+        "market_sizing": "",
+        "competitor_swot": "",
+        "critique": "",
         "problem_statement": "",
         "target_audience": "",
         "executive_summary": "",

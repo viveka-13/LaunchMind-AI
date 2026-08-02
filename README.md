@@ -72,6 +72,11 @@ Edit `.env` and add:
 ```env
 ANTHROPIC_API_KEY=your_anthropic_api_key_here
 PEXELS_API_KEY=your_pexels_api_key_here
+
+# Optional APIs for advanced validation nodes
+CRUNCHBASE_API_KEY=your_crunchbase_api_key_here
+GOOGLE_TRENDS_API_KEY=your_google_trends_api_key_here
+REDDIT_API_KEY=your_reddit_api_key_here
 ```
 
 ### Step 4 — Run the Server
@@ -110,10 +115,19 @@ Node 2: Research Market → DuckDuckGo search (Tool)
 Node 3: Research Competitors → DuckDuckGo search (Tool)
     │
     ▼
+Node 3.5a: Synthesize Research → Multi-source aggregation (LLM)
+    │
+    ▼
+Node 3.5b: Competitor SWOT → Analysis & Matrix (LLM)
+    │
+    ▼
 Node 4: Store in ChromaDB → RAG memory embeddings
     │
     ▼
 Node 5: Identify Market Gaps → RAG retrieval + LLM
+    │
+    ▼
+Node 5.5: Calculate Market Size → TAM/SAM/SOM Estimation (LLM)
     │
     ▼
 Node 6: Generate Solution → LLM
@@ -132,6 +146,9 @@ Node 10: Generate Pitch Deck → LLM
     │
     ▼
 Node 11: Compile Full Plan → LLM synthesis
+    │
+    ▼
+Node 11.5: Adversarial Review → Investor Devil's Advocate (LLM)
     │
     ▼
 Node 12: Save Plan & Assets → Fetch Intelligent Images, Generate Flowchart, Generate Roadmap SVG, Create PPT/PDF/Word
@@ -164,6 +181,7 @@ Complete Business Document → Ready for download!
 | `/api/generate` | POST | Start agent (SSE stream) |
 | `/api/history` | GET | All previous plans |
 | `/api/idea/{id}` | GET | Specific plan details |
+| `/api/critique/{id}` | GET | Investor Readiness Review |
 | `/api/download_ppt/{id}` | GET | Download generated PPTX |
 | `/api/download_pdf/{id}` | GET | Download generated PDF |
 | `/api/download_word/{id}` | GET | Download generated DOCX |

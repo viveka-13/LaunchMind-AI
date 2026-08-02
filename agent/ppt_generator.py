@@ -6,6 +6,7 @@ from pptx.dml.color import RGBColor
 from pptx.enum.shapes import MSO_SHAPE
 from pptx.oxml.ns import qn
 from lxml import etree
+import json
 
 
 # ─── Color Palette ───
@@ -300,6 +301,94 @@ def generate_pitch_deck_ppt(plan_data: dict, file_path: str,
             "AI Engine → SQLite (Plan History) → User Dashboard"
         )
         _body_text(s, fallback, font_size=14, color=TEXT_MID)
+
+    # ════════════════════════════════════════
+    # SLIDE 9a — Market Sizing (TAM/SAM/SOM)
+    # ════════════════════════════════════════
+    s = prs.slides.add_slide(blank)
+    _add_bg(s, prs)
+    _add_header(s, "Market Sizing", subtitle="Total Addressable Market (TAM) Analysis")
+    
+    market_sizing = plan_data.get('market_sizing', '{}')
+    try:
+        if isinstance(market_sizing, str):
+            ms_data = json.loads(market_sizing)
+        else:
+            ms_data = market_sizing
+            
+        tam = ms_data.get("tam", "Not available from research")
+        sam = ms_data.get("sam", "Not available from research")
+        som = ms_data.get("som", "Not available from research")
+        methodology = ms_data.get("methodology", "Not available from research")
+        if tam is None: tam = "Not available from research"
+        if sam is None: sam = "Not available from research"
+        if som is None: som = "Not available from research"
+        
+        content = f"TAM (Total Addressable Market):\n{tam}\n\nSAM (Serviceable Available Market):\n{sam}\n\nSOM (Serviceable Obtainable Market):\n{som}\n\nMethodology:\n{methodology}"
+        _body_text(s, content, font_size=13)
+    except Exception:
+        _body_text(s, _smart_truncate(str(market_sizing), 700), font_size=13)
+
+    # ════════════════════════════════════════
+    # SLIDE 9b — Competitor Analysis & SWOT
+    # ════════════════════════════════════════
+    s = prs.slides.add_slide(blank)
+    _add_bg(s, prs)
+    _add_header(s, "Competitor Analysis & SWOT", subtitle="Competitive Landscape")
+
+    comp_swot = plan_data.get('competitor_swot', '{}')
+    try:
+        if isinstance(comp_swot, str):
+            cs_data = json.loads(comp_swot)
+        else:
+            cs_data = comp_swot
+            
+        competitors = cs_data.get("competitor_matrix", [])
+        swot = cs_data.get("swot", {})
+        
+        content = "Competitors:\n"
+        for i, comp in enumerate(competitors[:5]):
+            content += f"- {comp.get('name', 'N/A')}: {comp.get('strength', '')} (Weakness: {comp.get('weakness', '')}, Price: {comp.get('price_point', '')})\n"
+        
+        content += "\nSWOT Analysis:\n"
+        content += f"Strengths: {', '.join(swot.get('strengths', []))}\n"
+        content += f"Weaknesses: {', '.join(swot.get('weaknesses', []))}\n"
+        content += f"Opportunities: {', '.join(swot.get('opportunities', []))}\n"
+        content += f"Threats: {', '.join(swot.get('threats', []))}"
+        
+        _body_text(s, _smart_truncate(content, 900), font_size=11)
+    except Exception:
+        _body_text(s, _smart_truncate(str(comp_swot), 700), font_size=12)
+
+    # ════════════════════════════════════════
+    # SLIDE 9c — Investor Readiness Check
+    # ════════════════════════════════════════
+    s = prs.slides.add_slide(blank)
+    _add_bg(s, prs)
+    _add_header(s, "Investor Readiness Check", subtitle="Devil's Advocate Adversarial Review")
+
+    critique = plan_data.get('critique', '{}')
+    try:
+        if isinstance(critique, str):
+            cr_data = json.loads(critique)
+        else:
+            cr_data = critique
+            
+        scores = cr_data.get("scores", {})
+        final = cr_data.get("final_verdict", {})
+        action_plan = cr_data.get("action_plan", {})
+        
+        content = f"Overall Score: {scores.get('overall_feasibility_score', 'N/A')}/100\n\n"
+        content += f"Verdict: {final.get('verdict', 'N/A')}\n"
+        content += f"Why: {final.get('why', 'N/A')}\n\n"
+        
+        content += "Priority 1 Actions (Critical):\n"
+        for i, a in enumerate(action_plan.get("priority_1", [])[:2]):
+            content += f"{i+1}. {a.get('problem', 'Issue')}\n   → Fix: {a.get('solution', 'TBD')}\n\n"
+            
+        _body_text(s, _smart_truncate(content, 800), font_size=12)
+    except Exception:
+        _body_text(s, _smart_truncate(str(critique), 700), font_size=12)
 
     # ════════════════════════════════════════
     # SLIDE 10 — Thank You

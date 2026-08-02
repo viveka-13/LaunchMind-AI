@@ -1,5 +1,6 @@
 import os
 from fpdf import FPDF
+import json
 
 class PDF(FPDF):
     def __init__(self):
@@ -103,6 +104,90 @@ def generate_business_plan_pdf(plan_data: dict, file_path: str, images: list = N
     
     # 8. Implementation Roadmap
     add_section("Implementation Roadmap", plan_data.get('implementation_roadmap', 'N/A'))
+    
+    # 8a. Market Sizing
+    market_sizing = plan_data.get('market_sizing', '{}')
+    try:
+        if isinstance(market_sizing, str):
+            ms_data = json.loads(market_sizing)
+        else:
+            ms_data = market_sizing
+        
+        tam = ms_data.get("tam", "Not available from research")
+        sam = ms_data.get("sam", "Not available from research")
+        som = ms_data.get("som", "Not available from research")
+        methodology = ms_data.get("methodology", "Not available from research")
+        if tam is None: tam = "Not available from research"
+        if sam is None: sam = "Not available from research"
+        if som is None: som = "Not available from research"
+        
+        ms_content = f"TAM (Total Addressable Market):\n{tam}\n\nSAM (Serviceable Available Market):\n{sam}\n\nSOM (Serviceable Obtainable Market):\n{som}\n\nMethodology:\n{methodology}"
+        add_section("Market Sizing", ms_content)
+    except Exception:
+        add_section("Market Sizing", str(market_sizing))
+
+    # 8b. Competitor Analysis & SWOT
+    comp_swot = plan_data.get('competitor_swot', '{}')
+    try:
+        if isinstance(comp_swot, str):
+            cs_data = json.loads(comp_swot)
+        else:
+            cs_data = comp_swot
+            
+        competitors = cs_data.get("competitor_matrix", [])
+        swot = cs_data.get("swot", {})
+        
+        cs_content = "Competitors:\n"
+        for i, comp in enumerate(competitors[:5]):
+            cs_content += f"- {comp.get('name', 'N/A')}: {comp.get('strength', '')} (Weakness: {comp.get('weakness', '')}, Price: {comp.get('price_point', '')})\n"
+        
+        cs_content += "\nSWOT Analysis:\n"
+        cs_content += f"Strengths: {', '.join(swot.get('strengths', []))}\n"
+        cs_content += f"Weaknesses: {', '.join(swot.get('weaknesses', []))}\n"
+        cs_content += f"Opportunities: {', '.join(swot.get('opportunities', []))}\n"
+        cs_content += f"Threats: {', '.join(swot.get('threats', []))}"
+        
+        add_section("Competitor Analysis & SWOT", cs_content)
+    except Exception:
+        add_section("Competitor Analysis & SWOT", str(comp_swot))
+
+    # 8c. Investor Readiness Check
+    critique = plan_data.get('critique', '{}')
+    try:
+        if isinstance(critique, str):
+            cr_data = json.loads(critique)
+        else:
+            cr_data = critique
+            
+        scores = cr_data.get("scores", {})
+        final = cr_data.get("final_verdict", {})
+        action_plan = cr_data.get("action_plan", {})
+        perspectives = cr_data.get("investor_perspective", {})
+        
+        cr_content = f"Feasibility Score: {scores.get('overall_feasibility_score', 'N/A')}/100\n\n"
+        cr_content += f"Verdict: {final.get('verdict', 'N/A')}\n"
+        cr_content += f"Why: {final.get('why', 'N/A')}\n\n"
+        
+        cr_content += "Key Score Breakdown:\n"
+        cr_content += f"- Problem Validation: {scores.get('problem_validation', 'N/A')}/10\n"
+        cr_content += f"- Market Opportunity: {scores.get('market_opportunity', 'N/A')}/10\n"
+        cr_content += f"- Revenue Model: {scores.get('revenue_model', 'N/A')}/10\n"
+        cr_content += f"- Investment Readiness: {scores.get('investment_readiness', 'N/A')}/10\n\n"
+
+        cr_content += "Investor Perspective:\n"
+        rejections = perspectives.get("rejection_reasons", [])
+        if rejections:
+            for i, r in enumerate(rejections[:3]):
+                cr_content += f"- {r}\n"
+        cr_content += "\n"
+
+        cr_content += "Priority 1 Actions (Critical):\n"
+        for i, a in enumerate(action_plan.get("priority_1", [])[:3]):
+            cr_content += f"{i+1}. {a.get('problem', 'Issue')}\n   → Fix: {a.get('solution', 'TBD')} (Impact: {a.get('expected_impact', '')})\n\n"
+            
+        add_section("Investor Readiness Check", cr_content)
+    except Exception:
+        add_section("Investor Readiness Check", str(critique))
     
     # 9. Architecture / System Blueprint (Flowchart)
     if flowchart_path and os.path.exists(flowchart_path):

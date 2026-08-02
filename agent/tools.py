@@ -3,6 +3,8 @@
 
 import time
 import random
+import os
+import json
 
 
 def search_web(query: str, max_results: int = 4) -> str:
@@ -56,6 +58,36 @@ def research_competitors(idea: str) -> str:
     return "\n\n===\n\n".join(all_results)
 
 
+def search_crunchbase(query: str) -> str:
+    """Wrapper for Crunchbase API. Returns empty state if key is missing."""
+    api_key = os.getenv("CRUNCHBASE_API_KEY")
+    if not api_key:
+        return json.dumps({"source_unavailable": True, "data": ""})
+    
+    # Stub: real implementation would go here
+    return json.dumps({"source_unavailable": False, "data": f"Crunchbase funding data for {query} (stub)"})
+
+
+def search_google_trends(query: str) -> str:
+    """Wrapper for Google Trends API. Returns empty state if key is missing."""
+    api_key = os.getenv("GOOGLE_TRENDS_API_KEY")
+    if not api_key:
+        return json.dumps({"source_unavailable": True, "data": ""})
+    
+    # Stub: real implementation would go here
+    return json.dumps({"source_unavailable": False, "data": f"Google Trends data for {query} (stub)"})
+
+
+def search_sentiment(query: str) -> str:
+    """Wrapper for Reddit/X Sentiment API. Returns empty state if key is missing."""
+    api_key = os.getenv("REDDIT_API_KEY")
+    if not api_key:
+        return json.dumps({"source_unavailable": True, "data": ""})
+    
+    # Stub: real implementation would go here
+    return json.dumps({"source_unavailable": False, "data": f"Sentiment analysis for {query} (stub)"})
+
+
 # Tool registry for the agent's tool selection logic
 AVAILABLE_TOOLS = {
     "research_market": {
@@ -72,6 +104,21 @@ AVAILABLE_TOOLS = {
         "function": search_web,
         "description": "General web search for any query",
         "when_to_use": "Specific fact-finding",
+    },
+    "search_crunchbase": {
+        "function": search_crunchbase,
+        "description": "Find funding and company data",
+        "when_to_use": "When researching startup funding",
+    },
+    "search_google_trends": {
+        "function": search_google_trends,
+        "description": "Find search interest over time",
+        "when_to_use": "When checking market demand trends",
+    },
+    "search_sentiment": {
+        "function": search_sentiment,
+        "description": "Check public sentiment on social media",
+        "when_to_use": "When evaluating user sentiment",
     },
 }
 

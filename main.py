@@ -150,6 +150,22 @@ async def get_idea(plan_id: str):
     return plan
 
 
+@app.get("/api/critique/{plan_id}")
+async def get_critique(plan_id: str):
+    """Return only the adversarial review (critique) for a plan."""
+    plan = get_plan_by_id(plan_id)
+    if not plan:
+        raise HTTPException(status_code=404, detail="Plan not found.")
+    
+    critique_data = plan.get("critique", "{}")
+    if isinstance(critique_data, str):
+        try:
+            return json.loads(critique_data)
+        except Exception:
+            return {"raw_text": critique_data}
+    return critique_data
+
+
 @app.get("/api/download_ppt/{plan_id}")
 async def download_ppt(plan_id: str):
     """Download the generated PowerPoint pitch deck."""
