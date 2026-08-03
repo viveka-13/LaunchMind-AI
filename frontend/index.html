@@ -746,6 +746,86 @@
       .input-row { flex-direction: column; }
       .hero h1 { font-size: 42px; }
     }
+
+    /* ── TTS Read Aloud Controls ── */
+    .tts-controls {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      margin-left: auto;
+    }
+    .tts-btn {
+      background: rgba(0,229,255,0.08);
+      border: 1px solid rgba(0,229,255,0.2);
+      border-radius: 8px;
+      color: var(--text-dim);
+      font-size: 14px;
+      width: 32px; height: 32px;
+      display: flex; align-items: center; justify-content: center;
+      cursor: pointer;
+      transition: all 0.25s ease;
+      position: relative;
+    }
+    .tts-btn:hover {
+      color: var(--cyan);
+      border-color: rgba(0,229,255,0.5);
+      background: rgba(0,229,255,0.12);
+      box-shadow: 0 0 12px rgba(0,229,255,0.2);
+    }
+    .tts-btn:focus-visible {
+      outline: 2px solid var(--cyan);
+      outline-offset: 2px;
+    }
+    .tts-btn.tts-active {
+      color: var(--cyan);
+      border-color: var(--cyan);
+      background: rgba(0,229,255,0.15);
+      box-shadow: 0 0 16px rgba(0,229,255,0.35);
+      animation: ttsPulse 1.8s infinite;
+    }
+    .tts-btn.tts-paused {
+      color: var(--amber);
+      border-color: var(--amber);
+      background: rgba(245,158,11,0.1);
+      box-shadow: 0 0 12px rgba(245,158,11,0.25);
+      animation: ttsPausePulse 2s infinite;
+    }
+    .tts-status-label {
+      font-family: 'Rajdhani', sans-serif;
+      font-size: 10px;
+      font-weight: 600;
+      letter-spacing: 1px;
+      text-transform: uppercase;
+      padding: 2px 8px;
+      border-radius: 10px;
+      display: none;
+    }
+    .tts-status-label.visible {
+      display: inline-block;
+    }
+    .tts-status-label.playing {
+      color: var(--cyan);
+      background: rgba(0,229,255,0.1);
+      border: 1px solid rgba(0,229,255,0.25);
+    }
+    .tts-status-label.paused {
+      color: var(--amber);
+      background: rgba(245,158,11,0.1);
+      border: 1px solid rgba(245,158,11,0.25);
+    }
+    .tts-status-label.loading {
+      color: var(--text-dim);
+      background: rgba(255,255,255,0.05);
+      border: 1px solid rgba(255,255,255,0.1);
+    }
+    @keyframes ttsPulse {
+      0%, 100% { box-shadow: 0 0 8px rgba(0,229,255,0.2); }
+      50% { box-shadow: 0 0 20px rgba(0,229,255,0.5); }
+    }
+    @keyframes ttsPausePulse {
+      0%, 100% { box-shadow: 0 0 6px rgba(245,158,11,0.15); }
+      50% { box-shadow: 0 0 14px rgba(245,158,11,0.35); }
+    }
   </style>
 </head>
 <body>
@@ -880,6 +960,272 @@
     'Malayalam': 'ml-IN',
     'Marathi': 'mr-IN'
   };
+
+  // ── TTS (Text-to-Speech) Read Aloud Engine ──
+  // Global state for the TTS system
+  let ttsCurrentCardId = null;  // ID of the card currently being read
+  let ttsUtterance = null;      // Current SpeechSynthesisUtterance object
+  let ttsStatus = 'idle';       // idle | loading | playing | paused
+  let ttsCardCounter = 0;       // Auto-incrementing unique ID for each card
+
+  /**
+   * Generate the HTML for TTS control buttons.
+   * @param {string} cardId - Unique ID for the card element.
+   * @returns {string} HTML string for the TTS controls.
+   */
+  function getTTSControlsHTML(cardId) {
+    return `
+      <div class="tts-controls" id="tts-controls-${cardId}">
+        <span class="tts-status-label" id="tts-status-${cardId}"></span>
+        <button class="tts-btn" id="tts-play-${cardId}" onclick="ttsPlay('${cardId}')" aria-label="Read aloud" title="Read Aloud">
+          🔊
+        </button>
+        <button class="tts-btn" id="tts-pause-${cardId}" onclick="ttsPause('${cardId}')" aria-label="Pause reading" title="Pause" style="display:none;">
+          ⏸️
+        </button>
+        <button class="tts-btn" id="tts-resume-${cardId}" onclick="ttsResume('${cardId}')" aria-label="Resume reading" title="Resume" style="display:none;">
+          ▶️
+        </button>
+        <button class="tts-btn" id="tts-stop-${cardId}" onclick="ttsStop()" aria-label="Stop reading" title="Stop" style="display:none;">
+          ⏹️
+        </button>
+      </div>
+    `;
+  }
+
+  /**
+   * Update the visual state of TTS buttons for a specific card.
+   * @param {string} cardId - The card to update.
+   * @param {string} status - 'idle' | 'loading' | 'playing' | 'paused'
+   */
+  function ttsUpdateUI(cardId, status) {
+    const playBtn = document.getElementById(`tts-play-${cardId}`);
+    const pauseBtn = document.getElementById(`tts-pause-${cardId}`);
+    const resumeBtn = document.getElementById(`tts-resume-${cardId}`);
+    const stopBtn = document.getElementById(`tts-stop-${cardId}`);
+    const statusLabel = document.getElementById(`tts-status-${cardId}`);
+    if (!playBtn) return;
+
+    // Reset all
+    playBtn.style.display = 'none';
+    pauseBtn.style.display = 'none';
+    resumeBtn.style.display = 'none';
+    stopBtn.style.display = 'none';
+    playBtn.classList.remove('tts-active', 'tts-paused');
+    statusLabel.className = 'tts-status-label';
+    statusLabel.textContent = '';
+
+    switch (status) {
+      case 'loading':
+        playBtn.style.display = 'flex';
+        playBtn.classList.add('tts-active');
+        statusLabel.textContent = 'Loading...';
+        statusLabel.classList.add('visible', 'loading');
+        break;
+      case 'playing':
+        pauseBtn.style.display = 'flex';
+        stopBtn.style.display = 'flex';
+        statusLabel.textContent = 'Playing';
+        statusLabel.classList.add('visible', 'playing');
+        break;
+      case 'paused':
+        resumeBtn.style.display = 'flex';
+        stopBtn.style.display = 'flex';
+        statusLabel.textContent = 'Paused';
+        statusLabel.classList.add('visible', 'paused');
+        break;
+      case 'idle':
+      default:
+        playBtn.style.display = 'flex';
+        break;
+    }
+  }
+
+  /**
+   * Extract readable text from a card's content area.
+   * Strips HTML tags for natural speech.
+   * @param {string} cardId - Card ID to extract text from.
+   * @returns {string} Plain text content.
+   */
+  function ttsGetCardText(cardId) {
+    const card = document.getElementById(`tts-card-${cardId}`);
+    if (!card) return '';
+    // Find the content area(s) within the card
+    const contentEl = card.querySelector('.card-content, .feature-list, .exec-summary .card-content');
+    if (contentEl) return contentEl.innerText || contentEl.textContent || '';
+    // Fallback: read the entire card
+    return card.innerText || card.textContent || '';
+  }
+
+  /**
+   * Split long text into chunks for SpeechSynthesis.
+   * Some browsers cut off after ~200-300 characters.
+   * @param {string} text - Full text to split.
+   * @param {number} maxLen - Max characters per chunk.
+   * @returns {string[]} Array of text chunks.
+   */
+  function ttsSplitText(text, maxLen = 180) {
+    // Replace newlines with spaces so they don't break TTS
+    const cleanText = text.replace(/\n+/g, ' ');
+    // Split by spaces (words)
+    const words = cleanText.split(/\s+/);
+    
+    const chunks = [];
+    let current = '';
+    
+    for (const word of words) {
+      if (!word.trim()) continue;
+      
+      // If adding the next word exceeds maxLen
+      if ((current + ' ' + word).length > maxLen) {
+        if (current) {
+          chunks.push(current);
+        }
+        current = word;
+        
+        // Edge case: single word is larger than maxLen (e.g. unbroken URL)
+        while (current.length > maxLen) {
+          chunks.push(current.substring(0, maxLen));
+          current = current.substring(maxLen);
+        }
+      } else {
+        current += (current ? ' ' : '') + word;
+      }
+    }
+    
+    if (current.trim()) {
+      chunks.push(current);
+    }
+    
+    return chunks.length ? chunks : [text];
+  }
+
+  /**
+   * Play TTS for a specific card.
+   * Stops any existing playback first.
+   * @param {string} cardId - The card to read aloud.
+   */
+  function ttsPlay(cardId) {
+    // Check browser support
+    if (!('speechSynthesis' in window)) {
+      const t = translations[currentLang] || translations['English'];
+      alert(t.micUnsupported || 'Text-to-Speech is not supported in this browser.');
+      return;
+    }
+
+    // Stop any existing playback
+    ttsStop();
+
+    const text = ttsGetCardText(cardId);
+    if (!text.trim()) return;
+
+    ttsCurrentCardId = cardId;
+    ttsStatus = 'loading';
+    ttsUpdateUI(cardId, 'loading');
+
+    // Get the TTS language locale from the current app language
+    const locale = langMap[currentLang] || 'en-US';
+
+    // Split long text into speakable chunks
+    const chunks = ttsSplitText(text);
+    let chunkIndex = 0;
+
+    function speakNextChunk() {
+      if (chunkIndex >= chunks.length || ttsCurrentCardId !== cardId) {
+        // Done or interrupted
+        if (ttsCurrentCardId === cardId) {
+          ttsStatus = 'idle';
+          ttsCurrentCardId = null;
+          ttsUpdateUI(cardId, 'idle');
+        }
+        return;
+      }
+
+      const utterance = new SpeechSynthesisUtterance(chunks[chunkIndex]);
+      utterance.lang = locale;
+      utterance.rate = 0.95;
+      utterance.pitch = 1.0;
+
+      // Try to find a matching voice for the locale
+      const voices = speechSynthesis.getVoices();
+      const langPrefix = locale.split('-')[0];
+      const matchedVoice = voices.find(v => v.lang === locale) ||
+                           voices.find(v => v.lang.startsWith(langPrefix));
+      if (matchedVoice) utterance.voice = matchedVoice;
+
+      utterance.onstart = () => {
+        ttsStatus = 'playing';
+        ttsUpdateUI(cardId, 'playing');
+      };
+
+      utterance.onend = () => {
+        chunkIndex++;
+        speakNextChunk();
+      };
+
+      utterance.onerror = (e) => {
+        console.error('TTS Error:', e);
+        ttsStatus = 'idle';
+        ttsCurrentCardId = null;
+        ttsUpdateUI(cardId, 'idle');
+      };
+
+      ttsUtterance = utterance;
+      speechSynthesis.speak(utterance);
+    }
+
+    // Ensure voices are loaded (some browsers load them async)
+    if (speechSynthesis.getVoices().length === 0) {
+      speechSynthesis.addEventListener('voiceschanged', () => {
+        speakNextChunk();
+      }, { once: true });
+    } else {
+      speakNextChunk();
+    }
+  }
+
+  /**
+   * Pause TTS playback.
+   */
+  function ttsPause() {
+    if (speechSynthesis.speaking && !speechSynthesis.paused) {
+      speechSynthesis.pause();
+      ttsStatus = 'paused';
+      if (ttsCurrentCardId) ttsUpdateUI(ttsCurrentCardId, 'paused');
+    }
+  }
+
+  /**
+   * Resume TTS playback.
+   */
+  function ttsResume() {
+    if (speechSynthesis.paused) {
+      speechSynthesis.resume();
+      ttsStatus = 'playing';
+      if (ttsCurrentCardId) ttsUpdateUI(ttsCurrentCardId, 'playing');
+    }
+  }
+
+  /**
+   * Stop TTS playback completely.
+   */
+  function ttsStop() {
+    speechSynthesis.cancel();
+    if (ttsCurrentCardId) {
+      ttsUpdateUI(ttsCurrentCardId, 'idle');
+    }
+    ttsCurrentCardId = null;
+    ttsUtterance = null;
+    ttsStatus = 'idle';
+  }
+
+  /**
+   * Generate a unique card ID for TTS targeting.
+   * @returns {string} Unique card ID.
+   */
+  function ttsNextCardId() {
+    return 'card-' + (++ttsCardCounter);
+  }
 
   const translations = {
     'English': {
@@ -1208,20 +1554,24 @@
         </div>
       `).join('');
 
+      const cid = ttsNextCardId();
       const card = document.createElement('div');
       card.className = `result-card full ${colorClass}`;
+      card.id = `tts-card-${cid}`;
       card.innerHTML = `
-        <div class="card-label"><span class="card-label-icon">${icon}</span>${label}</div>
+        <div class="card-label"><span class="card-label-icon">${icon}</span>${label}${getTTSControlsHTML(cid)}</div>
         <div class="feature-list">${featureItems}</div>
       `;
       panel.appendChild(card);
       return;
     }
 
+    const cid = ttsNextCardId();
     const card = document.createElement('div');
     card.className = `result-card ${colorClass}`;
+    card.id = `tts-card-${cid}`;
     card.innerHTML = `
-      <div class="card-label"><span class="card-label-icon">${icon}</span>${label}</div>
+      <div class="card-label"><span class="card-label-icon">${icon}</span>${label}${getTTSControlsHTML(cid)}</div>
       <div class="card-content">${content}</div>
     `;
     panel.appendChild(card);
@@ -1244,10 +1594,12 @@
     `;
 
     // Title + Problem card
+    const titleCid = ttsNextCardId();
     const titleCard = document.createElement('div');
     titleCard.className = 'result-card full card-cyan';
+    titleCard.id = `tts-card-${titleCid}`;
     titleCard.innerHTML = `
-      <div class="card-label"><span class="card-label-icon">🚀</span>Startup Name</div>
+      <div class="card-label"><span class="card-label-icon">🚀</span>Startup Name${getTTSControlsHTML(titleCid)}</div>
       <div style="display:flex; justify-content:space-between; align-items:flex-start;">
         <div class="card-title" style="margin:0;">${plan.startup_title || 'Your Startup'}</div>
         ${actionBtnHtml}
@@ -1258,10 +1610,12 @@
 
     // Target audience
     if (plan.target_audience) {
+      const audCid = ttsNextCardId();
       const audCard = document.createElement('div');
       audCard.className = 'result-card card-purple';
+      audCard.id = `tts-card-${audCid}`;
       audCard.innerHTML = `
-        <div class="card-label"><span class="card-label-icon">👥</span>Target Audience</div>
+        <div class="card-label"><span class="card-label-icon">👥</span>Target Audience${getTTSControlsHTML(audCid)}</div>
         <div class="card-content">${plan.target_audience}</div>
       `;
       panel.insertBefore(audCard, panel.querySelector('.result-card.full.card-cyan').nextSibling);
@@ -1269,10 +1623,12 @@
 
     // Executive Summary (at the end)
     if (plan.executive_summary) {
+      const execCid = ttsNextCardId();
       const execCard = document.createElement('div');
       execCard.className = 'exec-summary';
+      execCard.id = `tts-card-${execCid}`;
       execCard.innerHTML = `
-        <div class="card-label"><span class="card-label-icon">📌</span>Executive Summary</div>
+        <div class="card-label"><span class="card-label-icon">📌</span>Executive Summary${getTTSControlsHTML(execCid)}</div>
         <div class="card-content">${plan.executive_summary}</div>
       `;
       panel.appendChild(execCard);

@@ -89,7 +89,7 @@ class StartupState(TypedDict):
 # LLM Setup
 # ─────────────────────────────────────────────
 
-def get_llm() -> ChatGroq:
+def get_llm(max_tokens: int = 1500) -> ChatGroq:
     api_key = os.environ.get("GROQ_API_KEY") or os.getenv("GROQ_API_KEY")
     if not api_key:
         # Try loading from .env as last resort
@@ -101,13 +101,13 @@ def get_llm() -> ChatGroq:
     return ChatGroq(
         model="llama-3.1-8b-instant",
         groq_api_key=api_key,
-        max_tokens=1500,
+        max_tokens=max_tokens,
     )
 
 
-async def llm_invoke(system_prompt: str, user_content: str, language: str = "English") -> str:
+async def llm_invoke(system_prompt: str, user_content: str, language: str = "English", max_tokens: int = 1500) -> str:
     """Call the LLM and return the response text."""
-    llm = get_llm()
+    llm = get_llm(max_tokens)
     system_prompt += f"\n\nCRITICAL: Respond entirely in the {language} language. Do not mix English unless the user explicitly uses English words, technical terms, or product names."
     messages = [
         SystemMessage(content=system_prompt),
@@ -117,12 +117,12 @@ async def llm_invoke(system_prompt: str, user_content: str, language: str = "Eng
     return response.content.strip()
 
 
-async def safe_json_parse(prompt: str, language: str = "English", system_prompt: str = "You are an AI assistant. Always respond with valid JSON only.") -> dict:
+async def safe_json_parse(prompt: str, language: str = "English", system_prompt: str = "You are an AI assistant. Always respond with valid JSON only.", max_tokens: int = 1500) -> dict:
     """
     Helper to execute an LLM call and parse JSON safely.
     Implements 1 retry if the initial JSON is malformed.
     """
-    response_text = await llm_invoke(system_prompt, prompt, language)
+    response_text = await llm_invoke(system_prompt, prompt, language, max_tokens)
     
     def extract_json(text):
         clean = text.strip()
@@ -137,11 +137,55 @@ async def safe_json_parse(prompt: str, language: str = "English", system_prompt:
     except Exception as e:
         # Retry once
         retry_prompt = f"{prompt}\n\nYOUR LAST RESPONSE WAS NOT VALID JSON. Return ONLY valid JSON this time. Error: {str(e)}"
-        retry_response = await llm_invoke(system_prompt, retry_prompt, language)
+        retry_response = await llm_invoke(system_prompt, retry_prompt, language, max_tokens)
         try:
             return json.loads(extract_json(retry_response))
         except Exception:
             return {}
+
+UI_LABELS = {
+    "English": {
+        "Executive Summary": "Executive Summary",
+        "Key Findings": "Key Findings",
+        "Market Sentiment": "Market Sentiment",
+        "Competitors": "Competitors",
+        "SWOT Analysis": "SWOT Analysis",
+        "Strengths": "Strengths",
+        "Weaknesses": "Weaknesses",
+        "TAM": "TAM (Total Addressable Market)",
+        "SAM": "SAM (Serviceable Available Market)",
+        "SOM": "SOM (Serviceable Obtainable Market)",
+        "Growth Rate": "Growth Rate (CAGR)",
+        "Overall Feasibility Score": "Overall Feasibility Score",
+        "Final Verdict": "Final Verdict",
+        "Why": "Why",
+        "Key Score Breakdown": "Key Score Breakdown",
+        "Opportunities": "Opportunities",
+        "Threats": "Threats",
+    },
+    "Telugu": {
+        "Executive Summary": "కార్యనిర్వాహక సారాంశం",
+        "Key Findings": "ముఖ్య అన్వేషణలు",
+        "Market Sentiment": "మార్కెట్ సెంటిమెంట్",
+        "Competitors": "పోటీదారులు",
+        "SWOT Analysis": "SWOT విశ్లేషణ",
+        "Strengths": "బలాలు",
+        "Weaknesses": "బలహీనతలు",
+        "TAM": "TAM (మొత్తం మార్కెట్ పరిమాణం)",
+        "SAM": "SAM (సేవ చేయగల మార్కెట్)",
+        "SOM": "SOM (సాధించగల మార్కెట్)",
+        "Growth Rate": "వృద్ది రేటు (CAGR)",
+        "Overall Feasibility Score": "మొత్తం సాధ్యత స్కోర్",
+        "Final Verdict": "తుది తీర్పు",
+        "Why": "ఎందుకు",
+        "Key Score Breakdown": "ముఖ్య స్కోర్ విశ్లేషణ",
+        "Opportunities": "అవకాశాలు",
+        "Threats": "ప్రమాదాలు",
+    }
+}
+
+def _t(label: str, lang: str) -> str:
+    return UI_LABELS.get(lang, UI_LABELS["English"]).get(label, label)
 
 
 # ─────────────────────────────────────────────
@@ -340,12 +384,14 @@ async def node_synthesize_research(state: StartupState) -> dict:
     )
 
     brief = await safe_json_parse(prompt, state.get("language", "English"))
+    lang = state.get("language", "English")
     
-    brief_html = f"<b>Executive Summary:</b><br/>{brief.get('executive_summary', '')}<br/><br/>"
-    brief_html += "<b>Key Findings:</b><ul>"
+    brief_html = f"<b>{_t('Executive Summary', lang)}:</b><br/>{brief.get('executive_summary', '')}<br/><br/>"
+    brief_html += f"<b>{_t('Key Findings', lang)}:</b><ul>"
     for f in brief.get('key_findings', []): brief_html += f"<li>{f}</li>"
     brief_html += "</ul><br/>"
-    brief_html += f"<b>Market Sentiment:</b> {brief.get('market_sentiment', '')}"
+    brief_html += f"<b>{_t('Market Sentiment', lang)}:</b> {brief.get('market_sentiment', '')}"
+
     
     await emit(sid, {
         "type": "section",
@@ -376,15 +422,17 @@ async def node_competitor_swot(state: StartupState) -> dict:
     )
 
     swot_data = await safe_json_parse(prompt, state.get("language", "English"))
+    lang = state.get("language", "English")
 
-    swot_html = "<b>Competitors:</b><ul>"
+    swot_html = f"<b>{_t('Competitors', lang)}:</b><ul>"
     for c in swot_data.get('competitors', []):
         swot_html += f"<li><b>{c.get('name', '')}</b>: {c.get('strengths', '')} / {c.get('weaknesses', '')}</li>"
-    swot_html += "</ul><br/><b>SWOT Analysis:</b><ul>"
-    swot_html += f"<li><b>Strengths:</b> {', '.join(swot_data.get('swot_analysis', {}).get('strengths', []))}</li>"
-    swot_html += f"<li><b>Weaknesses:</b> {', '.join(swot_data.get('swot_analysis', {}).get('weaknesses', []))}</li>"
-    swot_html += f"<li><b>Opportunities:</b> {', '.join(swot_data.get('swot_analysis', {}).get('opportunities', []))}</li>"
-    swot_html += f"<li><b>Threats:</b> {', '.join(swot_data.get('swot_analysis', {}).get('threats', []))}</li></ul>"
+    swot_html += f"</ul><br/><b>{_t('SWOT Analysis', lang)}:</b><ul>"
+    swot_html += f"<li><b>{_t('Strengths', lang)}:</b> {', '.join(swot_data.get('swot_analysis', {}).get('strengths', []))}</li>"
+    swot_html += f"<li><b>{_t('Weaknesses', lang)}:</b> {', '.join(swot_data.get('swot_analysis', {}).get('weaknesses', []))}</li>"
+    # Just skipping opportunities/threats in HTML layout to keep it clean, or keep them if present.
+    swot_html += f"<li><b>{_t('Opportunities', lang)}:</b> {', '.join(swot_data.get('swot_analysis', {}).get('opportunities', []))}</li>"
+    swot_html += f"<li><b>{_t('Threats', lang)}:</b> {', '.join(swot_data.get('swot_analysis', {}).get('threats', []))}</li></ul>"
 
     await emit(sid, {
         "type": "section",
@@ -465,11 +513,13 @@ async def node_calculate_market_size(state: StartupState) -> dict:
     )
 
     market_sizing = await safe_json_parse(prompt, state.get("language", "English"))
+    lang = state.get("language", "English")
 
-    size_html = f"<b>TAM (Total Addressable Market):</b> {market_sizing.get('TAM', '')}<br/>"
-    size_html += f"<b>SAM (Serviceable Available Market):</b> {market_sizing.get('SAM', '')}<br/>"
-    size_html += f"<b>SOM (Serviceable Obtainable Market):</b> {market_sizing.get('SOM', '')}<br/><br/>"
-    size_html += f"<b>Growth Rate (CAGR):</b> {market_sizing.get('growth_rate_cagr', '')}"
+    size_html = f"<b>{_t('TAM', lang)}:</b> {market_sizing.get('tam', '')}<br/>"
+    size_html += f"<b>{_t('SAM', lang)}:</b> {market_sizing.get('sam', '')}<br/>"
+    size_html += f"<b>{_t('SOM', lang)}:</b> {market_sizing.get('som', '')}<br/><br/>"
+    size_html += f"<b>{_t('Growth Rate', lang)}:</b> {market_sizing.get('methodology', '')}"
+
 
     await emit(sid, {
         "type": "section",
@@ -767,23 +817,25 @@ async def node_adversarial_review(state: StartupState) -> dict:
     compiled_plan = f"Title: {state.get('startup_title', '')}\nSummary: {state.get('executive_summary', '')}\nProblem: {state.get('problem_statement', '')}\nSolution: {state.get('solution_strategy', '')}\nRevenue: {state.get('revenue_model', '')}"
 
     prompt = DEVILS_ADVOCATE_PROMPT.format(
-        startup_idea=state.get('startup_idea', '')[:1000],
-        compiled_plan=compiled_plan[:10000],
+        startup_idea=state.get('startup_idea', '')[:500],
+        compiled_plan=compiled_plan[:1500],
     )
 
-    critique = await safe_json_parse(prompt, state.get("language", "English"))
+    critique = await safe_json_parse(prompt, state.get("language", "English"), max_tokens=500)
 
     # Extract score & verdict
     scores = critique.get('scores', {})
     final = critique.get('final_verdict', {})
     action_plan = critique.get('action_plan', {})
+    lang = state.get("language", "English")
 
-    crit_html = f"<b>Overall Feasibility Score:</b> {scores.get('overall_feasibility_score', 'N/A')}/100<br/>"
-    crit_html += f"<b>Final Verdict:</b> {final.get('verdict', 'N/A')}<br/><br/>"
+    crit_html = f"<b>{_t('Overall Feasibility Score', lang)}:</b> {scores.get('overall_feasibility_score', 'N/A')}/100<br/>"
+    crit_html += f"<b>{_t('Final Verdict', lang)}:</b> {final.get('verdict', 'N/A')}<br/><br/>"
     
-    crit_html += f"<b>Why:</b> {final.get('why', '')}<br/><br/>"
+    crit_html += f"<b>{_t('Why', lang)}:</b> {final.get('why', '')}<br/><br/>"
 
-    crit_html += f"<b>Key Score Breakdown:</b><ul>"
+    crit_html += f"<b>{_t('Key Score Breakdown', lang)}:</b><ul>"
+
     crit_html += f"<li>Problem Validation: {scores.get('problem_validation', 'N/A')}/10</li>"
     crit_html += f"<li>Market Opportunity: {scores.get('market_opportunity', 'N/A')}/10</li>"
     crit_html += f"<li>Revenue Model: {scores.get('revenue_model', 'N/A')}/10</li>"

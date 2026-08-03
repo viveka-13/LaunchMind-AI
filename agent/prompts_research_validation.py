@@ -206,64 +206,24 @@ Explain:
 CRITICAL REQUIREMENT:
 Your output MUST be ONLY valid JSON in this EXACT format (do not use markdown formatting outside the JSON block):
 {{
-  "review_quality_check": {{
-    "incorrect_statements": ["", ""],
-    "contradictory_statements": ["", ""],
-    "generic_feedback": ["", ""],
-    "misleading_conclusions": ["", ""],
-    "missing_context": ["", ""],
-    "poorly_explained_flags": ["", ""]
-  }},
-  "red_flag_analysis": [
-    {{
-      "issue": "",
-      "severity": "",
-      "investor_concern": "",
-      "business_impact": "",
-      "recommended_fix": ""
-    }}
-  ],
-  "business_model_review": {{
-    "weaknesses": ["", ""],
-    "improved_revenue_model": "",
-    "pricing_recommendations": "",
-    "monetization_opportunities": "",
-    "growth_strategy": ""
-  }},
-  "market_validation_review": {{
-    "missing_validation_data": ["", ""],
-    "research_needed": ["", ""],
-    "customer_interviews_required": ["", ""],
-    "metrics_to_track": ["", ""]
-  }},
-  "investor_perspective": {{
-    "rejection_reasons": ["", ""],
-    "investor_questions": ["", ""],
-    "required_evidence": ["", ""],
-    "confidence_boosters": ["", ""]
-  }},
   "scores": {{
     "problem_validation": 0,
     "market_opportunity": 0,
-    "competition": 0,
-    "product_differentiation": 0,
     "revenue_model": 0,
-    "scalability": 0,
-    "execution_risk": 0,
-    "investment_readiness": 0,
-    "overall_feasibility_score": 0,
-    "score_explanation": ""
+    "overall_feasibility_score": 0
   }},
   "action_plan": {{
-    "priority_1": [{{"problem": "", "solution": "", "expected_impact": "", "difficulty_level": ""}}],
-    "priority_2": [{{"problem": "", "solution": "", "expected_impact": "", "difficulty_level": ""}}],
-    "priority_3": [{{"problem": "", "solution": "", "expected_impact": "", "difficulty_level": ""}}]
+    "priority_1": [
+      {{
+        "problem": "",
+        "solution": "",
+        "expected_impact": ""
+      }}
+    ]
   }},
   "final_verdict": {{
-    "verdict": "Strong Investment Opportunity",
+    "verdict": "",
     "why": "",
-    "what_needs_to_change": "",
-    "required_milestones": ["", ""]
   }}
 }}
 """
