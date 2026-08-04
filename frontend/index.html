@@ -581,6 +581,176 @@
       color: var(--text-bright);
     }
 
+    /* ── Startup Studio Dashboard ── */
+    .studio-dashboard {
+      margin-top: 40px;
+      animation: fadeUp 0.6s ease;
+    }
+    .studio-dashboard-header {
+      text-align: center;
+      margin-bottom: 32px;
+    }
+    .studio-dashboard-header h2 {
+      font-family: 'Bebas Neue', sans-serif;
+      font-size: clamp(28px, 4vw, 42px);
+      letter-spacing: 2px;
+      background: linear-gradient(90deg, var(--cyan), var(--purple));
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+      margin-bottom: 8px;
+    }
+    .studio-dashboard-header p {
+      color: var(--text-dim);
+      font-size: 14px;
+    }
+    .studio-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+      gap: 20px;
+    }
+    .studio-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      padding: 24px;
+      position: relative;
+      overflow: hidden;
+      transition: transform 0.2s, box-shadow 0.2s, border-color 0.2s;
+    }
+    .studio-card:hover {
+      transform: translateY(-4px);
+      box-shadow: 0 12px 40px rgba(0,0,0,0.3);
+      border-color: rgba(0,229,255,0.3);
+    }
+    .studio-card::before {
+      content: '';
+      position: absolute;
+      top: 0; left: 0; right: 0;
+      height: 3px;
+      border-radius: 16px 16px 0 0;
+    }
+    .studio-card.card-cyan::before { background: linear-gradient(90deg, var(--cyan), #0099cc); }
+    .studio-card.card-purple::before { background: linear-gradient(90deg, var(--purple), #c084fc); }
+    .studio-card.card-amber::before { background: linear-gradient(90deg, var(--amber), #fbbf24); }
+    .studio-card.card-emerald::before { background: linear-gradient(90deg, var(--emerald), #34d399); }
+    .studio-card.card-red::before { background: linear-gradient(90deg, var(--red), #fb7185); }
+    .studio-card-icon {
+      font-size: 36px;
+      margin-bottom: 12px;
+    }
+    .studio-card-title {
+      font-family: 'Rajdhani', sans-serif;
+      font-size: 18px;
+      font-weight: 700;
+      color: var(--text-bright);
+      margin-bottom: 6px;
+      letter-spacing: 0.5px;
+    }
+    .studio-card-desc {
+      font-size: 12px;
+      color: var(--text-dim);
+      margin-bottom: 16px;
+      line-height: 1.5;
+    }
+    .studio-card-actions {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+    .studio-btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      padding: 7px 14px;
+      border-radius: 8px;
+      font-family: 'Rajdhani', sans-serif;
+      font-size: 12px;
+      font-weight: 600;
+      letter-spacing: 0.5px;
+      text-transform: uppercase;
+      text-decoration: none;
+      cursor: pointer;
+      border: none;
+      transition: all 0.2s;
+    }
+    .studio-btn-preview {
+      background: rgba(0,229,255,0.1);
+      color: var(--cyan);
+      border: 1px solid rgba(0,229,255,0.25);
+    }
+    .studio-btn-preview:hover { background: rgba(0,229,255,0.2); }
+    .studio-btn-download {
+      background: linear-gradient(135deg, var(--cyan), #0099cc);
+      color: #000;
+    }
+    .studio-btn-download:hover { opacity: 0.85; }
+    .studio-btn-secondary {
+      background: rgba(168,85,247,0.1);
+      color: var(--purple);
+      border: 1px solid rgba(168,85,247,0.25);
+    }
+    .studio-btn-secondary:hover { background: rgba(168,85,247,0.2); }
+
+    /* Preview Modal (for SVG/HTML) */
+    .preview-overlay {
+      display: none;
+      position: fixed;
+      top: 0; left: 0; right: 0; bottom: 0;
+      background: rgba(0,0,0,0.85);
+      z-index: 10000;
+      justify-content: center;
+      align-items: center;
+      padding: 24px;
+    }
+    .preview-overlay.active { display: flex; }
+    .preview-box {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      width: 90vw;
+      max-width: 900px;
+      max-height: 85vh;
+      overflow: auto;
+      position: relative;
+    }
+    .preview-box-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 16px 20px;
+      border-bottom: 1px solid var(--border);
+      position: sticky;
+      top: 0;
+      background: var(--surface);
+      z-index: 2;
+    }
+    .preview-box-header h3 {
+      font-family: 'Rajdhani', sans-serif;
+      color: var(--text-bright);
+      font-size: 16px;
+      letter-spacing: 1px;
+    }
+    .preview-close-btn {
+      background: rgba(244,63,94,0.15);
+      color: var(--red);
+      border: 1px solid rgba(244,63,94,0.3);
+      border-radius: 8px;
+      padding: 6px 14px;
+      cursor: pointer;
+      font-family: 'Rajdhani', sans-serif;
+      font-size: 12px;
+      font-weight: 600;
+    }
+    .preview-body {
+      padding: 20px;
+    }
+    .preview-body svg,
+    .preview-body img {
+      max-width: 100%;
+      height: auto;
+    }
+
     /* ── History Section ── */
     .history-section {
       margin-bottom: 80px;
@@ -946,6 +1116,17 @@
   <div class="modal" id="modal">
     <button class="modal-close" onclick="closeModalDirect()">✕</button>
     <div id="modalContent"></div>
+  </div>
+</div>
+
+<!-- Preview Overlay (for Studio assets) -->
+<div class="preview-overlay" id="previewOverlay" onclick="if(event.target===this) closePreview()">
+  <div class="preview-box">
+    <div class="preview-box-header">
+      <h3 id="previewTitle">Preview</h3>
+      <button class="preview-close-btn" onclick="closePreview()">✕ Close</button>
+    </div>
+    <div class="preview-body" id="previewBody"></div>
   </div>
 </div>
 
@@ -1658,6 +1839,101 @@
     currentPlan = plan;
   }
 
+  let rawAssetsCache = {};
+
+  function renderStudioDashboard(assets) {
+    rawAssetsCache = assets || {};
+    const panel = document.getElementById('resultsPanel');
+    
+    // Create Dashboard Header
+    const header = document.createElement('div');
+    header.className = 'studio-dashboard';
+    header.innerHTML = `
+      <div class="studio-dashboard-header">
+        <h2>Your Startup Ecosystem</h2>
+        <p>All assets have been generated and are ready to deploy.</p>
+      </div>
+      <div class="studio-grid" id="studioGrid"></div>
+    `;
+    panel.appendChild(header);
+
+    const grid = document.getElementById('studioGrid');
+
+    const addCard = (key, icon, title, desc, color, hasPreview, hasDownload, mime, ext) => {
+      const card = document.createElement('div');
+      card.className = `studio-card ${color}`;
+      
+      let actions = '';
+      if (hasPreview) {
+        actions += `<button class="studio-btn studio-btn-preview" onclick="openPreviewRaw('${key}', '${ext}', '${title}')">👁️ Preview</button>`;
+      }
+      if (hasDownload) {
+        actions += `<button class="studio-btn studio-btn-download" onclick="downloadAssetRaw('${key}', '${key}.${ext}', '${mime}')">📥 Download</button>`;
+      }
+      if (key === 'investor_report_pdf' && currentPlan && currentPlan.id) {
+        actions = `<button class="studio-btn studio-btn-download" onclick="window.location.href='/api/download_investor_report/${currentPlan.id}'">📥 Download PDF</button>`;
+      }
+
+      card.innerHTML = `
+        <div class="studio-card-icon">${icon}</div>
+        <div class="studio-card-title">${title}</div>
+        <div class="studio-card-desc">${desc}</div>
+        <div class="studio-card-actions">${actions}</div>
+      `;
+      grid.appendChild(card);
+    };
+
+    if (assets.brand_kit) addCard('brand_kit', '✨', 'Brand Identity', 'Name, tagline, colors & typography', 'card-purple', true, true, 'application/json', 'json');
+    if (assets.logo_svg) addCard('logo_svg', '🎨', 'Vector Logo', 'Scalable SVG brand logo', 'card-cyan', true, true, 'image/svg+xml', 'svg');
+    if (assets.poster_html) addCard('poster_html', '🖼️', 'Marketing Poster', 'HTML/CSS promotional poster', 'card-red', true, true, 'text/html', 'html');
+    if (assets.landing_page_html) addCard('landing_page_html', '🌐', 'Landing Page', 'Responsive website layout', 'card-emerald', true, true, 'text/html', 'html');
+    if (assets.wireframes_svg) addCard('wireframes_svg', '📱', 'MVP Wireframes', 'Core application screens (SVG)', 'card-amber', true, true, 'image/svg+xml', 'svg');
+    if (assets.architecture_svg) addCard('architecture_svg', '⚙️', 'System Architecture', 'High-level cloud mapping', 'card-cyan', true, true, 'image/svg+xml', 'svg');
+    if (assets.investor_report_pdf) addCard('investor_report_pdf', '📊', 'Investor Report', 'Detailed PDF Readiness Review', 'card-red', false, true, '', 'pdf');
+
+    document.getElementById('pulseIndicator').classList.add('idle');
+  }
+
+  function openPreviewRaw(assetKey, type, title) {
+      let content = rawAssetsCache[assetKey];
+      if(assetKey === 'brand_kit') content = '<pre style="white-space:pre-wrap;font-size:14px;color:var(--text-bright);font-family:monospace;">' + JSON.stringify(content, null, 2) + '</pre>';
+      openPreview(title, content, type);
+  }
+
+  function openPreview(title, content, type) {
+    document.getElementById('previewTitle').textContent = title;
+    const body = document.getElementById('previewBody');
+    if (type === 'svg') {
+      body.innerHTML = content;
+    } else if (type === 'html') {
+      // Use iframe to sandbox the HTML/CSS and prevent it from breaking the dashboard
+      const safeContent = content.replace(/"/g, '&quot;');
+      body.innerHTML = `<iframe srcdoc="${safeContent}" style="width:100%; height:70vh; border:none; border-radius:8px; background:#fff;"></iframe>`;
+    } else {
+      body.innerHTML = content;
+    }
+    document.getElementById('previewOverlay').classList.add('active');
+  }
+
+  function closePreview() {
+    document.getElementById('previewOverlay').classList.remove('active');
+    document.getElementById('previewBody').innerHTML = '';
+  }
+
+  function downloadAssetRaw(assetKey, filename, mimeType) {
+      let content = rawAssetsCache[assetKey];
+      if(assetKey === 'brand_kit') content = JSON.stringify(content, null, 2);
+      
+      const blob = new Blob([content], { type: mimeType });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = filename;
+      document.body.appendChild(a);
+      a.click();
+      setTimeout(() => { document.body.removeChild(a); URL.revokeObjectURL(url); }, 100);
+  }
+
   // ── Main Generation Function ──
   async function startGeneration() {
     const input = document.getElementById('ideaInput');
@@ -1798,6 +2074,10 @@
       case 'complete':
         event.plan.id = event.plan_id;
         renderFinalPlan(event.plan);
+        break;
+
+      case 'dashboard':
+        renderStudioDashboard(event.assets);
         break;
 
       case 'done':

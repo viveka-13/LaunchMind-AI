@@ -40,6 +40,7 @@ from agent.word_generator import generate_business_plan_word
 from agent.pdf_generator import generate_business_plan_pdf
 from agent.image_service import fetch_images_for_startup, generate_flowchart
 from agent.roadmap_generator import generate_roadmap_svg
+from agent.asset_manager import generate_all_assets
 
 # ─────────────────────────────────────────────
 # Global event queue registry (per session)
@@ -83,6 +84,7 @@ class StartupState(TypedDict):
     language: str
     doc_format: str
     images: List[str]
+    assets: dict
 
 
 # ─────────────────────────────────────────────
@@ -956,10 +958,41 @@ async def node_save_plan(state: StartupState) -> dict:
         "plan": plan_data,
     })
 
+    return {"images": images}
+
+async def node_generate_assets(state: StartupState) -> dict:
+    """
+    Node 17: AI Startup Studio - Asset Generation Pipeline
+    """
+    sid = state["session_id"]
+    
+    await emit(sid, {
+        "type": "step",
+        "step": 17,
+        "total": 17,
+        "icon": "[OK]",
+        "title": "Generating Startup Studio Assets",
+        "message": "Creating Logo, Brand Kit, Marketing Poster, Landing Page, Wireframes, and Investor Report...",
+    })
+
+    async def emit_progress(msg: str):
+        await emit(sid, {
+            "type": "section",
+            "label": "Asset Generator",
+            "content": f"<p>{msg}</p>",
+        })
+
+    assets = await generate_all_assets(state, emit_progress)
+    
+    await emit(sid, {
+        "type": "dashboard",
+        "assets": assets,
+    })
+
     # Signal end of stream
     await emit(sid, None)
 
-    return {"images": images}
+    return {"assets": assets}
 
 
 # ─────────────────────────────────────────────
@@ -987,6 +1020,7 @@ def build_graph() -> StateGraph:
     workflow.add_node("compile_plan", node_compile_plan)
     workflow.add_node("adversarial_review", node_adversarial_review)
     workflow.add_node("save_plan", node_save_plan)
+    workflow.add_node("generate_assets", node_generate_assets)
 
     # Sequential edges
     workflow.set_entry_point("decompose")
@@ -1005,7 +1039,8 @@ def build_graph() -> StateGraph:
     workflow.add_edge("generate_pitch", "compile_plan")
     workflow.add_edge("compile_plan", "adversarial_review")
     workflow.add_edge("adversarial_review", "save_plan")
-    workflow.add_edge("save_plan", END)
+    workflow.add_edge("save_plan", "generate_assets")
+    workflow.add_edge("generate_assets", END)
 
     return workflow.compile()
 

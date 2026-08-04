@@ -202,6 +202,15 @@ async def download_roadmap(plan_id: str):
     return FileResponse(file_path, media_type="image/svg+xml", filename=f"Business_Roadmap_Workflow.svg")
 
 
+@app.get("/api/download_investor_report/{plan_id}")
+async def download_investor_report(plan_id: str):
+    """Download the generated Investor Readiness Report PDF."""
+    file_path = f"./data/documents/investor_report_{plan_id}.pdf"
+    if not os.path.exists(file_path):
+        raise HTTPException(status_code=404, detail="Investor Report not found.")
+    return FileResponse(file_path, media_type="application/pdf", filename=f"Investor_Report_{plan_id}.pdf")
+
+
 @app.get("/api/health")
 async def health_check():
     """Health check endpoint."""
