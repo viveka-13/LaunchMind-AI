@@ -105,7 +105,7 @@ Phase 2 (Months 4-6): Beta Launch & Learning
 Phase 3 (Months 7-9): Growth & Optimization
 Phase 4 (Months 10-12): Scale & Expand
 
-For each phase list 3-4 specific milestones. Be concrete and realistic."""
+For each phase list exactly 3 specific milestones. Use VERY SHORT, concise bullet points (maximum 1 sentence per milestone). DO NOT write long paragraphs."""
 
 PITCH_PROMPT = """You are a startup pitch coach who has helped companies raise millions.
 
