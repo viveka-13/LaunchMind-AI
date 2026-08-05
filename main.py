@@ -193,13 +193,22 @@ async def download_word(plan_id: str):
     return FileResponse(file_path, media_type="application/vnd.openxmlformats-officedocument.wordprocessingml.document", filename=f"Startup_Plan_{plan_id}.docx")
 
 
+@app.get("/api/download_architecture/{plan_id}")
+async def download_architecture(plan_id: str):
+    """Download the generated System Architecture HTML graphic."""
+    file_path = f"./data/architectures/{plan_id}.html"
+    if not os.path.exists(file_path):
+        raise HTTPException(status_code=404, detail="Architecture Graphic not found.")
+    return FileResponse(file_path, media_type="text/html", filename=f"System_Architecture.html")
+
+
 @app.get("/api/download_roadmap/{plan_id}")
 async def download_roadmap(plan_id: str):
     """Download the generated Business Roadmap SVG graphic."""
-    file_path = f"./data/roadmaps/{plan_id}.svg"
+    file_path = f"./data/roadmaps/{plan_id}.html"
     if not os.path.exists(file_path):
         raise HTTPException(status_code=404, detail="Roadmap Graphic not found.")
-    return FileResponse(file_path, media_type="image/svg+xml", filename=f"Business_Roadmap_Workflow.svg")
+    return FileResponse(file_path, media_type="text/html", filename=f"Business_Roadmap_Workflow.html")
 
 
 @app.get("/api/download_investor_report/{plan_id}")

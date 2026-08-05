@@ -39,7 +39,7 @@ from agent.ppt_generator import generate_pitch_deck_ppt
 from agent.word_generator import generate_business_plan_word
 from agent.pdf_generator import generate_business_plan_pdf
 from agent.image_service import fetch_images_for_startup, generate_flowchart
-from agent.roadmap_generator import generate_roadmap_svg
+from agent.roadmap_generator import generate_roadmap_html
 from agent.asset_manager import generate_all_assets
 
 # ─────────────────────────────────────────────
@@ -124,14 +124,16 @@ async def safe_json_parse(prompt: str, language: str = "English", system_prompt:
     Helper to execute an LLM call and parse JSON safely.
     Implements 1 retry if the initial JSON is malformed.
     """
-    response_text = await llm_invoke(system_prompt, prompt, language, max_tokens)
+    # CRITICAL FIX: Ensure the LLM does not translate the JSON keys themselves
+    safe_system = system_prompt + "\n\nCRITICAL: Keep all JSON keys exactly as requested in English. ONLY translate the VALUES into the target language."
+    response_text = await llm_invoke(safe_system, prompt, language, max_tokens)
     
     def extract_json(text):
         clean = text.strip()
-        if clean.startswith("```json"):
-            clean = clean[7:]
-        if clean.endswith("```"):
-            clean = clean[:-3]
+        if "```json" in clean:
+            clean = clean.split("```json")[1].split("```")[0].strip()
+        elif "```" in clean:
+            clean = clean.split("```")[1].split("```")[0].strip()
         return clean.strip()
         
     try:
@@ -139,7 +141,7 @@ async def safe_json_parse(prompt: str, language: str = "English", system_prompt:
     except Exception as e:
         # Retry once
         retry_prompt = f"{prompt}\n\nYOUR LAST RESPONSE WAS NOT VALID JSON. Return ONLY valid JSON this time. Error: {str(e)}"
-        retry_response = await llm_invoke(system_prompt, retry_prompt, language, max_tokens)
+        retry_response = await llm_invoke(safe_system, retry_prompt, language, max_tokens)
         try:
             return json.loads(extract_json(retry_response))
         except Exception:
@@ -654,7 +656,8 @@ async def node_generate_roadmap(state: StartupState) -> dict:
     roadmap = await llm_invoke(
         "You are a startup CTO. Create realistic, achievable milestones.",
         roadmap_prompt,
-        state.get("language", "English")
+        state.get("language", "English"),
+        max_tokens=2500
     )
 
     await emit(sid, {
@@ -941,15 +944,15 @@ async def node_save_plan(state: StartupState) -> dict:
             None, generate_pitch_deck_ppt, plan_data, ppt_path, images, flowchart_path
         )
 
-    # ── Phase 6: Generate Business Roadmap SVG ──
+    # ── Phase 6: Generate Business Roadmap HTML ──
     os.makedirs("./data/roadmaps", exist_ok=True)
-    roadmap_path = f"./data/roadmaps/{state['plan_id']}.svg"
+    roadmap_path = f"./data/roadmaps/{state['plan_id']}.html"
     try:
         await loop.run_in_executor(
-            None, generate_roadmap_svg, plan_data, roadmap_path
+            None, generate_roadmap_html, plan_data, roadmap_path
         )
     except Exception as e:
-        print(f"[Workflow] Roadmap SVG generation failed (non-fatal): {e}")
+        print(f"[Workflow] Roadmap HTML generation failed (non-fatal): {e}")
 
     # Emit the complete final plan (include doc_format so frontend shows right button)
     await emit(sid, {

@@ -1,4 +1,4 @@
-async def generate_poster(idea: str, brand_kit: dict, asset_llm_invoke, extract_code_block) -> str:
+async def generate_poster(idea: str, brand_kit: dict, images: list, asset_llm_invoke, extract_code_block) -> str:
     """Generate a premium marketing poster using a parameterized HTML/CSS template."""
     brand_name = brand_kit.get("brand_name", "Startup")
     tagline = brand_kit.get("tagline", "Innovate today.")

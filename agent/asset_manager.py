@@ -52,7 +52,7 @@ async def generate_all_assets(state: dict, emit_callback) -> dict:
         "poster_html": "",
         "landing_page_html": "",
         "wireframes_svg": "",
-        "architecture_svg": "",
+        "architecture_html": "",
         "investor_report_pdf": "",
     }
 
@@ -62,11 +62,12 @@ async def generate_all_assets(state: dict, emit_callback) -> dict:
     
     # 2. Logo
     await emit_callback("Generating Logo...")
-    assets["logo_svg"] = await generate_logo(idea, assets["brand_kit"], asset_llm_invoke, extract_code_block)
+    images = state.get("images", [])
+    assets["logo_svg"] = await generate_logo(idea, assets["brand_kit"], images, asset_llm_invoke, extract_code_block)
     
     # 3. Poster
     await emit_callback("Generating Marketing Poster...")
-    assets["poster_html"] = await generate_poster(idea, assets["brand_kit"], asset_llm_invoke, extract_code_block)
+    assets["poster_html"] = await generate_poster(idea, assets["brand_kit"], images, asset_llm_invoke, extract_code_block)
     
     # 4. Landing Page
     await emit_callback("Generating Landing Page...")
@@ -79,7 +80,7 @@ async def generate_all_assets(state: dict, emit_callback) -> dict:
     
     # 6. Architecture
     await emit_callback("Generating System Architecture...")
-    assets["architecture_svg"] = await generate_architecture(idea, asset_llm_invoke, extract_code_block)
+    assets["architecture_html"] = await generate_architecture(idea, state["plan_id"], safe_json_invoke)
     
     # 7. Investor Report
     await emit_callback("Generating Investor Report...")

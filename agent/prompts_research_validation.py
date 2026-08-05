@@ -223,7 +223,7 @@ Your output MUST be ONLY valid JSON in this EXACT format (do not use markdown fo
   }},
   "final_verdict": {{
     "verdict": "",
-    "why": "",
+    "why": ""
   }}
 }}
 """
