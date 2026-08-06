@@ -1769,6 +1769,7 @@
     const actionBtnHtml = `
     <div style="display:flex; gap: 8px;">
       <a href="${downloadEndpoint}" class="generate-btn" style="text-decoration:none; padding:0.5rem 1rem; font-size:0.9rem; width:auto; display:inline-flex; border-radius:0.5rem;"><span class="btn-text">${downloadText}</span></a>
+      ${(plan.pricing_model && plan.pricing_model !== '{}') ? `<a href="/api/download_financial_model/${plan.id}" class="generate-btn" style="text-decoration:none; padding:0.5rem 1rem; font-size:0.9rem; width:auto; display:inline-flex; border-radius:0.5rem; background: linear-gradient(135deg, var(--green), var(--teal)); color: #fff;"><span class="btn-text">📊 Download Financial Model</span></a>` : ''}
       <a href="/api/download_roadmap/${plan.id}" class="generate-btn" style="text-decoration:none; padding:0.5rem 1rem; font-size:0.9rem; width:auto; display:inline-flex; border-radius:0.5rem; background: linear-gradient(135deg, var(--purple), var(--cyan)); color: #fff;"><span class="btn-text">🖼️ Download Roadmap</span></a>
       <button onclick="viewCritique('${plan.id}')" class="generate-btn" style="text-decoration:none; padding:0.5rem 1rem; font-size:0.9rem; width:auto; display:inline-flex; border-radius:0.5rem; background: linear-gradient(135deg, var(--red), var(--amber)); color: #fff; cursor: pointer; border: none;"><span class="btn-text">⚖️ Investor Review</span></button>
     </div>
@@ -2169,6 +2170,9 @@
       { key: 'solution', label: 'Solution Strategy', icon: '💡' },
       { key: 'core_features', label: 'Core Features', icon: '⚡' },
       { key: 'revenue_model', label: 'Revenue Model', icon: '💰' },
+      { key: 'pricing_model', label: 'Pricing Scenarios', icon: '💲' },
+      { key: 'financial_projection', label: '3-Year P&L', icon: '📊' },
+      { key: 'cap_table', label: 'Cap Table & Funding', icon: '🏦' },
       { key: 'implementation_roadmap', label: 'Roadmap', icon: '🗺️' },
       { key: 'pitch_deck_outline', label: 'Pitch Deck', icon: '🎤' },
       { key: 'executive_summary', label: 'Executive Summary', icon: '📌' },
@@ -2190,6 +2194,7 @@
         <div class="modal-title" style="margin:0;">${plan.startup_title || 'Startup Plan'}</div>
         <div style="display:flex; gap: 8px;">
           <a href="/api/download_ppt/${plan.id}" class="generate-btn" style="text-decoration:none; padding:0.5rem 1rem; font-size:0.9rem; width:auto; margin:0;"><span class="btn-text">📥 Download PPT</span></a>
+          ${(plan.pricing_model && plan.pricing_model !== '{}') ? `<a href="/api/download_financial_model/${plan.id}" class="generate-btn" style="text-decoration:none; padding:0.5rem 1rem; font-size:0.9rem; width:auto; margin:0; background: linear-gradient(135deg, var(--green), var(--teal)); color: #fff;"><span class="btn-text">📊 Download Financial Model</span></a>` : ''}
           <a href="/api/download_roadmap/${plan.id}" class="generate-btn" style="text-decoration:none; padding:0.5rem 1rem; font-size:0.9rem; width:auto; margin:0; background: linear-gradient(135deg, var(--purple), var(--cyan)); color: #fff;"><span class="btn-text">🖼️ Download Roadmap</span></a>
         </div>
       </div>

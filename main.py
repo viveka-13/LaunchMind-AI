@@ -211,6 +211,15 @@ async def download_roadmap(plan_id: str):
     return FileResponse(file_path, media_type="text/html", filename=f"Business_Roadmap_Workflow.html")
 
 
+@app.get("/api/download_financial_model/{plan_id}")
+async def download_financial_model(plan_id: str):
+    """Download the generated Financial Model Excel workbook."""
+    file_path = f"./data/financials/{plan_id}.xlsx"
+    if not os.path.exists(file_path):
+        raise HTTPException(status_code=404, detail="Financial Model not found.")
+    return FileResponse(file_path, media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", filename=f"Financial_Model.xlsx")
+
+
 @app.get("/api/download_investor_report/{plan_id}")
 async def download_investor_report(plan_id: str):
     """Download the generated Investor Readiness Report PDF."""

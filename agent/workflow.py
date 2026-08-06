@@ -41,6 +41,8 @@ from agent.pdf_generator import generate_business_plan_pdf
 from agent.image_service import fetch_images_for_startup, generate_flowchart
 from agent.roadmap_generator import generate_roadmap_html
 from agent.asset_manager import generate_all_assets
+from agent.financial_prompts import PRICING_MODEL_PROMPT, FINANCIAL_PROJECTION_PROMPT, CAP_TABLE_PROMPT
+from agent.financial_model_generator import generate_financial_model
 
 # ─────────────────────────────────────────────
 # Global event queue registry (per session)
@@ -85,6 +87,9 @@ class StartupState(TypedDict):
     doc_format: str
     images: List[str]
     assets: dict
+    pricing_model: str
+    financial_projection: str
+    cap_table: str
 
 
 # ─────────────────────────────────────────────
@@ -206,7 +211,7 @@ async def node_decompose_idea(state: StartupState) -> dict:
     await emit(sid, {
         "type": "step",
         "step": 1,
-        "total": 16,
+        "total": 19,
         "icon": "🧠",
         "title": "Decomposing Idea into Subtasks",
         "message": f"Analyzing '{state['idea']}' and breaking it into research subtasks...",
@@ -260,7 +265,7 @@ async def node_research_market(state: StartupState) -> dict:
     await emit(sid, {
         "type": "step",
         "step": 2,
-        "total": 16,
+        "total": 19,
         "icon": "🔍",
         "title": "Researching Market",
         "message": f"Selecting tool: [{selected_tool}] → Searching market data for '{state['idea']}'...",
@@ -294,7 +299,7 @@ async def node_research_competitors(state: StartupState) -> dict:
     await emit(sid, {
         "type": "step",
         "step": 3,
-        "total": 16,
+        "total": 19,
         "icon": "⚔️",
         "title": "Analyzing Competitors",
         "message": f"Selecting tool: [{selected_tool}] → Finding competitors for '{state['idea']}'...",
@@ -325,7 +330,7 @@ async def node_store_research(state: StartupState) -> dict:
     await emit(sid, {
         "type": "step",
         "step": 6,
-        "total": 16,
+        "total": 19,
         "icon": "💾",
         "title": "Storing Research in Vector Memory",
         "message": "Embedding research data into ChromaDB for RAG retrieval...",
@@ -360,7 +365,7 @@ async def node_synthesize_research(state: StartupState) -> dict:
     await emit(sid, {
         "type": "step",
         "step": 4,
-        "total": 16,
+        "total": 19,
         "icon": "🧠",
         "title": "Synthesizing Research",
         "message": "Aggregating data from DuckDuckGo, Crunchbase, Google Trends, and Sentiment APIs...",
@@ -414,7 +419,7 @@ async def node_competitor_swot(state: StartupState) -> dict:
     await emit(sid, {
         "type": "step",
         "step": 5,
-        "total": 16,
+        "total": 19,
         "icon": "📊",
         "title": "Building Competitor Analysis",
         "message": "Generating Competitor Matrix and SWOT Analysis...",
@@ -457,7 +462,7 @@ async def node_analyze_gaps(state: StartupState) -> dict:
     await emit(sid, {
         "type": "step",
         "step": 7,
-        "total": 16,
+        "total": 19,
         "icon": "🎯",
         "title": "Identifying Market Gaps",
         "message": "Retrieving context from ChromaDB → Analyzing gaps with LLM...",
@@ -505,7 +510,7 @@ async def node_calculate_market_size(state: StartupState) -> dict:
     await emit(sid, {
         "type": "step",
         "step": 8,
-        "total": 16,
+        "total": 19,
         "icon": "📈",
         "title": "Calculating Market Size",
         "message": "Estimating TAM, SAM, and SOM...",
@@ -543,7 +548,7 @@ async def node_generate_solution(state: StartupState) -> dict:
     await emit(sid, {
         "type": "step",
         "step": 9,
-        "total": 16,
+        "total": 19,
         "icon": "💡",
         "title": "Generating Solution Strategy",
         "message": "Designing solution based on market gap analysis...",
@@ -576,7 +581,7 @@ async def node_generate_features(state: StartupState) -> dict:
     await emit(sid, {
         "type": "step",
         "step": 10,
-        "total": 16,
+        "total": 19,
         "icon": "⚡",
         "title": "Designing Core Features",
         "message": "Generating product features based on solution strategy...",
@@ -608,7 +613,7 @@ async def node_generate_revenue(state: StartupState) -> dict:
     await emit(sid, {
         "type": "step",
         "step": 11,
-        "total": 16,
+        "total": 19,
         "icon": "💰",
         "title": "Modeling Revenue Streams",
         "message": "Creating revenue model and business model...",
@@ -635,13 +640,115 @@ async def node_generate_revenue(state: StartupState) -> dict:
     return {"revenue_model": revenue, "business_model": revenue}
 
 
+async def node_pricing_model(state: StartupState) -> dict:
+    """Node 8.4: Generate Pricing Model (JSON)"""
+    sid = state["session_id"]
+    await emit(sid, {
+        "type": "step",
+        "step": 12,
+        "total": 19,
+        "icon": "💲",
+        "title": "Simulating Pricing Model",
+        "message": "Generating pricing tiers and MRR projections...",
+    })
+
+    prompt = PRICING_MODEL_PROMPT.format(
+        idea=state["idea"],
+        revenue_model=state["revenue_model"][:500],
+        market_sizing=state.get("market_sizing", "")[:300],
+        competitor_analysis=state["competitor_analysis"][:300]
+    )
+
+    import json
+    pricing_data = await safe_json_parse(prompt, language="English", max_tokens=1500)
+    
+    await emit(sid, {
+        "type": "section",
+        "label": "Pricing Scenarios",
+        "content": f"<pre>{json.dumps(pricing_data, indent=2)}</pre>"
+    })
+
+    return {"pricing_model": json.dumps(pricing_data)}
+
+
+async def node_financial_projection(state: StartupState) -> dict:
+    """Node 8.5: Generate 3-Year P&L Projection (JSON)"""
+    sid = state["session_id"]
+    await emit(sid, {
+        "type": "step",
+        "step": 13,
+        "total": 19,
+        "icon": "📊",
+        "title": "Building Financial Projections",
+        "message": "Calculating 3-year P&L, burn rate, and hiring costs...",
+    })
+
+    prompt = FINANCIAL_PROJECTION_PROMPT.format(
+        idea=state["idea"],
+        revenue_model=state["revenue_model"][:500],
+        core_features=state["core_features"][:400],
+        market_sizing=state.get("market_sizing", "")[:300]
+    )
+
+    import json
+    proj_data = await safe_json_parse(prompt, language="English", max_tokens=1500)
+    
+    await emit(sid, {
+        "type": "section",
+        "label": "Financial Projections",
+        "content": f"<pre>{json.dumps(proj_data, indent=2)}</pre>"
+    })
+
+    return {"financial_projection": json.dumps(proj_data)}
+
+
+async def node_cap_table(state: StartupState) -> dict:
+    """Node 8.6: Generate Cap Table & Funding Ask (JSON)"""
+    sid = state["session_id"]
+    await emit(sid, {
+        "type": "step",
+        "step": 14,
+        "total": 19,
+        "icon": "🏦",
+        "title": "Structuring Cap Table",
+        "message": "Generating funding ask, equity split, and use of funds...",
+    })
+    
+    import json
+    try:
+        proj_data = json.loads(state.get("financial_projection", "{}"))
+        initial_cash = proj_data.get("initial_cash", 100000)
+        burn = sum(proj_data.get("operating_expenses", {}).values())
+    except Exception:
+        initial_cash = 100000
+        burn = 10000
+
+    prompt = CAP_TABLE_PROMPT.format(
+        idea=state["idea"],
+        revenue_model=state["revenue_model"][:500],
+        market_sizing=state.get("market_sizing", "")[:300],
+        initial_cash=initial_cash,
+        monthly_burn=burn
+    )
+
+    cap_data = await safe_json_parse(prompt, language="English", max_tokens=1500)
+    
+    await emit(sid, {
+        "type": "section",
+        "label": "Cap Table & Funding",
+        "content": f"<pre>{json.dumps(cap_data, indent=2)}</pre>"
+    })
+
+    return {"cap_table": json.dumps(cap_data)}
+
+
 async def node_generate_roadmap(state: StartupState) -> dict:
     """Node 9: Generate Implementation Roadmap"""
     sid = state["session_id"]
     await emit(sid, {
         "type": "step",
-        "step": 12,
-        "total": 16,
+        "step": 15,
+        "total": 19,
         "icon": "🗺️",
         "title": "Building Implementation Roadmap",
         "message": "Planning 12-month execution roadmap...",
@@ -674,8 +781,8 @@ async def node_generate_pitch(state: StartupState) -> dict:
     sid = state["session_id"]
     await emit(sid, {
         "type": "step",
-        "step": 13,
-        "total": 16,
+        "step": 16,
+        "total": 19,
         "icon": "🎤",
         "title": "Creating Pitch Deck Outline",
         "message": "Structuring investor pitch deck...",
@@ -711,8 +818,8 @@ async def node_compile_plan(state: StartupState) -> dict:
     sid = state["session_id"]
     await emit(sid, {
         "type": "step",
-        "step": 14,
-        "total": 16,
+        "step": 17,
+        "total": 19,
         "icon": "📋",
         "title": "Compiling Executive Summary",
         "message": "Synthesizing all research into final startup report...",
@@ -871,8 +978,8 @@ async def node_save_plan(state: StartupState) -> dict:
 
     await emit(sid, {
         "type": "step",
-        "step": 16,
-        "total": 16,
+        "step": 19,
+        "total": 19,
         "icon": "[OK]",
         "title": f"Saving Plan & Generating {doc_format.upper()} Document",
         "message": "Storing complete plan in SQLite. Generating your professional document...",
@@ -897,6 +1004,9 @@ async def node_save_plan(state: StartupState) -> dict:
         "market_sizing": state.get("market_sizing", "{}"),
         "competitor_swot": state.get("competitor_swot", "{}"),
         "critique": state.get("critique", "{}"),
+        "pricing_model": state.get("pricing_model", "{}"),
+        "financial_projection": state.get("financial_projection", "{}"),
+        "cap_table": state.get("cap_table", "{}"),
     }
 
     loop = asyncio.get_event_loop()
@@ -954,6 +1064,18 @@ async def node_save_plan(state: StartupState) -> dict:
     except Exception as e:
         print(f"[Workflow] Roadmap HTML generation failed (non-fatal): {e}")
 
+    # ── Phase 7: Generate Financial Model Excel ──
+    try:
+        import json
+        pricing = json.loads(state.get("pricing_model", "{}"))
+        proj = json.loads(state.get("financial_projection", "{}"))
+        cap = json.loads(state.get("cap_table", "{}"))
+        await loop.run_in_executor(
+            None, generate_financial_model, state["plan_id"], pricing, proj, cap
+        )
+    except Exception as e:
+        print(f"[Workflow] Financial Model Excel generation failed: {e}")
+
     # Emit the complete final plan (include doc_format so frontend shows right button)
     await emit(sid, {
         "type": "complete",
@@ -972,7 +1094,7 @@ async def node_generate_assets(state: StartupState) -> dict:
     await emit(sid, {
         "type": "step",
         "step": 17,
-        "total": 17,
+        "total": 20,
         "icon": "[OK]",
         "title": "Generating Startup Studio Assets",
         "message": "Creating Logo, Brand Kit, Marketing Poster, Landing Page, Wireframes, and Investor Report...",
@@ -1018,6 +1140,9 @@ def build_graph() -> StateGraph:
     workflow.add_node("generate_solution", node_generate_solution)
     workflow.add_node("generate_features", node_generate_features)
     workflow.add_node("generate_revenue", node_generate_revenue)
+    workflow.add_node("pricing_model", node_pricing_model)
+    workflow.add_node("financial_projection", node_financial_projection)
+    workflow.add_node("cap_table", node_cap_table)
     workflow.add_node("generate_roadmap", node_generate_roadmap)
     workflow.add_node("generate_pitch", node_generate_pitch)
     workflow.add_node("compile_plan", node_compile_plan)
@@ -1037,7 +1162,10 @@ def build_graph() -> StateGraph:
     workflow.add_edge("calculate_market_size", "generate_solution")
     workflow.add_edge("generate_solution", "generate_features")
     workflow.add_edge("generate_features", "generate_revenue")
-    workflow.add_edge("generate_revenue", "generate_roadmap")
+    workflow.add_edge("generate_revenue", "pricing_model")
+    workflow.add_edge("pricing_model", "financial_projection")
+    workflow.add_edge("financial_projection", "cap_table")
+    workflow.add_edge("cap_table", "generate_roadmap")
     workflow.add_edge("generate_roadmap", "generate_pitch")
     workflow.add_edge("generate_pitch", "compile_plan")
     workflow.add_edge("compile_plan", "adversarial_review")
@@ -1087,6 +1215,9 @@ async def run_agent(idea: str, session_id: str, language: str = "English", doc_f
         "language": language,
         "doc_format": doc_format,
         "images": [],
+        "pricing_model": "",
+        "financial_projection": "",
+        "cap_table": "",
     }
 
     try:
