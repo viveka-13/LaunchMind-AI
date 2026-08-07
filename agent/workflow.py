@@ -43,6 +43,7 @@ from agent.roadmap_generator import generate_roadmap_html
 from agent.asset_manager import generate_all_assets
 from agent.financial_prompts import PRICING_MODEL_PROMPT, FINANCIAL_PROJECTION_PROMPT, CAP_TABLE_PROMPT
 from agent.financial_model_generator import generate_financial_model
+from agent.investor_matcher import match_investors
 
 # ─────────────────────────────────────────────
 # Global event queue registry (per session)
@@ -90,6 +91,7 @@ class StartupState(TypedDict):
     pricing_model: str
     financial_projection: str
     cap_table: str
+    matched_investors: str
 
 
 # ─────────────────────────────────────────────
@@ -742,6 +744,35 @@ async def node_cap_table(state: StartupState) -> dict:
     return {"cap_table": json.dumps(cap_data)}
 
 
+
+async def node_investor_matching(state: StartupState) -> dict:
+    """Node 8.7: AI Investor Matching Engine"""
+    sid = state["session_id"]
+    await emit(sid, {
+        "type": "step",
+        "step": 15,
+        "total": 20,
+        "icon": "🤝",
+        "title": "Matching Investors",
+        "message": "Finding VC and Angel investors suitable for your startup...",
+    })
+
+    try:
+        cap_data = json.loads(state.get("cap_table", "{}"))
+        initial_cash = cap_data.get("funding_ask", {}).get("total_ask", "$500,000")
+    except Exception:
+        initial_cash = "$500,000"
+
+    matched = await match_investors(
+        idea=state["idea"],
+        revenue_model=state.get("revenue_model", ""),
+        core_features=state.get("core_features", ""),
+        initial_cash=str(initial_cash),
+        language=state.get("language", "English")
+    )
+    
+    return {"matched_investors": json.dumps(matched)}
+
 async def node_generate_roadmap(state: StartupState) -> dict:
     """Node 9: Generate Implementation Roadmap"""
     sid = state["session_id"]
@@ -1007,6 +1038,7 @@ async def node_save_plan(state: StartupState) -> dict:
         "pricing_model": state.get("pricing_model", "{}"),
         "financial_projection": state.get("financial_projection", "{}"),
         "cap_table": state.get("cap_table", "{}"),
+        "matched_investors": state.get("matched_investors", "{}"),
     }
 
     loop = asyncio.get_event_loop()
@@ -1143,6 +1175,7 @@ def build_graph() -> StateGraph:
     workflow.add_node("pricing_model", node_pricing_model)
     workflow.add_node("financial_projection", node_financial_projection)
     workflow.add_node("cap_table", node_cap_table)
+    workflow.add_node("investor_matching", node_investor_matching)
     workflow.add_node("generate_roadmap", node_generate_roadmap)
     workflow.add_node("generate_pitch", node_generate_pitch)
     workflow.add_node("compile_plan", node_compile_plan)
@@ -1165,7 +1198,8 @@ def build_graph() -> StateGraph:
     workflow.add_edge("generate_revenue", "pricing_model")
     workflow.add_edge("pricing_model", "financial_projection")
     workflow.add_edge("financial_projection", "cap_table")
-    workflow.add_edge("cap_table", "generate_roadmap")
+    workflow.add_edge("cap_table", "investor_matching")
+    workflow.add_edge("investor_matching", "generate_roadmap")
     workflow.add_edge("generate_roadmap", "generate_pitch")
     workflow.add_edge("generate_pitch", "compile_plan")
     workflow.add_edge("compile_plan", "adversarial_review")
@@ -1218,6 +1252,7 @@ async def run_agent(idea: str, session_id: str, language: str = "English", doc_f
         "pricing_model": "",
         "financial_projection": "",
         "cap_table": "",
+        "matched_investors": "",
     }
 
     try:

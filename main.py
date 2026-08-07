@@ -24,7 +24,10 @@ if not os.getenv("GROQ_API_KEY"):
 
 # Initialize database on startup
 from agent.memory import init_database, get_all_plans, get_plan_by_id
+from agent.investor_database import init_investor_db
+from agent.pitch_practice import generate_pitch_question, evaluate_pitch_answer
 init_database()
+init_investor_db()
 
 # Import agent components
 from agent.workflow import run_agent, event_queues
@@ -227,6 +230,155 @@ async def download_investor_report(plan_id: str):
     if not os.path.exists(file_path):
         raise HTTPException(status_code=404, detail="Investor Report not found.")
     return FileResponse(file_path, media_type="application/pdf", filename=f"Investor_Report_{plan_id}.pdf")
+
+
+
+# ─────────────────────────────────────────────
+# Fundraising Platform APIs
+# ─────────────────────────────────────────────
+
+from pydantic import BaseModel
+class PracticeStartReq(BaseModel):
+    persona_id: str
+
+class PracticeAnswerReq(BaseModel):
+    session_id: str
+    answer: str
+
+@app.post("/api/practice/start/{plan_id}")
+async def start_pitch_practice(plan_id: str, req: PracticeStartReq):
+    plan = get_plan_by_id(plan_id)
+    if not plan:
+        raise HTTPException(status_code=404, detail="Plan not found")
+    
+    import uuid
+    session_id = str(uuid.uuid4())
+    
+    # Generate first question
+    history = []
+    question = await generate_pitch_question(
+        idea=plan.get("idea", ""),
+        core_features=plan.get("core_features", ""),
+        revenue_model=plan.get("revenue_model", ""),
+        persona_id=req.persona_id,
+        history=history
+    )
+    
+    history.append({"role": "investor", "content": question})
+    
+    # Save to db
+    import sqlite3
+    conn = sqlite3.connect("./data/startup_history.db")
+    cursor = conn.cursor()
+    cursor.execute(
+        "INSERT INTO pitch_sessions (id, plan_id, persona, messages) VALUES (?, ?, ?, ?)",
+        (session_id, plan_id, req.persona_id, __import__("json").dumps(history))
+    )
+    conn.commit()
+    conn.close()
+    
+    return {"session_id": session_id, "question": question}
+
+@app.post("/api/practice/answer")
+async def answer_pitch_question(req: PracticeAnswerReq):
+    import sqlite3
+    import json
+    
+    conn = sqlite3.connect("./data/startup_history.db")
+    cursor = conn.cursor()
+    cursor.execute("SELECT plan_id, persona, messages FROM pitch_sessions WHERE id = ?", (req.session_id,))
+    row = cursor.fetchone()
+    if not row:
+        conn.close()
+        raise HTTPException(status_code=404, detail="Session not found")
+        
+    plan_id, persona_id, messages_json = row
+    history = json.loads(messages_json)
+    
+    # The last message was the investor's question
+    last_question = history[-1]["content"] if history else ""
+    
+    # Evaluate answer
+    evaluation = await evaluate_pitch_answer(last_question, req.answer)
+    
+    # Add answer to history
+    history.append({"role": "founder", "content": req.answer})
+    history.append({"role": "evaluator", "content": json.dumps(evaluation)})
+    
+    # Generate NEXT question
+    plan = get_plan_by_id(plan_id)
+    next_question = await generate_pitch_question(
+        idea=plan.get("idea", ""),
+        core_features=plan.get("core_features", ""),
+        revenue_model=plan.get("revenue_model", ""),
+        persona_id=persona_id,
+        history=history
+    )
+    history.append({"role": "investor", "content": next_question})
+    
+    cursor.execute(
+        "UPDATE pitch_sessions SET messages = ? WHERE id = ?",
+        (json.dumps(history), req.session_id)
+    )
+    conn.commit()
+    conn.close()
+    
+    return {
+        "evaluation": evaluation,
+        "next_question": next_question
+    }
+
+@app.get("/api/practice/report/{session_id}")
+async def get_practice_report(session_id: str):
+    import sqlite3
+    import json
+    conn = sqlite3.connect("./data/startup_history.db")
+    cursor = conn.cursor()
+    cursor.execute("SELECT messages FROM pitch_sessions WHERE id = ?", (session_id,))
+    row = cursor.fetchone()
+    conn.close()
+    if not row:
+        raise HTTPException(status_code=404, detail="Session not found")
+    
+    return {"history": json.loads(row[0])}
+
+@app.post("/api/export/google-slides/{plan_id}")
+async def export_google_slides(plan_id: str):
+    from agent.export.export_manager import handle_export
+    plan = get_plan_by_id(plan_id)
+    url = handle_export(plan_id, plan, "google_slides")
+    return {"status": "success", "url": url}
+
+@app.post("/api/export/google-docs/{plan_id}")
+async def export_google_docs(plan_id: str):
+    from agent.export.export_manager import handle_export
+    plan = get_plan_by_id(plan_id)
+    url = handle_export(plan_id, plan, "google_docs")
+    return {"status": "success", "url": url}
+
+@app.post("/api/export/notion/{plan_id}")
+async def export_notion(plan_id: str):
+    from agent.export.export_manager import handle_export
+    plan = get_plan_by_id(plan_id)
+    url = handle_export(plan_id, plan, "notion")
+    return {"status": "success", "url": url}
+
+@app.post("/api/pitch/narration/{plan_id}")
+async def generate_pitch_narration(plan_id: str):
+    from agent.voice_generator import generate_voice_narration
+    plan = get_plan_by_id(plan_id)
+    if not plan:
+        raise HTTPException(status_code=404, detail="Plan not found")
+    generate_voice_narration(plan_id, plan)
+    return {"status": "success", "audio_url": "/api/pitch/audio/" + plan_id}
+
+@app.get("/api/pitch/audio/{plan_id}")
+async def get_pitch_audio(plan_id: str):
+    from fastapi.responses import FileResponse
+    file_path = f"./data/audio/{plan_id}_narration.mp3"
+    if not os.path.exists(file_path):
+        raise HTTPException(status_code=404, detail="Audio file not found")
+    return FileResponse(file_path, media_type="audio/mpeg", filename=f"Pitch_Narration.mp3")
 
 
 @app.get("/api/health")

@@ -2163,6 +2163,26 @@
   }
 
   function showModal(plan) {
+
+      plan.matched_investors_html = '';
+      if(plan.matched_investors && plan.matched_investors !== '{}' && plan.matched_investors !== '') {
+        try {
+          const m = JSON.parse(plan.matched_investors);
+          if(m.matched_investors) {
+            plan.matched_investors_html = m.matched_investors.map(inv => `
+              <div style="margin-bottom:15px; padding:15px; background:var(--surface); border-radius:8px; border: 1px solid var(--primary-dark);">
+                <h4 style="margin:0 0 5px 0; color:var(--primary);">${inv.investor_name} <span style="float:right; color:var(--green);">${inv.match_percentage}% Match</span></h4>
+                <p style="margin:0 0 10px 0; font-size:0.9em;"><b>Why:</b> ${inv.why_this_investor_matches}</p>
+                <div style="display:flex; gap:15px; font-size:0.8em; color:var(--text-dim);">
+                  <span><b>Cheque Size:</b> ${inv.expected_cheque_size}</span>
+                  <span><b>Previous:</b> ${inv.previous_relevant_investments}</span>
+                </div>
+              </div>
+            `).join('');
+          }
+        } catch(e) {}
+      }
+
     const sections = [
       { key: 'problem_statement', label: 'Problem Statement', icon: '🔥' },
       { key: 'target_audience', label: 'Target Audience', icon: '👥' },
@@ -2176,6 +2196,7 @@
       { key: 'implementation_roadmap', label: 'Roadmap', icon: '🗺️' },
       { key: 'pitch_deck_outline', label: 'Pitch Deck', icon: '🎤' },
       { key: 'executive_summary', label: 'Executive Summary', icon: '📌' },
+      { key: 'matched_investors_html', label: 'Matched Investors', icon: '🤝' },
     ];
 
     const content = sections.map(s => {
@@ -2196,6 +2217,12 @@
           <a href="/api/download_ppt/${plan.id}" class="generate-btn" style="text-decoration:none; padding:0.5rem 1rem; font-size:0.9rem; width:auto; margin:0;"><span class="btn-text">📥 Download PPT</span></a>
           ${(plan.pricing_model && plan.pricing_model !== '{}') ? `<a href="/api/download_financial_model/${plan.id}" class="generate-btn" style="text-decoration:none; padding:0.5rem 1rem; font-size:0.9rem; width:auto; margin:0; background: linear-gradient(135deg, var(--green), var(--teal)); color: #fff;"><span class="btn-text">📊 Download Financial Model</span></a>` : ''}
           <a href="/api/download_roadmap/${plan.id}" class="generate-btn" style="text-decoration:none; padding:0.5rem 1rem; font-size:0.9rem; width:auto; margin:0; background: linear-gradient(135deg, var(--purple), var(--cyan)); color: #fff;"><span class="btn-text">🖼️ Download Roadmap</span></a>
+          <button onclick="exportPlan('${plan.id}', 'google-slides')" class="generate-btn" style="padding:0.5rem; width:auto; margin:0;"><span class="btn-text">📊 Slides</span></button>
+          <button onclick="exportPlan('${plan.id}', 'google-docs')" class="generate-btn" style="padding:0.5rem; width:auto; margin:0;"><span class="btn-text">📄 Docs</span></button>
+          <button onclick="exportPlan('${plan.id}', 'notion')" class="generate-btn" style="padding:0.5rem; width:auto; margin:0;"><span class="btn-text">📓 Notion</span></button>
+          <button onclick="openPitchPractice('${plan.id}')" class="generate-btn" style="padding:0.5rem; width:auto; margin:0; background:var(--green);"><span class="btn-text">🎤 Pitch Practice</span></button>
+          <button onclick="generateNarration('${plan.id}')" class="generate-btn" style="padding:0.5rem; width:auto; margin:0; background:var(--orange);"><span class="btn-text">🎧 Narration</span></button>
+
         </div>
       </div>
       <div class="modal-idea">💡 Original idea: ${plan.idea} &nbsp;·&nbsp; ${formatDate(plan.created_at)}</div>
@@ -2229,6 +2256,123 @@
   // ── Init language and load history ──
   initLanguage();
   loadHistory();
+
+    // --- Pitch Practice & Export JS ---
+    async function exportPlan(planId, type) {
+      alert("Exporting to " + type + "...");
+      try {
+        const res = await fetch(`/api/export/${type}/${planId}`, { method: 'POST' });
+        const data = await res.json();
+        alert("Export successful: " + data.url);
+      } catch (e) {
+        alert("Export failed");
+      }
+    }
+
+    async function generateNarration(planId) {
+      alert("Generating narration...");
+      try {
+        const res = await fetch(`/api/pitch/narration/${planId}`, { method: 'POST' });
+        const data = await res.json();
+        if (data.status === 'success') {
+          const audio = new Audio(data.audio_url);
+          audio.play();
+          alert("Playing pitch narration!");
+        }
+      } catch (e) {
+        alert("Failed to generate narration");
+      }
+    }
+
+    let practiceSessionId = null;
+    async function openPitchPractice(planId) {
+      document.getElementById('practiceModal').style.display = 'flex';
+      document.getElementById('practiceChat').innerHTML = '<i>Starting session...</i>';
+      document.getElementById('practicePlanId').value = planId;
+    }
+    
+    async function startPractice() {
+      const planId = document.getElementById('practicePlanId').value;
+      const persona = document.getElementById('practicePersona').value;
+      document.getElementById('practiceChat').innerHTML = '<i>Connecting to ' + persona + '...</i>';
+      try {
+        const res = await fetch(`/api/practice/start/${planId}`, {
+          method: 'POST',
+          headers: {'Content-Type': 'application/json'},
+          body: JSON.stringify({ persona_id: persona })
+        });
+        const data = await res.json();
+        practiceSessionId = data.session_id;
+        document.getElementById('practiceChat').innerHTML = `<div style="margin-bottom:10px; color:var(--primary);"><b>Investor:</b> ${data.question}</div>`;
+      } catch (e) {
+        document.getElementById('practiceChat').innerHTML = 'Failed to start.';
+      }
+    }
+
+    async function sendPracticeAnswer() {
+      if (!practiceSessionId) return;
+      const ans = document.getElementById('practiceAnswer').value;
+      if (!ans) return;
+      document.getElementById('practiceChat').innerHTML += `<div style="margin-bottom:10px;"><b>You:</b> ${ans}</div>`;
+      document.getElementById('practiceAnswer').value = '';
+      
+      try {
+        const res = await fetch(`/api/practice/answer`, {
+          method: 'POST',
+          headers: {'Content-Type': 'application/json'},
+          body: JSON.stringify({ session_id: practiceSessionId, answer: ans })
+        });
+        const data = await res.json();
+        
+        let evalHtml = `<div style="margin-bottom:10px; padding:10px; background:var(--surface); border:1px solid var(--border);">`;
+        evalHtml += `<b>AI Evaluation Score:</b> ${data.evaluation.score}/10<br>`;
+        evalHtml += `<b>Strengths:</b> ${data.evaluation.strengths.join(', ')}<br>`;
+        evalHtml += `<b>Weaknesses:</b> ${data.evaluation.weaknesses.join(', ')}<br>`;
+        evalHtml += `<b>Better Answer:</b> ${data.evaluation.suggested_improved_answer}</div>`;
+        
+        document.getElementById('practiceChat').innerHTML += evalHtml;
+        document.getElementById('practiceChat').innerHTML += `<div style="margin-bottom:10px; color:var(--primary);"><b>Investor:</b> ${data.next_question}</div>`;
+        
+        const chatDiv = document.getElementById('practiceChat');
+        chatDiv.scrollTop = chatDiv.scrollHeight;
+      } catch(e) {}
+    }
+
+    function closePracticeModal() {
+      document.getElementById('practiceModal').style.display = 'none';
+      practiceSessionId = null;
+    }
+    
 </script>
+
+  <!-- Pitch Practice Modal -->
+  <div id="practiceModal" class="modal-overlay" style="display:none;">
+    <div class="modal-content" style="max-width:600px;">
+      <div style="display:flex; justify-content:space-between; align-items:center;">
+        <h2 style="margin:0;">🎤 AI Pitch Practice</h2>
+        <button onclick="closePracticeModal()" style="background:none; border:none; color:var(--text); font-size:1.5rem; cursor:pointer;">&times;</button>
+      </div>
+      <input type="hidden" id="practicePlanId">
+      <div style="margin-top:15px; display:flex; gap:10px;">
+        <select id="practicePersona" style="padding:8px; border-radius:5px; background:var(--surface); color:var(--text); border:1px solid var(--border);">
+          <option value="seed_vc">Seed VC Partner</option>
+          <option value="series_a">Series A Investor</option>
+          <option value="angel">Angel Investor</option>
+          <option value="technical">Technical VC</option>
+        </select>
+        <button onclick="startPractice()" class="generate-btn" style="width:auto; padding:8px 15px;">Start Pitch</button>
+      </div>
+      
+      <div id="practiceChat" style="margin-top:15px; padding:15px; height:300px; overflow-y:auto; background:var(--surface); border-radius:5px; border:1px solid var(--border);">
+        <i>Select a persona and click Start Pitch.</i>
+      </div>
+      
+      <div style="margin-top:15px; display:flex; gap:10px;">
+        <input type="text" id="practiceAnswer" placeholder="Type your answer..." style="flex:1; padding:10px; border-radius:5px; background:var(--surface); color:var(--text); border:1px solid var(--border);" onkeypress="if(event.key==='Enter') sendPracticeAnswer()">
+        <button onclick="sendPracticeAnswer()" class="generate-btn" style="width:auto; padding:10px 15px;">Send</button>
+      </div>
+    </div>
+  </div>
+
 </body>
 </html>

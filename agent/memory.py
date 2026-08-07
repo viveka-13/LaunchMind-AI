@@ -98,6 +98,37 @@ def init_database():
             created_at  TEXT DEFAULT (datetime('now'))
         )
     """)
+    cursor.execute("""
+        CREATE TABLE IF NOT EXISTS pitch_sessions (
+            id          TEXT PRIMARY KEY,
+            plan_id     TEXT NOT NULL,
+            persona     TEXT NOT NULL,
+            messages    TEXT NOT NULL,
+            score       INTEGER DEFAULT 0,
+            created_at  TEXT DEFAULT (datetime('now')),
+            FOREIGN KEY(plan_id) REFERENCES startup_plans(id)
+        )
+    """)
+    cursor.execute("""
+        CREATE TABLE IF NOT EXISTS audio_generations (
+            id          TEXT PRIMARY KEY,
+            plan_id     TEXT NOT NULL,
+            file_path   TEXT NOT NULL,
+            status      TEXT NOT NULL,
+            created_at  TEXT DEFAULT (datetime('now')),
+            FOREIGN KEY(plan_id) REFERENCES startup_plans(id)
+        )
+    """)
+    cursor.execute("""
+        CREATE TABLE IF NOT EXISTS export_history (
+            id          TEXT PRIMARY KEY,
+            plan_id     TEXT NOT NULL,
+            export_type TEXT NOT NULL,
+            export_url  TEXT NOT NULL,
+            created_at  TEXT DEFAULT (datetime('now')),
+            FOREIGN KEY(plan_id) REFERENCES startup_plans(id)
+        )
+    """)
     conn.commit()
     conn.close()
     print("[DB] SQLite initialized.")
