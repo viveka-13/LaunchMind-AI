@@ -90,7 +90,9 @@ Generate a comprehensive revenue model including:
 - Projected unit economics (rough estimates)
 - Path to profitability
 
-Be specific with numbers where possible. Maximum 200 words."""
+CRITICAL ANTI-HALLUCINATION RULE: DO NOT invent fake customers, fake revenue traction, fake team members, or fake partnerships. If data is unavailable, generate a validation plan, list required MVP milestones, or state that roles are TBD.
+
+Be specific with numbers where possible, but do not state that the company has existing customers if it does not. Maximum 200 words."""
 
 ROADMAP_PROMPT = """You are a startup CTO and project manager.
 
@@ -118,16 +120,18 @@ Create a 10-slide pitch deck outline. For each slide include:
 - Slide title
 - 2-3 bullet points of what to cover
 
-The slides should follow the standard investor pitch structure:
+CRITICAL ANTI-HALLUCINATION RULE: DO NOT invent fake customers, fake revenue traction, fake team members, or fake partnerships.
+
+The slides should follow this specific investor pitch structure:
 1. Title/Hook
 2. Problem
 3. Solution  
 4. Market Size
 5. Product
 6. Business Model
-7. Traction/Validation
-8. Team (placeholder)
-9. Financials
+7. Validation Strategy (How we will prove demand)
+8. MVP Milestones (Development timeline)
+9. Growth Plan (Go-to-market strategy)
 10. Ask/CTA"""
 
 COMPILE_PROMPT = """You are a senior business analyst compiling a complete startup report.

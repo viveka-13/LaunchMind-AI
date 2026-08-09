@@ -36,20 +36,24 @@ Idea: {startup_idea}
 Research Brief:
 {research_brief}
 
-Base your sizing strictly on the provided research. If the exact numbers cannot be determined, provide a realistic estimate based on the data or explicitly state null if completely unknowable.
+Base your sizing strictly on the provided research. Do not invent random TAM/SAM/SOM numbers.
+If exact numbers cannot be determined, provide a realistic estimate based on the data or explicitly state null if completely unknowable.
+You MUST include a detailed calculation methodology and state your core assumptions.
 
 Your output MUST be ONLY valid JSON in this exact format:
 {{
   "tam": "e.g., $10B (Global market for X)",
   "sam": "e.g., $2B (US market for X)",
   "som": "e.g., $50M (Initial 5% capture of SAM)",
-  "methodology": "Brief explanation of how you arrived at these numbers. If any value is null, explain why the research is insufficient."
+  "methodology": "Detailed step-by-step calculation explanation.",
+  "assumptions": ["Assumption 1 (e.g. ARPU is $100/yr)", "Assumption 2 (e.g. 10% penetration)"]
 }}
 Note: tam, sam, and som can be null if not available.
 """
 
 COMPETITOR_SWOT_PROMPT = """You are a Competitive Strategy Expert.
 Build a competitor matrix and SWOT analysis based on the research.
+DO NOT return an empty SWOT. If direct competitors are unknown, infer indirect or substitute competitors based on the market context.
 
 Idea: {startup_idea}
 
@@ -63,7 +67,9 @@ Your output MUST be ONLY valid JSON in this exact format:
       "name": "Competitor 1",
       "strength": "Their main advantage",
       "weakness": "Their main flaw",
-      "price_point": "High/Med/Low"
+      "price_point": "High/Med/Low Pricing Strategy",
+      "market_position": "e.g., Enterprise leader, Budget option",
+      "opportunity": "How to beat them"
     }}
   ],
   "swot": {{
@@ -204,13 +210,15 @@ Explain:
 - What milestones must be achieved before investment
 
 CRITICAL REQUIREMENT:
+Generate actual scores as integers (0-10, or 0-100). Do not output "N/A" or strings for scores.
 Your output MUST be ONLY valid JSON in this EXACT format (do not use markdown formatting outside the JSON block):
 {{
   "scores": {{
-    "problem_validation": 0,
-    "market_opportunity": 0,
-    "revenue_model": 0,
-    "overall_feasibility_score": 0
+    "problem_validation": 8,
+    "market_opportunity": 7,
+    "revenue_model": 6,
+    "risk_score": 9,
+    "overall_feasibility_score": 75
   }},
   "action_plan": {{
     "priority_1": [

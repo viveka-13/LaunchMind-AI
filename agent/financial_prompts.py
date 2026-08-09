@@ -20,21 +20,24 @@ Return ONLY valid JSON in this EXACT format:
       "monthly_price": 29,
       "target_segment": "Small businesses",
       "adoption_pct": 0.05,
-      "monthly_growth_rate": 0.08
+      "monthly_growth_rate": 0.08,
+      "churn_rate": 0.03
     }},
     {{
       "name": "Pro",
       "monthly_price": 79,
       "target_segment": "Medium businesses",
       "adoption_pct": 0.03,
-      "monthly_growth_rate": 0.06
+      "monthly_growth_rate": 0.06,
+      "churn_rate": 0.02
     }},
     {{
       "name": "Enterprise",
       "monthly_price": 199,
       "target_segment": "Large companies",
       "adoption_pct": 0.01,
-      "monthly_growth_rate": 0.04
+      "monthly_growth_rate": 0.04,
+      "churn_rate": 0.01
     }}
   ],
   "total_addressable_customers": 50000,
@@ -44,7 +47,8 @@ Return ONLY valid JSON in this EXACT format:
 Rules:
 - Generate 2-3 tiers with realistic prices for this specific market.
 - adoption_pct is the percentage of total_addressable_customers that sign up in month 1.
-- monthly_growth_rate is the month-over-month customer growth rate (decimal, e.g. 0.08 = 8%).
+- monthly_growth_rate is the month-over-month customer acquisition growth rate (decimal, e.g. 0.08 = 8%).
+- churn_rate is the monthly customer churn rate (decimal, e.g. 0.02 = 2%).
 - total_addressable_customers must be a realistic number for this startup's first-year target market.
 - All numbers must be plain numbers, NOT strings.
 """
@@ -61,6 +65,7 @@ Create a 3-year financial projection framework.
 Return ONLY valid JSON in this EXACT format:
 {{
   "cogs_pct": 0.25,
+  "cac": 150,
   "operating_expenses": {{
     "cloud_hosting": 500,
     "marketing": 2000,
@@ -70,6 +75,7 @@ Return ONLY valid JSON in this EXACT format:
     "miscellaneous": 300
   }},
   "expense_growth_rate": 0.05,
+  "revenue_assumptions": "Describe the core revenue generation assumptions (e.g. CAC recovery in 4 months, etc).",
   "hires": [
     {{
       "role": "Backend Developer",
@@ -80,16 +86,6 @@ Return ONLY valid JSON in this EXACT format:
       "role": "Marketing Manager",
       "monthly_salary": 5000,
       "start_month": 4
-    }},
-    {{
-      "role": "Sales Rep",
-      "monthly_salary": 4000,
-      "start_month": 7
-    }},
-    {{
-      "role": "Customer Support",
-      "monthly_salary": 3000,
-      "start_month": 10
     }}
   ],
   "initial_cash": 150000,
@@ -98,8 +94,10 @@ Return ONLY valid JSON in this EXACT format:
 
 Rules:
 - cogs_pct is cost of goods sold as a decimal fraction of revenue.
-- operating_expenses are MONTHLY costs in the currency.
+- cac is the Customer Acquisition Cost (how much it costs to acquire 1 new customer).
+- operating_expenses are MONTHLY fixed/variable costs in the currency.
 - expense_growth_rate is how much operating expenses grow per quarter (decimal).
+- revenue_assumptions: 1-2 sentences stating the methodology behind revenue scale.
 - hires: list 3-5 key hires with monthly salary and the month they start (1-36).
 - initial_cash is the starting cash before any revenue.
 - All numbers must be plain numbers, NOT strings.

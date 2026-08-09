@@ -1,24 +1,55 @@
 async def generate_landing_page(idea: str, features: str, brand_kit: dict, asset_llm_invoke, extract_code_block) -> str:
     """Generate a premium landing page using a parameterized HTML template."""
     brand_name = brand_kit.get("brand_name", "Startup")
-    tagline = brand_kit.get("tagline", "Innovate Today")
     primary = brand_kit.get("colors", {}).get("primary", "#6366f1")
     secondary = brand_kit.get("colors", {}).get("secondary", "#06b6d4")
     accent = brand_kit.get("colors", {}).get("accent", "#f59e0b")
     bg = brand_kit.get("colors", {}).get("background", "#0f172a")
 
-    # Extract feature lines
-    feature_lines = [l.strip() for l in features.split('\n') if l.strip()][:6]
-    feature_icons = ['🚀', '⚡', '🎯', '💡', '🔒', '📊']
+    # Generate Landing Page Copy
+    copy_prompt = f"""You are an expert copywriter. Write a high-converting landing page copy for:
+Idea: {idea}
+Features: {features}
+
+Return ONLY valid JSON:
+{{
+  "headline": "Catchy Hero Headline (max 8 words)",
+  "subheadline": "Persuasive subheadline explaining the value (max 20 words)",
+  "features": [
+    {{"title": "Feature 1", "description": "Short description 1"}},
+    {{"title": "Feature 2", "description": "Short description 2"}},
+    {{"title": "Feature 3", "description": "Short description 3"}},
+    {{"title": "Feature 4", "description": "Short description 4"}}
+  ]
+}}
+"""
+    system = "You are an elite copywriter. Output ONLY valid JSON."
+    text = await asset_llm_invoke(system, copy_prompt, max_tokens=800)
+    import json
+    try:
+        clean = extract_code_block(text, "json")
+        copy_data = json.loads(clean)
+    except:
+        copy_data = {
+            "headline": brand_kit.get("tagline", "Innovate Today"),
+            "subheadline": "The best solution for your needs.",
+            "features": [{"title": "Feature", "description": f} for f in [l.strip() for l in features.split('\n') if l.strip()][:4]]
+        }
+
+    headline = copy_data.get("headline", brand_name)
+    subheadline = copy_data.get("subheadline", "Innovate Today")
     
+    feature_icons = ['🚀', '⚡', '🎯', '💡', '🔒', '📊']
     features_html = ""
-    for i, feat in enumerate(feature_lines):
+    for i, feat in enumerate(copy_data.get("features", [])[:6]):
         icon = feature_icons[i] if i < len(feature_icons) else '✨'
-        short = feat[:80] if len(feat) > 80 else feat
+        title = feat.get("title", "")
+        desc = feat.get("description", "")
         features_html += f'''
         <div class="feature-card">
           <div class="feature-icon">{icon}</div>
-          <p class="feature-text">{short}</p>
+          <h3 style="margin-bottom: 0.5rem; color: #fff;">{title}</h3>
+          <p class="feature-text" style="font-size: 0.9rem;">{desc}</p>
         </div>'''
 
     html = f'''<!DOCTYPE html>
@@ -210,8 +241,8 @@ async def generate_landing_page(idea: str, features: str, brand_kit: dict, asset
   <section class="hero">
     <div class="hero-content">
       <div class="badge">✨ {brand_name}</div>
-      <h1>{tagline}</h1>
-      <p>{idea} — built for the future with AI-powered intelligence and seamless user experience.</p>
+      <h1>{headline}</h1>
+      <p>{subheadline}</p>
       <div class="cta-group">
         <a href="#" class="btn btn-primary">🚀 Get Started Free</a>
         <a href="#" class="btn btn-outline">Learn More →</a>
@@ -228,17 +259,17 @@ async def generate_landing_page(idea: str, features: str, brand_kit: dict, asset
   </section>
 
   <section class="social">
-    <h2 class="section-title">Trusted by Thousands</h2>
+    <h2 class="section-title">Built for Growth</h2>
     <div class="stats">
-      <div><div class="stat-num">10K+</div><div class="stat-label">Active Users</div></div>
-      <div><div class="stat-num">98%</div><div class="stat-label">Satisfaction Rate</div></div>
-      <div><div class="stat-num">4.9★</div><div class="stat-label">App Store Rating</div></div>
+      <div><div class="stat-num">MVP</div><div class="stat-label">Launch Ready</div></div>
+      <div><div class="stat-num">AI</div><div class="stat-label">Powered Engine</div></div>
+      <div><div class="stat-num">24/7</div><div class="stat-label">Always On</div></div>
     </div>
   </section>
 
   <section class="cta-footer">
     <h2>Ready to Transform Your Experience?</h2>
-    <p>Join thousands of users who trust {brand_name}.</p>
+    <p>Be among the first to experience {brand_name}.</p>
     <a href="#" class="btn btn-primary">🚀 Start Free Trial</a>
   </section>
 

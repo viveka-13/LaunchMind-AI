@@ -960,11 +960,11 @@ async def node_adversarial_review(state: StartupState) -> dict:
     compiled_plan = f"Title: {state.get('startup_title', '')}\nSummary: {state.get('executive_summary', '')}\nProblem: {state.get('problem_statement', '')}\nSolution: {state.get('solution_strategy', '')}\nRevenue: {state.get('revenue_model', '')}"
 
     prompt = DEVILS_ADVOCATE_PROMPT.format(
-        startup_idea=state.get('startup_idea', '')[:500],
+        startup_idea=state.get('idea', '')[:500],
         compiled_plan=compiled_plan[:1500],
     )
 
-    critique = await safe_json_parse(prompt, state.get("language", "English"), max_tokens=500)
+    critique = await safe_json_parse(prompt, state.get("language", "English"), max_tokens=2000)
 
     # Extract score & verdict
     scores = critique.get('scores', {})
@@ -982,6 +982,7 @@ async def node_adversarial_review(state: StartupState) -> dict:
     crit_html += f"<li>Problem Validation: {scores.get('problem_validation', 'N/A')}/10</li>"
     crit_html += f"<li>Market Opportunity: {scores.get('market_opportunity', 'N/A')}/10</li>"
     crit_html += f"<li>Revenue Model: {scores.get('revenue_model', 'N/A')}/10</li>"
+    crit_html += f"<li>Risk Score (Higher is better/safer): {scores.get('risk_score', 'N/A')}/10</li>"
     crit_html += "</ul><br/>"
 
     crit_html += "<b>Priority 1 Actions (Critical):</b><ul>"

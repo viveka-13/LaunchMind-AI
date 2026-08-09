@@ -23,8 +23,10 @@ Return ONLY valid JSON matching this schema:
     {{
       "investor_name": "Name of the investor",
       "match_percentage": 85,
+      "investment_stage": "e.g., Seed / Series A",
+      "sector_focus": "e.g., Fintech / AI",
       "why_this_investor_matches": "Detailed 2-3 sentence explanation of why they are a strong fit based on their sector focus and the startup's idea.",
-      "previous_relevant_investments": "e.g., They invested in X and Y",
+      "portfolio_examples": "e.g., They invested in X and Y",
       "expected_cheque_size": "e.g., $500K - $1M"
     }}
   ]
