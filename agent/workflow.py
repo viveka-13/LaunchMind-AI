@@ -1070,22 +1070,16 @@ async def node_save_plan(state: StartupState) -> dict:
     os.makedirs("./data/documents", exist_ok=True)
     os.makedirs("./data/presentations", exist_ok=True)
 
-    # ── Phase 5: Route to correct document generator ──
-    if doc_format == "word":
-        doc_path = f"./data/documents/{state['plan_id']}.docx"
-        await loop.run_in_executor(
-            None, generate_business_plan_word, plan_data, doc_path, images, flowchart_path
-        )
-    elif doc_format == "pdf":
-        doc_path = f"./data/documents/{state['plan_id']}.pdf"
-        await loop.run_in_executor(
-            None, generate_business_plan_pdf, plan_data, doc_path, images, flowchart_path
-        )
-    else:  # default: ppt
-        ppt_path = f"./data/presentations/{state['plan_id']}.pptx"
-        await loop.run_in_executor(
-            None, generate_pitch_deck_ppt, plan_data, ppt_path, images, flowchart_path
-        )
+    # ── Phase 5: Generate All Document Formats (Word, PDF, PPT) ──
+    doc_path_word = f"./data/documents/{state['plan_id']}.docx"
+    doc_path_pdf = f"./data/documents/{state['plan_id']}.pdf"
+    ppt_path = f"./data/presentations/{state['plan_id']}.pptx"
+    
+    await asyncio.gather(
+        loop.run_in_executor(None, generate_business_plan_word, plan_data, doc_path_word, images, flowchart_path),
+        loop.run_in_executor(None, generate_business_plan_pdf, plan_data, doc_path_pdf, images, flowchart_path),
+        loop.run_in_executor(None, generate_pitch_deck_ppt, plan_data, ppt_path, images, flowchart_path)
+    )
 
     # ── Phase 6: Generate Business Roadmap HTML ──
     os.makedirs("./data/roadmaps", exist_ok=True)

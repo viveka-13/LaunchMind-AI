@@ -2259,11 +2259,11 @@
 
     // --- Pitch Practice & Export JS ---
     async function exportPlan(planId, type) {
-      alert("Exporting to " + type + "...");
       try {
         const res = await fetch(`/api/export/${type}/${planId}`, { method: 'POST' });
         const data = await res.json();
-        alert("Export successful: " + data.url);
+        // Automatically download or open the file
+        window.open(data.url, '_blank');
       } catch (e) {
         alert("Export failed");
       }
