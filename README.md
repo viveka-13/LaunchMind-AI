@@ -5,12 +5,13 @@ Built with **LangGraph**, **Claude AI**, **ChromaDB**, and **FastAPI**.
 
 ## ✨ Key Features
 
-- **Autonomous Agent Workflow**: Decomposes an idea into 10 subtasks and researches them using web tools.
-- **RAG Memory**: Uses ChromaDB to store and retrieve research context during generation.
-- **Multi-Format Export**: Generates professional documents in **PowerPoint (PPTX)**, **PDF**, and **Word (DOCX)** formats.
-- **Intelligent Image Integration**: Intelligently extracts business-specific keywords from your startup idea to fetch highly relevant niche images via the **Pexels API**, seamlessly embedding them into all generated documents.
+- **Autonomous Agent Workflow**: Decomposes an idea into multi-step execution tasks and researches them using web tools.
+- **AI Investor Matching Engine**: Automatically finds suitable VC firms and angel investors tailored to your startup's sector, stage, and funding requirements.
+- **Interactive Pitch Practice**: Chat with AI investor personas (e.g., Aggressive VC, Technical Angel) to practice your pitch and get real-time evaluations on your answers.
+- **Brand Strategy Generation**: Automatically designs a brand identity including brand personas, taglines, color palettes, and generates high-converting marketing copy.
+- **Multi-Format Export**: Instantly downloads generated professional documents in **PowerPoint (PPTX)**, **PDF**, and **Word (DOCX)** formats.
 - **Graphical Business Roadmap**: Programmatically designs and generates a beautiful, 15-stage timeline SVG graphic visualizing your execution roadmap from idea to final outcome.
-- **System Architecture Flowcharts**: Automatically designs and generates a system architecture flowchart for your app/startup.
+- **RAG Memory**: Uses ChromaDB to store and retrieve research context during generation.
 
 ---
 
@@ -22,19 +23,17 @@ autostartup-ai/
 ├── requirements.txt        # Python dependencies
 ├── .env.example            # Environment template
 ├── agent/
-│   ├── __init__.py
-│   ├── workflow.py         # LangGraph 12-node agent graph
-│   ├── tools.py            # DuckDuckGo search tools
+│   ├── workflow.py         # LangGraph multi-node agent graph
+│   ├── investor_matcher.py # AI VC and Angel matching engine
+│   ├── pitch_practice.py   # AI interactive investor practice
+│   ├── brand_service.py    # Generates Brand Guidelines & Personas
+│   ├── landing_service.py  # Generates SEO-optimized landing copy
 │   ├── memory.py           # ChromaDB (RAG) + SQLite memory
-│   ├── image_service.py    # Pexels API & flowchart generator
-│   ├── roadmap_generator.py# Generates 15-stage SVG visual timelines
-│   ├── ppt_generator.py    # Generates PPTX pitch decks
-│   ├── pdf_generator.py    # Generates PDF business plans
-│   ├── word_generator.py   # Generates DOCX business plans
+│   ├── export/             # Multi-format document export logic
 │   └── prompts.py          # All LLM prompts
 ├── frontend/
-│   └── index.html          # Complete web UI with format selector
-└── data/                   # Auto-created: chroma_db + SQLite + images
+│   └── index.html          # Complete web UI with dashboard
+└── data/                   # Auto-created: databases, documents, audio
 ```
 
 ---
@@ -42,7 +41,7 @@ autostartup-ai/
 ## ⚡ Quick Start
 
 ### Step 1 — Get API Keys
-1. Get a free Anthropic API key at: https://console.anthropic.com
+1. Get a free Groq or Anthropic API key at: https://console.groq.com
 2. Get a free Pexels API key at: https://www.pexels.com/api/ *(Required for auto-embedding images)*
 
 ### Step 2 — Setup Environment
@@ -70,13 +69,8 @@ cp .env.example .env
 ### Step 3 — Add Your API Keys
 Edit `.env` and add:
 ```env
-ANTHROPIC_API_KEY=your_anthropic_api_key_here
+GROQ_API_KEY=your_api_key_here
 PEXELS_API_KEY=your_pexels_api_key_here
-
-# Optional APIs for advanced validation nodes
-CRUNCHBASE_API_KEY=your_crunchbase_api_key_here
-GOOGLE_TRENDS_API_KEY=your_google_trends_api_key_here
-REDDIT_API_KEY=your_reddit_api_key_here
 ```
 
 ### Step 4 — Run the Server
@@ -88,73 +82,52 @@ Visit `http://localhost:8000` to access the web interface.
 
 ---
 
-## 💡 How It Works
-
-1. **User Input**: Submit a startup idea and select your desired output format (PPT, PDF, Word).
-2. **Task Decomposition**: AI breaks the idea into 10 subtasks.
-3. **Research Phase**: Agent researches each subtask using DuckDuckGo.
-4. **Vector DB Storage**: Results stored in ChromaDB for retrieval.
-5. **Asset Generation**: Intelligent Pexels queries fetch targeted business images, and the system generates architectural flowcharts and a 15-stage roadmap SVG.
-6. **Plan Generation**: AI synthesizes research into a comprehensive business plan document formatted perfectly as PPT, PDF, or Word.
-7. **Streaming Response**: Progress is streamed to the frontend in real-time until all downloads are ready.
-
----
-
 ## 🧠 The Agent Graph
 
 ```
 User Idea
     │
     ▼
-Node 1: Decompose Idea → 10 subtasks (LLM)
+Node 1: Decompose Idea → Multi-step subtasks (LLM)
     │
     ▼
-Node 2: Research Market → DuckDuckGo search (Tool)
+Node 2: Research Market & Competitors → DuckDuckGo search (Tool)
     │
     ▼
-Node 3: Research Competitors → DuckDuckGo search (Tool)
+Node 3: Store in ChromaDB → RAG memory embeddings
     │
     ▼
-Node 3.5a: Synthesize Research → Multi-source aggregation (LLM)
+Node 4: Identify Market Gaps & TAM/SAM/SOM Estimation (LLM)
     │
     ▼
-Node 3.5b: Competitor SWOT → Analysis & Matrix (LLM)
+Node 5: Generate Solution & Core Features → LLM
     │
     ▼
-Node 4: Store in ChromaDB → RAG memory embeddings
+Node 6: Generate Revenue & Business Model → LLM
     │
     ▼
-Node 5: Identify Market Gaps → RAG retrieval + LLM
+Node 7: Generate Brand Strategy → Personas, Copy, Aesthetics (LLM)
     │
     ▼
-Node 5.5: Calculate Market Size → TAM/SAM/SOM Estimation (LLM)
+Node 8: Generate Pitch Deck Outline → LLM
     │
     ▼
-Node 6: Generate Solution → LLM
+Node 9: Generate Financial Projections & Cap Table → LLM
     │
     ▼
-Node 7: Generate Features → LLM
+Node 10: Compile Full Plan → LLM synthesis
     │
     ▼
-Node 8: Generate Revenue Model → LLM
+Node 11: Adversarial Review → Investor Devil's Advocate (LLM)
     │
     ▼
-Node 9: Generate Roadmap → LLM
+Node 12: Investor Matching → AI finds targeted VC / Angel matches
     │
     ▼
-Node 10: Generate Pitch Deck → LLM
+Node 13: Generate Assets → SVG Roadmaps, System Architecture, Pitch Narration
     │
     ▼
-Node 11: Compile Full Plan → LLM synthesis
-    │
-    ▼
-Node 11.5: Adversarial Review → Investor Devil's Advocate (LLM)
-    │
-    ▼
-Node 12: Save Plan & Assets → Fetch Intelligent Images, Generate Flowchart, Generate Roadmap SVG, Create PPT/PDF/Word
-    │
-    ▼
-Complete Business Document → Ready for download!
+Complete Business Document & Dashboard → Ready for Pitch Practice!
 ```
 
 ---
@@ -163,12 +136,10 @@ Complete Business Document → Ready for download!
 
 - **Backend**: Python, FastAPI, Server-Sent Events
 - **AI Agent**: LangGraph (StateGraph), LangChain
-- **LLM**: Anthropic Claude
+- **LLM**: Groq / Anthropic Claude
 - **Vector DB**: ChromaDB (local, persistent)
 - **Web Search**: DuckDuckGo (free, no API key)
 - **Memory**: SQLite (history) + ChromaDB (RAG)
-- **Asset APIs**: Pexels API (Images), Mermaid.ink (Flowcharts)
-- **Document Gen**: `python-pptx`, `fpdf2`, `python-docx`
 - **Frontend**: Vanilla HTML/CSS/JS
 
 ---
@@ -179,34 +150,11 @@ Complete Business Document → Ready for download!
 |---|---|---|
 | `/` | GET | Serves the web UI |
 | `/api/generate` | POST | Start agent (SSE stream) |
-| `/api/history` | GET | All previous plans |
-| `/api/idea/{id}` | GET | Specific plan details |
-| `/api/critique/{id}` | GET | Investor Readiness Review |
+| `/api/practice/start/{id}` | POST | Start an interactive pitch session |
+| `/api/practice/answer` | POST | Submit pitch answer and get evaluation |
 | `/api/download_ppt/{id}` | GET | Download generated PPTX |
 | `/api/download_pdf/{id}` | GET | Download generated PDF |
 | `/api/download_word/{id}` | GET | Download generated DOCX |
-| `/api/download_roadmap/{id}` | GET | Download graphical Roadmap SVG |
-| `/docs` | GET | Interactive API docs |
-
----
-
-## ❓ Troubleshooting
-
-### Issue: Images aren't showing up in my documents
-**Solution**: Ensure you have added `PEXELS_API_KEY` to your `.env` file. If the key is missing or invalid, the app will gracefully skip image generation.
-
-### Issue: "Port 8000 is already in use"
-**Solution**: Run on a different port:
-```bash
-uvicorn main:app --reload --port 8001
-```
-
-### Issue: ChromaDB errors
-**Solution**: Delete the `data/` folder and restart (it will recreate):
-```bash
-rm -rf data/
-# Restart the server
-```
 
 ---
 
