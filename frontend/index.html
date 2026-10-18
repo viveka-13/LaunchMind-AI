@@ -2081,6 +2081,31 @@
         renderStudioDashboard(event.assets);
         break;
 
+      case 'narration_ready':
+        addSection('🎧 Pitch Narration', `
+          <div style="padding:1rem; background:rgba(0,255,100,0.05); border-radius:8px; border:1px solid rgba(0,255,100,0.2);">
+            <p style="color:var(--green); margin-bottom:0.5rem;">✅ Voice narration generated successfully (${(event.duration_seconds || 0).toFixed(1)}s)</p>
+            <audio controls style="width:100%; margin-top:0.5rem;" src="${event.audio_url}">Your browser does not support audio playback.</audio>
+          </div>
+        `);
+        break;
+
+      case 'narration_skip':
+        addSection('🎧 Pitch Narration', `
+          <div style="padding:1rem; background:rgba(255,165,0,0.05); border-radius:8px; border:1px solid rgba(255,165,0,0.2);">
+            <p style="color:var(--orange);">⚠️ Narration unavailable: ${event.reason || 'Unknown reason'}</p>
+          </div>
+        `);
+        break;
+
+      case 'narration_error':
+        addSection('🎧 Pitch Narration', `
+          <div style="padding:1rem; background:rgba(255,60,60,0.05); border-radius:8px; border:1px solid rgba(255,60,60,0.2);">
+            <p style="color:var(--red, #ff5555);">❌ Narration failed: ${event.reason || 'Unknown error'}</p>
+          </div>
+        `);
+        break;
+
       case 'done':
         // Final cleanup
         isGenerating = false;
@@ -2270,17 +2295,41 @@
     }
 
     async function generateNarration(planId) {
-      alert("Generating narration...");
+      const btn = event.target.closest('.generate-btn');
+      const origHTML = btn ? btn.innerHTML : '';
+      if (btn) btn.innerHTML = '<span class="btn-text">⏳ Generating...</span>';
+      if (btn) btn.disabled = true;
+
       try {
         const res = await fetch(`/api/pitch/narration/${planId}`, { method: 'POST' });
         const data = await res.json();
-        if (data.status === 'success') {
-          const audio = new Audio(data.audio_url);
-          audio.play();
-          alert("Playing pitch narration!");
+
+        if (data.status === 'ok' && data.audio_url) {
+          // Create inline audio player
+          const playerHTML = `
+            <div id="narration-player-${planId}" style="margin-top:1rem; padding:1rem; background:rgba(0,255,100,0.05); border-radius:8px; border:1px solid rgba(0,255,100,0.2);">
+              <p style="color:var(--green); margin-bottom:0.5rem;">✅ Narration ready (${(data.duration_seconds || 0).toFixed(1)}s)</p>
+              <audio controls autoplay style="width:100%;" src="${data.audio_url}">Your browser does not support audio.</audio>
+            </div>
+          `;
+          // Insert after the button row
+          const existing = document.getElementById(`narration-player-${planId}`);
+          if (existing) existing.remove();
+          const modalContent = document.getElementById('modalContent');
+          if (modalContent) modalContent.insertAdjacentHTML('afterbegin', playerHTML);
+          if (btn) btn.innerHTML = '<span class="btn-text">🎧 Replay</span>';
+        } else if (data.status === 'skipped') {
+          alert('Narration unavailable: ' + (data.reason || 'TTS not configured'));
+          if (btn) btn.innerHTML = origHTML;
+        } else {
+          alert('Narration failed: ' + (data.reason || 'Unknown error'));
+          if (btn) btn.innerHTML = origHTML;
         }
       } catch (e) {
-        alert("Failed to generate narration");
+        alert("Failed to generate narration: " + e.message);
+        if (btn) btn.innerHTML = origHTML;
+      } finally {
+        if (btn) btn.disabled = false;
       }
     }
 

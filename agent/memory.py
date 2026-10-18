@@ -129,6 +129,18 @@ def init_database():
             FOREIGN KEY(plan_id) REFERENCES startup_plans(id)
         )
     """)
+    # Safe migration: add new columns if not present
+    cursor.execute("PRAGMA table_info(audio_generations)")
+    existing_cols = {r[1] for r in cursor.fetchall()}
+    for col, col_type in [
+        ("reason", "TEXT"),
+        ("duration_seconds", "REAL"),
+        ("provider", "TEXT"),
+        ("voice", "TEXT"),
+    ]:
+        if col not in existing_cols:
+            cursor.execute(f"ALTER TABLE audio_generations ADD COLUMN {col} {col_type}")
+
     conn.commit()
     conn.close()
     print("[DB] SQLite initialized.")
@@ -197,3 +209,68 @@ def get_plan_by_id(plan_id: str) -> Optional[dict]:
     except Exception as e:
         print(f"[DB] Get by ID error: {e}")
         return None
+
+
+def save_audio_generation(plan_id: str, status_obj: dict) -> bool:
+    """Save audio generation status object to SQLite."""
+    try:
+        conn = sqlite3.connect(DB_PATH)
+        cursor = conn.cursor()
+        gen_id = str(uuid.uuid4())
+        file_path = status_obj.get("path") or ""
+        status = status_obj.get("status") or "failed"
+        reason = status_obj.get("reason")
+        duration = status_obj.get("duration_seconds")
+        provider = status_obj.get("provider") or ""
+        voice = status_obj.get("voice") or ""
+
+        cursor.execute(
+            """
+            INSERT INTO audio_generations 
+            (id, plan_id, file_path, status, reason, duration_seconds, provider, voice)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+            """,
+            (gen_id, plan_id, file_path, status, reason, duration, provider, voice),
+        )
+        conn.commit()
+        conn.close()
+        return True
+    except Exception as e:
+        print(f"[DB] Save audio generation error: {e}")
+        return False
+
+
+def get_audio_generation(plan_id: str) -> Optional[dict]:
+    """Retrieve the latest audio generation for a plan."""
+    try:
+        conn = sqlite3.connect(DB_PATH)
+        cursor = conn.cursor()
+        cursor.execute(
+            """
+            SELECT id, plan_id, file_path, status, reason, duration_seconds, provider, voice, created_at
+            FROM audio_generations
+            WHERE plan_id = ?
+            ORDER BY created_at DESC
+            LIMIT 1
+            """,
+            (plan_id,),
+        )
+        row = cursor.fetchone()
+        conn.close()
+        if row:
+            return {
+                "id": row[0],
+                "plan_id": row[1],
+                "file_path": row[2],
+                "status": row[3],
+                "reason": row[4],
+                "duration_seconds": row[5],
+                "provider": row[6],
+                "voice": row[7],
+                "created_at": row[8],
+            }
+        return None
+    except Exception as e:
+        print(f"[DB] Get audio generation error: {e}")
+        return None
+

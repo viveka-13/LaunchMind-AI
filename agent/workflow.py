@@ -92,6 +92,7 @@ class StartupState(TypedDict):
     financial_projection: str
     cap_table: str
     matched_investors: str
+    narration_status: dict
 
 
 # ─────────────────────────────────────────────
@@ -1103,6 +1104,50 @@ async def node_save_plan(state: StartupState) -> dict:
     except Exception as e:
         print(f"[Workflow] Financial Model Excel generation failed: {e}")
 
+    # ── Phase 8: Generate Voice Narration (Resilient, Non-crashing) ──
+    narration_status = {}
+    try:
+        from agent.voice_generator import generate_voice_narration
+        narration_status = await loop.run_in_executor(
+            None, generate_voice_narration, state["plan_id"], plan_data, state.get("language")
+        )
+        if narration_status.get("status") == "ok":
+            await emit(sid, {
+                "type": "narration_ready",
+                "status": "ok",
+                "audio_url": f"/api/pitch/audio/{state['plan_id']}",
+                "duration_seconds": narration_status.get("duration_seconds"),
+            })
+        elif narration_status.get("status") == "skipped":
+            await emit(sid, {
+                "type": "narration_skip",
+                "status": "skipped",
+                "reason": narration_status.get("reason"),
+            })
+        else:
+            await emit(sid, {
+                "type": "narration_error",
+                "status": "failed",
+                "reason": narration_status.get("reason"),
+            })
+    except Exception as e:
+        print(f"[Workflow] Voice narration generation failed (non-fatal): {e}")
+        narration_status = {
+            "status": "failed",
+            "reason": str(e),
+            "path": None,
+            "duration_seconds": None,
+            "provider": "unknown",
+            "voice": "unknown",
+        }
+        await emit(sid, {
+            "type": "narration_error",
+            "status": "failed",
+            "reason": str(e),
+        })
+
+    plan_data["narration_status"] = narration_status
+
     # Emit the complete final plan (include doc_format so frontend shows right button)
     await emit(sid, {
         "type": "complete",
@@ -1110,7 +1155,7 @@ async def node_save_plan(state: StartupState) -> dict:
         "plan": plan_data,
     })
 
-    return {"images": images}
+    return {"images": images, "narration_status": narration_status}
 
 async def node_generate_assets(state: StartupState) -> dict:
     """
@@ -1248,6 +1293,8 @@ async def run_agent(idea: str, session_id: str, language: str = "English", doc_f
         "financial_projection": "",
         "cap_table": "",
         "matched_investors": "",
+        "narration_status": {},
+        "assets": {},
     }
 
     try:

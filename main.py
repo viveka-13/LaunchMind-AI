@@ -369,16 +369,47 @@ async def generate_pitch_narration(plan_id: str):
     plan = get_plan_by_id(plan_id)
     if not plan:
         raise HTTPException(status_code=404, detail="Plan not found")
-    generate_voice_narration(plan_id, plan)
-    return {"status": "success", "audio_url": "/api/pitch/audio/" + plan_id}
+    result = generate_voice_narration(plan_id, plan)
+    response_data = dict(result)
+    if result.get("status") == "ok":
+        response_data["audio_url"] = f"/api/pitch/audio/{plan_id}"
+    else:
+        response_data["audio_url"] = None
+    return response_data
+
 
 @app.get("/api/pitch/audio/{plan_id}")
 async def get_pitch_audio(plan_id: str):
     from fastapi.responses import FileResponse
-    file_path = f"./data/audio/{plan_id}_narration.mp3"
+    from agent.memory import get_audio_generation
+    
+    # Resolve the path from the DB record for that idea ID, never from a user-supplied path
+    rec = get_audio_generation(plan_id)
+    if not rec or rec.get("status") != "ok" or not rec.get("file_path"):
+        raise HTTPException(status_code=404, detail="Audio narration not available or not generated.")
+    
+    file_path = rec["file_path"]
     if not os.path.exists(file_path):
-        raise HTTPException(status_code=404, detail="Audio file not found")
-    return FileResponse(file_path, media_type="audio/mpeg", filename=f"Pitch_Narration.mp3")
+        raise HTTPException(status_code=404, detail="Audio file not found on disk.")
+    
+    plan = get_plan_by_id(plan_id)
+    raw_title = plan.get("startup_title") if plan else "Pitch"
+    clean_title = "".join(c for c in (raw_title or "Pitch") if c.isalnum() or c in (" ", "_", "-")).strip()
+    safe_filename = f"{clean_title.replace(' ', '_')}_Narration.mp3"
+    
+    return FileResponse(file_path, media_type="audio/mpeg", filename=safe_filename)
+
+
+@app.get("/api/pitch/narration/status/{plan_id}")
+async def get_pitch_narration_status(plan_id: str):
+    from agent.memory import get_audio_generation
+    rec = get_audio_generation(plan_id)
+    if not rec:
+        return {"status": "none", "reason": "No narration generated yet"}
+    res = dict(rec)
+    if rec.get("status") == "ok":
+        res["audio_url"] = f"/api/pitch/audio/{plan_id}"
+    return res
 
 
 @app.get("/api/health")
