@@ -226,6 +226,8 @@ def get_ffmpeg_missing_reason() -> str:
 
 def _expand_figures(text: str) -> str:
     """Expand financial and numerical expressions to natural spoken form."""
+    # Remove commas from numbers first (e.g., $2,903.7 -> $2903.7)
+    text = re.sub(r'(\d),(\d)', r'\1\2', text)
     # $1.2B -> 1.2 billion dollars
     text = re.sub(r'\$(\d+(?:\.\d+)?)\s*[bB](?:illion)?\b', r'\1 billion dollars', text)
     # $1.2M -> 1.2 million dollars
@@ -237,7 +239,7 @@ def _expand_figures(text: str) -> str:
     # 5% -> 5 percent
     text = re.sub(r'(\d+(?:\.\d+)?)\s*%', r'\1 percent', text)
 
-    # Word conversions for common decimals like "1.2 million dollars" -> "one point two million dollars"
+    # Word conversions for common decimals like "1.2 billion dollars" -> "one point two billion dollars"
     num_words = {
         "1": "one", "2": "two", "3": "three", "4": "four", "5": "five",
         "6": "six", "7": "seven", "8": "eight", "9": "nine", "10": "ten",
@@ -246,7 +248,7 @@ def _expand_figures(text: str) -> str:
         whole, frac, unit = m.group(1), m.group(2), m.group(3)
         w_word = num_words.get(whole, whole)
         f_word = " ".join(num_words.get(c, c) for c in frac)
-        return f"{w_word} point {f_word} {unit}"
+        return f"{w_word} point {f_word} {unit} dollars"
 
     text = re.sub(r'\b(\d+)\.(\d+)\s*(million|billion|thousand)\s+dollars\b', replace_small_decimal, text)
     return text
@@ -520,20 +522,27 @@ def synthesize_pitch_narration(
                 }
             chunk_files.append(chunk_file)
 
-        # 6. Concatenate chunks using pydub or ffmpeg directly with 300ms pause
-        from pydub import AudioSegment
-
-        combined = AudioSegment.empty()
-        pause_segment = AudioSegment.silent(duration=300)  # 300 ms pause
-
-        for idx, cf in enumerate(chunk_files):
-            seg = AudioSegment.from_file(cf, format="mp3")
-            if idx > 0:
-                combined += pause_segment
-            combined += seg
-
+        # 6. Concatenate chunks
         os.makedirs(os.path.dirname(os.path.abspath(out_path)), exist_ok=True)
-        combined.export(out_path, format="mp3", bitrate="128k")
+        if len(chunk_files) == 1:
+            shutil.copyfile(chunk_files[0], out_path)
+        else:
+            # Multi-chunk concatenation using ffmpeg concat demuxer
+            concat_list_path = os.path.join(temp_dir, "concat.txt")
+            with open(concat_list_path, "w", encoding="utf-8") as f:
+                for cf in chunk_files:
+                    safe_path = os.path.abspath(cf).replace("\\", "/")
+                    f.write(f"file '{safe_path}'\n")
+
+            ffmpeg_bin = check_ffmpeg() or "ffmpeg"
+            cmd = [ffmpeg_bin, "-y", "-f", "concat", "-safe", "0", "-i", concat_list_path, "-c", "copy", out_path]
+            proc = subprocess.run(cmd, capture_output=True, text=True)
+            if proc.returncode != 0 or not os.path.exists(out_path):
+                # Fallback to direct byte concatenation for valid MP3 frames
+                with open(out_path, "wb") as out_f:
+                    for cf in chunk_files:
+                        with open(cf, "rb") as in_f:
+                            out_f.write(in_f.read())
 
         # 7. Validate output
         is_ok, val_err, duration = validate_audio(out_path, script)
