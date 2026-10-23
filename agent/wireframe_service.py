@@ -1,3 +1,6 @@
+import html
+from agent.sanitizer import sanitize_svg
+
 async def generate_wireframes(idea: str, asset_llm_invoke, extract_code_block) -> str:
     """Generate a premium mobile wireframe SVG using a parameterized template."""
 
@@ -22,10 +25,14 @@ Output ONLY a JSON array like: [{{"screen":"Dashboard","desc":"View your daily s
             {"screen": "Settings", "desc": "App preferences"}
         ]
 
-    # Ensure we have exactly 4
+    # Ensure we have exactly 4 and escape them
     while len(screens) < 4:
         screens.append({"screen": f"Screen {len(screens)+1}", "desc": "Feature view"})
-    screens = screens[:4]
+    screens = [
+        {"screen": html.escape(str(s.get("screen", ""))), "desc": html.escape(str(s.get("desc", "")))}
+        for s in screens[:4]
+    ]
+    safe_idea = html.escape(str(idea))
 
     # Build premium wireframe SVG
     svg = f'''<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 900" width="800" height="900">
@@ -147,6 +154,7 @@ Output ONLY a JSON array like: [{{"screen":"Dashboard","desc":"View your daily s
   <text x="595" y="810" font-family="Inter,system-ui,sans-serif" font-size="14" font-weight="600" fill="#94a3b8" text-anchor="middle">📱 {screens[1]["screen"]}</text>
 
   <!-- Idea label -->
-  <text x="400" y="870" font-family="Inter,system-ui,sans-serif" font-size="13" fill="#64748b" text-anchor="middle">{idea}</text>
+  <text x="400" y="870" font-family="Inter,system-ui,sans-serif" font-size="13" fill="#64748b" text-anchor="middle">{safe_idea}</text>
 </svg>'''
-    return svg
+    return sanitize_svg(svg)
+

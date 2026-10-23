@@ -1,9 +1,13 @@
+import html
+from agent.sanitizer import sanitize_svg
+
 async def generate_logo(idea: str, brand_kit: dict, images: list, asset_llm_invoke, extract_code_block) -> str:
     """Generate a premium SVG logo using a parameterized template, dynamic emoji, and optional image background."""
-    brand_name = brand_kit.get("brand_name", "Startup")
-    primary = brand_kit.get("colors", {}).get("primary", "#6366f1")
-    secondary = brand_kit.get("colors", {}).get("secondary", "#06b6d4")
-    accent = brand_kit.get("colors", {}).get("accent", "#f59e0b")
+    raw_name = brand_kit.get("brand_name", "Startup")
+    brand_name = html.escape(str(raw_name))
+    primary = html.escape(str(brand_kit.get("colors", {}).get("primary", "#6366f1")))
+    secondary = html.escape(str(brand_kit.get("colors", {}).get("secondary", "#06b6d4")))
+    accent = html.escape(str(brand_kit.get("colors", {}).get("accent", "#f59e0b")))
 
     # Ask the LLM for a single relevant emoji
     system = "You are a designer. Return ONLY a SINGLE emoji that best represents the given startup idea. Do not return any text, explanation, or quotes."
@@ -12,11 +16,12 @@ async def generate_logo(idea: str, brand_kit: dict, images: list, asset_llm_invo
     
     if len(emoji) > 5 or not emoji:
         emoji = brand_name[0].upper() if brand_name else "S"
+    emoji = html.escape(emoji)
 
     # Use a background image if available
     bg_image_html = ""
     if images and len(images) > 0:
-        bg_img = images[0]
+        bg_img = html.escape(str(images[0]))
         bg_image_html = f'''
         <image href="{bg_img}" x="0" y="0" width="400" height="400" preserveAspectRatio="xMidYMid slice" opacity="0.3"/>
         <rect width="400" height="400" fill="url(#bgGrad)" opacity="0.85"/>
@@ -97,4 +102,5 @@ async def generate_logo(idea: str, brand_kit: dict, images: list, asset_llm_invo
         text-anchor="middle" 
         letter-spacing="4">{brand_name.upper()}</text>
 </svg>'''
-    return svg
+    return sanitize_svg(svg)
+

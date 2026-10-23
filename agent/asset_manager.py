@@ -12,24 +12,32 @@ from agent.wireframe_service import generate_wireframes
 from agent.architecture_service import generate_architecture
 from agent.investor_service import generate_investor_report
 
-# Shared LLM invoker for asset generation
+from agent.llm_client import llm_call
+
+# Shared LLM invoker for asset generation using central wrapper
 async def asset_llm_invoke(system_prompt: str, user_content: str, max_tokens: int = 1500) -> str:
-    api_key = os.environ.get("GROQ_API_KEY")
-    llm = ChatGroq(model="llama-3.1-8b-instant", groq_api_key=api_key, max_tokens=max_tokens)
     messages = [
         SystemMessage(content=system_prompt),
         HumanMessage(content=user_content),
     ]
-    response = await llm.ainvoke(messages)
-    return response.content.strip()
+    result = await llm_call(messages, node="studio_assets", max_tokens=max_tokens)
+    return result.text
 
 async def safe_json_invoke(system_prompt: str, prompt: str, max_tokens: int = 1000) -> dict:
     text = await asset_llm_invoke(system_prompt, prompt, max_tokens)
     try:
         clean = extract_code_block(text, "json")
         return json.loads(clean)
-    except:
-        return {}
+    except Exception:
+        # One repair attempt
+        repair_prompt = f"{prompt}\n\nCRITICAL: The previous output was invalid JSON. Return ONLY valid JSON."
+        try:
+            repair_text = await asset_llm_invoke(system_prompt, repair_prompt, max_tokens)
+            clean = extract_code_block(repair_text, "json")
+            return json.loads(clean)
+        except Exception:
+            return {}
+
 
 def extract_code_block(text: str, lang: str = "") -> str:
     # Extracts code from markdown blocks

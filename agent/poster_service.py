@@ -1,13 +1,17 @@
+import html
+
 async def generate_poster(idea: str, brand_kit: dict, images: list, asset_llm_invoke, extract_code_block) -> str:
     """Generate a premium marketing poster using a parameterized HTML/CSS template."""
-    brand_name = brand_kit.get("brand_name", "Startup")
-    tagline = brand_kit.get("tagline", "Innovate today.")
-    primary = brand_kit.get("colors", {}).get("primary", "#6366f1")
-    secondary = brand_kit.get("colors", {}).get("secondary", "#06b6d4")
-    bg = brand_kit.get("colors", {}).get("background", "#0f172a")
-    accent = brand_kit.get("colors", {}).get("accent", "#f59e0b")
+    raw_name = brand_kit.get("brand_name", "Startup")
+    brand_name = html.escape(str(raw_name))
+    tagline = html.escape(str(brand_kit.get("tagline", "Innovate today.")))
+    primary = html.escape(str(brand_kit.get("colors", {}).get("primary", "#6366f1")))
+    secondary = html.escape(str(brand_kit.get("colors", {}).get("secondary", "#06b6d4")))
+    bg = html.escape(str(brand_kit.get("colors", {}).get("background", "#0f172a")))
+    accent = html.escape(str(brand_kit.get("colors", {}).get("accent", "#f59e0b")))
+    safe_idea = html.escape(str(idea))
 
-    html = f'''<div style="
+    html_content = f'''<div style="
       width: 600px;
       min-height: 800px;
       background: linear-gradient(160deg, {bg} 0%, #1e293b 40%, {primary}15 100%);
@@ -84,7 +88,7 @@ async def generate_poster(idea: str, brand_kit: dict, images: list, asset_llm_in
           line-height: 1.7;
           margin-bottom: 40px;
           max-width: 440px;
-        ">{idea} — Powered by cutting-edge AI technology for a smarter tomorrow.</p>
+        ">{safe_idea} — Powered by cutting-edge AI technology for a smarter tomorrow.</p>
 
         <!-- Feature bullets -->
         <div style="margin-bottom: 40px;">
@@ -138,4 +142,5 @@ async def generate_poster(idea: str, brand_kit: dict, images: list, asset_llm_in
         </div>
       </div>
     </div>'''
-    return html
+    return html_content
+

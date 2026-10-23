@@ -7,43 +7,24 @@ import uuid
 import os
 from typing import TypedDict, List, Optional
 
-from dotenv import load_dotenv
-load_dotenv()  # Force load .env file
+from functools import wraps
+import logging
 
-from langchain_groq import ChatGroq
-from langchain_core.messages import HumanMessage, SystemMessage
-from langgraph.graph import StateGraph, END
+from agent.llm_client import llm_call, LLMCallError, LLMResult, reset_circuit_breaker
+from agent.sanitizer import sanitize_html
+from agent.language import validate_language
+from agent.models_pydantic import (
+    TaskDecompositionModel,
+    ResearchBriefModel,
+    CompetitorSwotModel,
+    MarketSizingModel,
+    PricingModel,
+    FinancialProjectionModel,
+    CapTableModel,
+    CritiqueModel,
+)
 
-from agent.tools import (
-    research_market, research_competitors, select_tool, AVAILABLE_TOOLS,
-    search_crunchbase, search_google_trends, search_sentiment
-)
-from agent.memory import store_research, retrieve_similar, save_startup_plan
-from agent.prompts import (
-    DECOMPOSE_PROMPT,
-    MARKET_GAP_PROMPT,
-    SOLUTION_PROMPT,
-    FEATURES_PROMPT,
-    REVENUE_PROMPT,
-    ROADMAP_PROMPT,
-    PITCH_PROMPT,
-    COMPILE_PROMPT,
-)
-from agent.prompts_research_validation import (
-    RESEARCH_SYNTHESIS_PROMPT,
-    MARKET_SIZING_PROMPT,
-    COMPETITOR_SWOT_PROMPT,
-    DEVILS_ADVOCATE_PROMPT,
-)
-from agent.ppt_generator import generate_pitch_deck_ppt
-from agent.word_generator import generate_business_plan_word
-from agent.pdf_generator import generate_business_plan_pdf
-from agent.image_service import fetch_images_for_startup, generate_flowchart
-from agent.roadmap_generator import generate_roadmap_html
-from agent.asset_manager import generate_all_assets
-from agent.financial_prompts import PRICING_MODEL_PROMPT, FINANCIAL_PROJECTION_PROMPT, CAP_TABLE_PROMPT
-from agent.financial_model_generator import generate_financial_model
-from agent.investor_matcher import match_investors
+logger = logging.getLogger(__name__)
 
 # ─────────────────────────────────────────────
 # Global event queue registry (per session)
@@ -51,9 +32,9 @@ from agent.investor_matcher import match_investors
 event_queues: dict[str, asyncio.Queue] = {}
 
 
-async def emit(session_id: str, event: dict):
+async def emit(session_id: str, event: Optional[dict]):
     """Push an event to the SSE stream for this session."""
-    if session_id in event_queues:
+    if session_id and session_id in event_queues:
         await event_queues[session_id].put(event)
 
 
@@ -61,7 +42,7 @@ async def emit(session_id: str, event: dict):
 # LangGraph Agent State
 # ─────────────────────────────────────────────
 
-class StartupState(TypedDict):
+class StartupState(TypedDict, total=False):
     session_id: str
     idea: str
     plan_id: str
@@ -93,67 +74,183 @@ class StartupState(TypedDict):
     cap_table: str
     matched_investors: str
     narration_status: dict
+    errors: List[dict]
+    completed_nodes: List[str]
+    failed_nodes: List[str]
+    skipped_nodes: List[str]
+    run_summary: dict
+    owner_id: Optional[str]
 
 
 # ─────────────────────────────────────────────
-# LLM Setup
+# Resilient LLM Wrappers
 # ─────────────────────────────────────────────
 
-def get_llm(max_tokens: int = 1500) -> ChatGroq:
-    api_key = os.environ.get("GROQ_API_KEY") or os.getenv("GROQ_API_KEY")
-    if not api_key:
-        # Try loading from .env as last resort
-        from dotenv import load_dotenv
-        load_dotenv(override=False)
-        api_key = os.environ.get("GROQ_API_KEY")
-    if not api_key:
-        raise ValueError("GROQ_API_KEY not found. Run: $env:GROQ_API_KEY='your_key_here'")
-    return ChatGroq(
-        model="llama-3.1-8b-instant",
-        groq_api_key=api_key,
-        max_tokens=max_tokens,
-    )
-
-
-async def llm_invoke(system_prompt: str, user_content: str, language: str = "English", max_tokens: int = 1500) -> str:
-    """Call the LLM and return the response text."""
-    llm = get_llm(max_tokens)
+async def llm_invoke(
+    system_prompt: str,
+    user_content: str,
+    language: str = "English",
+    max_tokens: int = 1500,
+    node: str = "workflow_node",
+    session_id: Optional[str] = None
+) -> str:
+    """Call the LLM via unified wrapper and return the response text."""
     system_prompt += f"\n\nCRITICAL: Respond entirely in the {language} language. Do not mix English unless the user explicitly uses English words, technical terms, or product names."
     messages = [
         SystemMessage(content=system_prompt),
         HumanMessage(content=user_content),
     ]
-    response = await llm.ainvoke(messages)
-    return response.content.strip()
+
+    def retry_cb(evt):
+        if session_id:
+            try:
+                loop = asyncio.get_running_loop()
+                loop.create_task(emit(session_id, {"type": "retry", **evt}))
+            except Exception:
+                pass
+
+    res = await llm_call(
+        messages,
+        node=node,
+        max_tokens=max_tokens,
+        session_id=session_id,
+        retry_callback=retry_cb,
+    )
+    return res.text
 
 
-async def safe_json_parse(prompt: str, language: str = "English", system_prompt: str = "You are an AI assistant. Always respond with valid JSON only.", max_tokens: int = 1500) -> dict:
+def extract_json_block(text: str) -> str:
+    """Extract JSON from markdown code fences or raw string."""
+    clean = text.strip()
+    if "```json" in clean:
+        clean = clean.split("```json")[1].split("```")[0].strip()
+    elif "```" in clean:
+        clean = clean.split("```")[1].split("```")[0].strip()
+    return clean.strip()
+
+
+async def safe_json_parse(
+    prompt: str,
+    language: str = "English",
+    system_prompt: str = "You are an AI assistant. Always respond with valid JSON only.",
+    max_tokens: int = 1500,
+    model_cls: Optional[Any] = None,
+    node: str = "json_node",
+    session_id: Optional[str] = None,
+) -> dict:
     """
-    Helper to execute an LLM call and parse JSON safely.
-    Implements 1 retry if the initial JSON is malformed.
+    Execute an LLM call, parse JSON, and validate against Pydantic model.
+    Implements 1 repair call on failure with specific validation/parse error.
     """
-    # CRITICAL FIX: Ensure the LLM does not translate the JSON keys themselves
     safe_system = system_prompt + "\n\nCRITICAL: Keep all JSON keys exactly as requested in English. ONLY translate the VALUES into the target language."
-    response_text = await llm_invoke(safe_system, prompt, language, max_tokens)
+    response_text = await llm_invoke(safe_system, prompt, language, max_tokens, node=node, session_id=session_id)
     
-    def extract_json(text):
-        clean = text.strip()
-        if "```json" in clean:
-            clean = clean.split("```json")[1].split("```")[0].strip()
-        elif "```" in clean:
-            clean = clean.split("```")[1].split("```")[0].strip()
-        return clean.strip()
-        
     try:
-        return json.loads(extract_json(response_text))
+        raw_dict = json.loads(extract_json_block(response_text))
+        if model_cls:
+            validated = model_cls.model_validate(raw_dict)
+            return validated.model_dump()
+        return raw_dict
     except Exception as e:
-        # Retry once
-        retry_prompt = f"{prompt}\n\nYOUR LAST RESPONSE WAS NOT VALID JSON. Return ONLY valid JSON this time. Error: {str(e)}"
-        retry_response = await llm_invoke(safe_system, retry_prompt, language, max_tokens)
+        logger.warning(f"[Workflow] JSON parse/validate error on node '{node}': {e}. Attempting 1 repair...")
+        retry_prompt = f"{prompt}\n\nYOUR LAST RESPONSE WAS NOT VALID JSON OR FAILED VALIDATION.\nError: {str(e)}\nReturn ONLY valid JSON matching the requested schema."
         try:
-            return json.loads(extract_json(retry_response))
-        except Exception:
+            retry_response = await llm_invoke(safe_system, retry_prompt, language, max_tokens, node=f"{node}_repair", session_id=session_id)
+            repaired_dict = json.loads(extract_json_block(retry_response))
+            if model_cls:
+                validated = model_cls.model_validate(repaired_dict)
+                return validated.model_dump()
+            return repaired_dict
+        except Exception as repair_err:
+            logger.error(f"[Workflow] JSON repair failed on node '{node}': {repair_err}. Returning fallback default.")
+            if model_cls:
+                try:
+                    return model_cls().model_dump()
+                except Exception:
+                    pass
             return {}
+
+
+# ─────────────────────────────────────────────
+# Node-level Boundary & Isolation Decorator
+# ─────────────────────────────────────────────
+
+def node_boundary(node_name: str, required_fields: Optional[List[str]] = None):
+    """
+    Wraps each LangGraph node for isolation:
+    1. Checks required dependencies. If missing, cleanly skips the node.
+    2. Catches LLMCallError and unexpected exceptions, records in state['errors'], emits events, and continues graph.
+    """
+    def decorator(fn):
+        @wraps(fn)
+        async def wrapped(state: StartupState) -> dict:
+            sid = state.get("session_id", "")
+            # Dependency check
+            if required_fields:
+                for req in required_fields:
+                    val = state.get(req)
+                    if val is None or (isinstance(val, (str, list, dict)) and len(val) == 0):
+                        reason = f"skipped_missing_dependency: {req}"
+                        logger.warning(f"[Graph] Node '{node_name}' skipped: {reason}")
+                        await emit(sid, {
+                            "type": "node_skipped",
+                            "node": node_name,
+                            "reason": reason,
+                        })
+                        skipped_list = list(state.get("skipped_nodes", []))
+                        if node_name not in skipped_list:
+                            skipped_list.append(node_name)
+                        return {"skipped_nodes": skipped_list}
+
+            try:
+                out = await fn(state)
+                completed_list = list(state.get("completed_nodes", []))
+                if node_name not in completed_list:
+                    completed_list.append(node_name)
+                out["completed_nodes"] = completed_list
+                return out
+            except LLMCallError as err:
+                logger.error(f"[Graph] LLMCallError in node '{node_name}': {err.reason}")
+                err_record = {
+                    "node": node_name,
+                    "reason": err.reason,
+                    "attempts": err.attempts,
+                    "timestamp": asyncio.get_event_loop().time(),
+                }
+                errors = list(state.get("errors", []))
+                errors.append(err_record)
+                failed_list = list(state.get("failed_nodes", []))
+                if node_name not in failed_list:
+                    failed_list.append(node_name)
+                await emit(sid, {
+                    "type": "node_error",
+                    "node": node_name,
+                    "reason": err.reason,
+                    "retryable": err.retryable,
+                })
+                return {"errors": errors, "failed_nodes": failed_list}
+            except Exception as err:
+                logger.error(f"[Graph] Unexpected exception in node '{node_name}': {err}")
+                err_record = {
+                    "node": node_name,
+                    "reason": str(err),
+                    "attempts": 1,
+                    "timestamp": asyncio.get_event_loop().time(),
+                }
+                errors = list(state.get("errors", []))
+                errors.append(err_record)
+                failed_list = list(state.get("failed_nodes", []))
+                if node_name not in failed_list:
+                    failed_list.append(node_name)
+                await emit(sid, {
+                    "type": "node_error",
+                    "node": node_name,
+                    "reason": str(err),
+                    "retryable": False,
+                })
+                return {"errors": errors, "failed_nodes": failed_list}
+        return wrapped
+    return decorator
 
 UI_LABELS = {
     "English": {

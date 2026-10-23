@@ -1,10 +1,13 @@
+import html as pyhtml
+
 async def generate_landing_page(idea: str, features: str, brand_kit: dict, asset_llm_invoke, extract_code_block) -> str:
     """Generate a premium landing page using a parameterized HTML template."""
-    brand_name = brand_kit.get("brand_name", "Startup")
-    primary = brand_kit.get("colors", {}).get("primary", "#6366f1")
-    secondary = brand_kit.get("colors", {}).get("secondary", "#06b6d4")
-    accent = brand_kit.get("colors", {}).get("accent", "#f59e0b")
-    bg = brand_kit.get("colors", {}).get("background", "#0f172a")
+    raw_name = brand_kit.get("brand_name", "Startup")
+    brand_name = pyhtml.escape(str(raw_name))
+    primary = pyhtml.escape(str(brand_kit.get("colors", {}).get("primary", "#6366f1")))
+    secondary = pyhtml.escape(str(brand_kit.get("colors", {}).get("secondary", "#06b6d4")))
+    accent = pyhtml.escape(str(brand_kit.get("colors", {}).get("accent", "#f59e0b")))
+    bg = pyhtml.escape(str(brand_kit.get("colors", {}).get("background", "#0f172a")))
 
     # Generate Landing Page Copy
     copy_prompt = f"""You are an expert copywriter. Write a high-converting landing page copy for:
@@ -36,15 +39,15 @@ Return ONLY valid JSON:
             "features": [{"title": "Feature", "description": f} for f in [l.strip() for l in features.split('\n') if l.strip()][:4]]
         }
 
-    headline = copy_data.get("headline", brand_name)
-    subheadline = copy_data.get("subheadline", "Innovate Today")
+    headline = pyhtml.escape(str(copy_data.get("headline", brand_name)))
+    subheadline = pyhtml.escape(str(copy_data.get("subheadline", "Innovate Today")))
     
     feature_icons = ['🚀', '⚡', '🎯', '💡', '🔒', '📊']
     features_html = ""
     for i, feat in enumerate(copy_data.get("features", [])[:6]):
         icon = feature_icons[i] if i < len(feature_icons) else '✨'
-        title = feat.get("title", "")
-        desc = feat.get("description", "")
+        title = pyhtml.escape(str(feat.get("title", "")))
+        desc = pyhtml.escape(str(feat.get("description", "")))
         features_html += f'''
         <div class="feature-card">
           <div class="feature-icon">{icon}</div>
