@@ -58,34 +58,44 @@ def research_competitors(idea: str) -> str:
     return "\n\n===\n\n".join(all_results)
 
 
+from agent.company_research import fetch_company_research
+from agent.trends_service import fetch_google_trends
+from agent.sentiment_service import analyze_sentiment
+import asyncio
+
 def search_crunchbase(query: str) -> str:
-    """Wrapper for Crunchbase API. Returns empty state if key is missing."""
-    api_key = os.getenv("CRUNCHBASE_API_KEY")
-    if not api_key:
-        return json.dumps({"source_unavailable": True, "data": ""})
-    
-    # Stub: real implementation would go here
-    return json.dumps({"source_unavailable": False, "data": f"Crunchbase funding data for {query} (stub)"})
+    """Real company research via Crunchbase, SEC EDGAR, or Wikidata."""
+    res = fetch_company_research(query)
+    return json.dumps(res, ensure_ascii=False)
 
 
 def search_google_trends(query: str) -> str:
-    """Wrapper for Google Trends API. Returns empty state if key is missing."""
-    api_key = os.getenv("GOOGLE_TRENDS_API_KEY")
-    if not api_key:
-        return json.dumps({"source_unavailable": True, "data": ""})
-    
-    # Stub: real implementation would go here
-    return json.dumps({"source_unavailable": False, "data": f"Google Trends data for {query} (stub)"})
+    """Real Google Trends interest and direction retrieval via pytrends."""
+    res = fetch_google_trends(query)
+    return json.dumps(res, ensure_ascii=False)
 
 
 def search_sentiment(query: str) -> str:
-    """Wrapper for Reddit/X Sentiment API. Returns empty state if key is missing."""
-    api_key = os.getenv("REDDIT_API_KEY")
-    if not api_key:
-        return json.dumps({"source_unavailable": True, "data": ""})
-    
-    # Stub: real implementation would go here
-    return json.dumps({"source_unavailable": False, "data": f"Sentiment analysis for {query} (stub)"})
+    """Real sentiment analysis via Reddit PRAW and VADER scoring."""
+    try:
+        try:
+            loop = asyncio.get_running_loop()
+        except RuntimeError:
+            loop = None
+
+        if loop and loop.is_running():
+            import concurrent.futures
+            with concurrent.futures.ThreadPoolExecutor() as pool:
+                res = pool.submit(asyncio.run, analyze_sentiment(query)).result()
+        else:
+            res = asyncio.run(analyze_sentiment(query))
+        return json.dumps(res, ensure_ascii=False)
+    except Exception as e:
+        return json.dumps({
+            "status": "failed",
+            "reason": f"Sentiment analysis execution error: {e}",
+            "data": None,
+        })
 
 
 # Tool registry for the agent's tool selection logic

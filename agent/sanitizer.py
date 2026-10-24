@@ -21,7 +21,7 @@ SAFE_HTML_TAGS = {
 }
 
 SAFE_HTML_ATTRIBUTES = {
-    "a": {"href", "title", "target", "rel"},
+    "a": {"href", "title", "target"},
     "div": {"class", "style"},
     "span": {"class", "style"},
     "p": {"class", "style"},

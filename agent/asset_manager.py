@@ -2,7 +2,6 @@ import asyncio
 import os
 import json
 from langchain_core.messages import SystemMessage, HumanMessage
-from langchain_groq import ChatGroq
 
 from agent.brand_service import generate_brand_kit
 from agent.logo_service import generate_logo

@@ -156,7 +156,7 @@ def is_retryable(exc: Exception) -> bool:
         return True
 
     # Keywords in error string
-    if any(k in msg for k in ("rate limit", "too many requests", "overloaded", "timeout", "timed out", "connection reset", "connection refused")):
+    if any(k in msg for k in ("rate limit", "too many requests", "overloaded", "timeout", "timed out", "connection reset", "connection refused", "503", "502", "500", "504", "529", "service unavailable", "bad gateway")):
         return True
 
     return False

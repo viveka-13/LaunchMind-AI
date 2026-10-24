@@ -7,11 +7,12 @@ import os
 from pathlib import Path
 
 from dotenv import load_dotenv
+from contextlib import asynccontextmanager
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import StreamingResponse, HTMLResponse, FileResponse
+from fastapi.responses import StreamingResponse, HTMLResponse, FileResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
-from pydantic import BaseModel
+from pydantic import BaseModel, field_validator
 
 AGENT_TIMEOUT_SECONDS = int(os.getenv("AGENT_TIMEOUT_SECONDS", "600"))
 
@@ -22,12 +23,11 @@ load_dotenv()
 if not os.getenv("GROQ_API_KEY"):
     print("[WARNING] GROQ_API_KEY not set. Please create a .env file.")
 
-# Initialize database on startup
-from agent.memory import init_database, get_all_plans, get_plan_by_id
+# Initialize database on startup via lifespan
+from agent.memory import init_database, get_all_plans, get_plan_by_id, DatabaseError
 from agent.investor_database import init_investor_db
 from agent.pitch_practice import generate_pitch_question, evaluate_pitch_answer
-init_database()
-init_investor_db()
+from agent.language import validate_language
 
 # Import agent components
 from agent.workflow import run_agent, event_queues
@@ -35,14 +35,28 @@ from agent.workflow import run_agent, event_queues
 import uuid
 
 # ─────────────────────────────────────────────
-# FastAPI App Setup
+# FastAPI App Setup with Lifespan
 # ─────────────────────────────────────────────
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    init_database()
+    init_investor_db()
+    yield
 
 app = FastAPI(
     title="AutoStartup AI",
     description="Autonomous AI agent for complete startup plan generation",
     version="1.0.0",
+    lifespan=lifespan,
 )
+
+@app.exception_handler(DatabaseError)
+async def database_error_handler(request, exc):
+    return JSONResponse(
+        status_code=500,
+        content={"detail": "A database error occurred. Please try again later."}
+    )
 
 app.add_middleware(
     CORSMiddleware,
@@ -61,6 +75,14 @@ class IdeaRequest(BaseModel):
     idea: str
     language: str = "English"
     doc_format: str = "ppt"
+
+    @field_validator("language")
+    @classmethod
+    def validate_lang(cls, v: str) -> str:
+        try:
+            return validate_language(v)
+        except ValueError as e:
+            raise ValueError(str(e))
 
     model_config = {"json_schema_extra": {"example": {"idea": "AI app for farmers", "language": "English", "doc_format": "ppt"}}}
 
@@ -342,26 +364,27 @@ async def get_practice_report(session_id: str):
     
     return {"history": json.loads(row[0])}
 
-@app.post("/api/export/google-slides/{plan_id}")
-async def export_google_slides(plan_id: str):
+@app.post("/api/export/{plan_id}/{target}")
+async def export_target(plan_id: str, target: str):
     from agent.export.export_manager import handle_export
     plan = get_plan_by_id(plan_id)
-    url = handle_export(plan_id, plan, "google_slides")
-    return {"status": "success", "url": url}
+    if not plan:
+        raise HTTPException(status_code=404, detail="Plan not found")
+    normalized_target = target.replace("-", "_").lower()
+    res = handle_export(plan_id, plan, normalized_target)
+    return res
+
+@app.post("/api/export/google-slides/{plan_id}")
+async def export_google_slides(plan_id: str):
+    return await export_target(plan_id, "google_slides")
 
 @app.post("/api/export/google-docs/{plan_id}")
 async def export_google_docs(plan_id: str):
-    from agent.export.export_manager import handle_export
-    plan = get_plan_by_id(plan_id)
-    url = handle_export(plan_id, plan, "google_docs")
-    return {"status": "success", "url": url}
+    return await export_target(plan_id, "google_docs")
 
 @app.post("/api/export/notion/{plan_id}")
 async def export_notion(plan_id: str):
-    from agent.export.export_manager import handle_export
-    plan = get_plan_by_id(plan_id)
-    url = handle_export(plan_id, plan, "notion")
-    return {"status": "success", "url": url}
+    return await export_target(plan_id, "notion")
 
 @app.post("/api/pitch/narration/{plan_id}")
 async def generate_pitch_narration(plan_id: str):
