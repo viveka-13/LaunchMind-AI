@@ -73,18 +73,20 @@ app.add_middleware(
 
 class IdeaRequest(BaseModel):
     idea: str
-    language: str = "English"
+    language: str = "en"
     doc_format: str = "ppt"
 
     @field_validator("language")
     @classmethod
     def validate_lang(cls, v: str) -> str:
+        if not v:
+            return "en"
         try:
             return validate_language(v)
         except ValueError as e:
             raise ValueError(str(e))
 
-    model_config = {"json_schema_extra": {"example": {"idea": "AI app for farmers", "language": "English", "doc_format": "ppt"}}}
+    model_config = {"json_schema_extra": {"example": {"idea": "AI app for farmers", "language": "en", "doc_format": "ppt"}}}
 
 
 # ─────────────────────────────────────────────

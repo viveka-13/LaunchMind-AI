@@ -1444,7 +1444,7 @@ agent_graph = build_graph()
 async def run_agent(
     idea: str,
     session_id: str,
-    language: str = "English",
+    language: str = "en",
     doc_format: str = "ppt",
     owner_id: Optional[str] = None
 ):

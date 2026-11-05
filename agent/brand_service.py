@@ -5,16 +5,19 @@ from agent.models_pydantic import BrandKitModel
 logger = logging.getLogger(__name__)
 
 
-async def generate_brand_kit(idea: str, language: str, safe_json_invoke) -> dict:
-    canonical_lang = validate_language(language)
+async def generate_brand_kit(idea: str, language: str = "en", safe_json_invoke=None) -> dict:
+    canonical_lang = validate_language(language) if language else "English"
 
     prompt = f"""You are an expert branding agency.
 Generate a brand identity for this startup idea:
 "{idea}"
 
 CRITICAL LANGUAGE REQUIREMENT:
-- All descriptive values (tagline, psychology, brand_strategy, logo_meaning, customer_personas, marketing_strategy) MUST be written entirely in the {canonical_lang} language.
-- Keep all JSON keys strictly in English as shown below.
+- Write all customer-facing brand copy (tagline, brand voice description, messaging pillars, value propositions, taglines, sample social copy, psychology, brand_strategy, logo_meaning, customer_personas, marketing_strategy) in {canonical_lang}.
+- Keep every JSON key strictly in English as shown below.
+- Keep the brand/product name as is unless the idea itself is in {canonical_lang}.
+- Keep hex colour codes, font names and URLs unchanged.
+- Do not translate field names, enum values, or anything code reads programmatically.
 
 Return ONLY valid JSON matching this schema:
 {{
@@ -37,7 +40,7 @@ Return ONLY valid JSON matching this schema:
   "marketing_strategy": "A high-level 3-step go-to-market strategy in {canonical_lang}."
 }}
 """
-    system = f"You are a brand identity expert. Output ONLY valid JSON. All explanatory values must be in {canonical_lang}."
+    system = f"You are a brand identity expert. Output ONLY valid JSON. All customer-facing brand copy must be in {canonical_lang}. Keep all JSON keys in English."
     raw_data = await safe_json_invoke(system, prompt, max_tokens=1200)
 
     try:

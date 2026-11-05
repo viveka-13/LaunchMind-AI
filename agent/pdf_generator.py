@@ -1,5 +1,6 @@
 import os
 from fpdf import FPDF
+from fpdf.errors import FPDFUnicodeEncodingException
 import json
 
 class PDF(FPDF):
@@ -43,21 +44,23 @@ class PDF(FPDF):
         self.multi_cell(0, 7, body)
         self.ln()
 
-def generate_business_plan_pdf(plan_data: dict, file_path: str, images: list = None, flowchart_path: str = None):
+def generate_business_plan_pdf(plan_data: dict, file_path: str, images: list = None, flowchart_path: str = None) -> dict:
     """
     Generates a professional PDF document business plan.
+    Returns status dict indicating success or skipped if font lacks language glyphs.
     """
     if images is None:
         images = []
         
     os.makedirs(os.path.dirname(file_path), exist_ok=True)
-    pdf = PDF()
-    
-    # 1. Title Page
-    pdf.set_font("helvetica", "B", 28)
-    pdf.set_text_color(31, 41, 55)
-    pdf.ln(50)
-    pdf.multi_cell(0, 15, plan_data.get('startup_title', 'Business Plan'), align="C")
+    try:
+        pdf = PDF()
+        
+        # 1. Title Page
+        pdf.set_font("helvetica", "B", 28)
+        pdf.set_text_color(31, 41, 55)
+        pdf.ln(50)
+        pdf.multi_cell(0, 15, plan_data.get('startup_title', 'Business Plan'), align="C")
     
     pdf.set_font("helvetica", "", 16)
     pdf.set_text_color(100, 100, 120)

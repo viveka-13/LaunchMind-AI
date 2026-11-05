@@ -51,7 +51,7 @@ async def generate_all_assets(state: dict, emit_callback) -> dict:
     Orchestrates the generation of all assets sequentially to avoid rate limits.
     """
     idea = state.get("idea", "")
-    language = state.get("language", "English")
+    language = state.get("language", "en")
     
     assets = {
         "brand_kit": {},
