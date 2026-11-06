@@ -1,5 +1,6 @@
 import os
 from fpdf import FPDF
+from fpdf.errors import FPDFUnicodeEncodingException
 import json
 
 class InvestorPDF(FPDF):
@@ -32,51 +33,54 @@ class InvestorPDF(FPDF):
         self.multi_cell(0, 7, body)
         self.ln()
 
-async def generate_investor_report(idea: str, critique: str, plan_id: str) -> str:
+async def generate_investor_report(idea: str, critique: str, plan_id: str) -> dict:
     """
     Generates a PDF Investor Readiness Report based on the VC critique JSON.
-    Returns the file path.
+    Returns status dict indicating success or skipped if font lacks language glyphs.
     """
-    pdf = InvestorPDF()
-    
     try:
-        data = json.loads(critique) if isinstance(critique, str) else critique
-    except:
-        data = {}
+        pdf = InvestorPDF()
+        
+        try:
+            data = json.loads(critique) if isinstance(critique, str) else critique
+        except:
+            data = {}
 
-    scores = data.get("scores", {})
-    action_plan = data.get("action_plan", {})
-    verdict = data.get("final_verdict", {})
+        scores = data.get("scores", {})
+        action_plan = data.get("action_plan", {})
+        verdict = data.get("final_verdict", {})
 
-    pdf.chapter_title("1. Investment Overview")
-    body = f"Startup Idea: {idea}\n\n"
-    body += f"Final Verdict: {verdict.get('verdict', 'N/A')}\n"
-    body += f"Why: {verdict.get('why', 'N/A')}\n"
-    pdf.chapter_body(body)
-
-    pdf.chapter_title("2. Score Breakdown")
-    body = f"Overall Feasibility Score: {scores.get('overall_feasibility_score', 'N/A')}/100\n"
-    body += f"- Problem Validation: {scores.get('problem_validation', 'N/A')}/10\n"
-    body += f"- Market Opportunity: {scores.get('market_opportunity', 'N/A')}/10\n"
-    body += f"- Revenue Model: {scores.get('revenue_model', 'N/A')}/10\n"
-    pdf.chapter_body(body)
-
-    pdf.chapter_title("3. Priority 1 Actions (Critical Risks)")
-    p1 = action_plan.get("priority_1", [])
-    if not p1:
-        pdf.chapter_body("No critical risks identified.")
-    else:
-        body = ""
-        for idx, action in enumerate(p1):
-            body += f"[{idx+1}] Problem: {action.get('problem', '')}\n"
-            body += f"    Solution: {action.get('solution', '')}\n"
-            body += f"    Impact: {action.get('expected_impact', '')}\n\n"
+        pdf.chapter_title("1. Investment Overview")
+        body = f"Startup Idea: {idea}\n\n"
+        body += f"Final Verdict: {verdict.get('verdict', 'N/A')}\n"
+        body += f"Why: {verdict.get('why', 'N/A')}\n"
         pdf.chapter_body(body)
 
-    # Save PDF
-    export_dir = "./data/documents"
-    os.makedirs(export_dir, exist_ok=True)
-    file_path = os.path.join(export_dir, f"investor_report_{plan_id}.pdf")
-    pdf.output(file_path)
-    
-    return file_path
+        pdf.chapter_title("2. Score Breakdown")
+        body = f"Overall Feasibility Score: {scores.get('overall_feasibility_score', 'N/A')}/100\n"
+        body += f"- Problem Validation: {scores.get('problem_validation', 'N/A')}/10\n"
+        body += f"- Market Opportunity: {scores.get('market_opportunity', 'N/A')}/10\n"
+        body += f"- Revenue Model: {scores.get('revenue_model', 'N/A')}/10\n"
+        pdf.chapter_body(body)
+
+        pdf.chapter_title("3. Priority 1 Actions (Critical Risks)")
+        p1 = action_plan.get("priority_1", [])
+        if not p1:
+            pdf.chapter_body("No critical risks identified.")
+        else:
+            body = ""
+            for idx, action in enumerate(p1):
+                body += f"[{idx+1}] Problem: {action.get('problem', '')}\n"
+                body += f"    Solution: {action.get('solution', '')}\n"
+                body += f"    Impact: {action.get('expected_impact', '')}\n\n"
+            pdf.chapter_body(body)
+
+        # Save PDF
+        export_dir = "./data/documents"
+        os.makedirs(export_dir, exist_ok=True)
+        file_path = os.path.join(export_dir, f"investor_report_{plan_id}.pdf")
+        pdf.output(file_path)
+        
+        return {"status": "ok", "path": file_path}
+    except (FPDFUnicodeEncodingException, UnicodeEncodeError):
+        return {"status": "skipped", "reason": "font does not support this language", "path": None}

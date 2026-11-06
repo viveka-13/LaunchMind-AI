@@ -8,6 +8,7 @@ import tempfile
 import uuid
 from typing import Optional, Protocol, Tuple, List, Dict
 import logging
+from agent.language import SUPPORTED_LANGUAGES
 
 from tenacity import (
     retry,
@@ -71,16 +72,8 @@ class EdgeTTSProvider:
 
     def default_voice(self, language: str) -> str:
         lang_norm = (language or "en").lower().strip()
-        # Handle full names or ISO codes
-        lang_map = {
-            "english": "en",
-            "hindi": "hi",
-            "telugu": "te",
-            "spanish": "es",
-            "french": "fr",
-            "german": "de",
-        }
-        lang_code = lang_map.get(lang_norm, lang_norm[:2])
+        lang_map = {name.lower(): code for code, name in SUPPORTED_LANGUAGES.items()}
+        lang_code = lang_map.get(lang_norm, lang_norm if lang_norm in EDGE_VOICES else lang_norm[:2])
         if lang_code in EDGE_VOICES:
             return EDGE_VOICES[lang_code]
         logger.warning("Unknown language '%s', falling back to English voice", language)
@@ -118,15 +111,8 @@ class OpenAITTSProvider:
 
     def default_voice(self, language: str) -> str:
         lang_norm = (language or "en").lower().strip()
-        lang_map = {
-            "english": "en",
-            "hindi": "hi",
-            "telugu": "te",
-            "spanish": "es",
-            "french": "fr",
-            "german": "de",
-        }
-        lang_code = lang_map.get(lang_norm, lang_norm[:2])
+        lang_map = {name.lower(): code for code, name in SUPPORTED_LANGUAGES.items()}
+        lang_code = lang_map.get(lang_norm, lang_norm if lang_norm in OPENAI_VOICES else lang_norm[:2])
         return OPENAI_VOICES.get(lang_code, "alloy")
 
     def is_configured(self) -> bool:

@@ -1,6 +1,7 @@
 import asyncio
 import os
 import json
+import html
 from langchain_core.messages import SystemMessage, HumanMessage
 
 from agent.brand_service import generate_brand_kit
@@ -94,16 +95,17 @@ async def generate_all_assets(state: dict, emit_callback) -> dict:
     await emit_callback("Generating Investor Report...")
     critique = state.get("critique", "{}")
     plan_id = state.get("plan_id", "unknown")
-    assets["investor_report_pdf"] = await generate_investor_report(idea, critique, plan_id)
+    report_res = await generate_investor_report(idea, critique, plan_id)
+    assets["investor_report_pdf"] = report_res.get("path") if isinstance(report_res, dict) and report_res.get("status") == "ok" else (report_res if isinstance(report_res, str) else "")
     
     # 8. Brand Strategy Document
     await emit_callback("Generating Brand Strategy Document...")
     bk = assets["brand_kit"]
-    brand_name = bk.get("brand_name", "Startup")
-    primary_c = bk.get("colors", {}).get("primary", "#6366f1")
+    brand_name = html.escape(str(bk.get("brand_name", "Startup")))
+    primary_c = html.escape(str(bk.get("colors", {}).get("primary", "#6366f1")))
     personas_html = ""
     for p in bk.get("customer_personas", []):
-        personas_html += f"<li>{p}</li>"
+        personas_html += f"<li>{html.escape(str(p))}</li>"
     assets["brand_strategy_html"] = f"""<!DOCTYPE html>
 <html><head><meta charset="UTF-8"><title>{brand_name} - Brand Strategy</title>
 <style>body{{font-family:'Inter',sans-serif;max-width:800px;margin:2rem auto;padding:2rem;background:#0f172a;color:#e2e8f0;}}
@@ -111,11 +113,11 @@ h1{{color:{primary_c};}} h2{{color:#94a3b8;border-bottom:1px solid #334155;paddi
 ul{{padding-left:1.5rem;}} li{{margin-bottom:0.5rem;}} .section{{margin-bottom:2rem;}}
 </style></head><body>
 <h1>🎯 {brand_name} — Brand Strategy</h1>
-<div class="section"><h2>Brand Strategy</h2><p>{bk.get('brand_strategy', 'N/A')}</p></div>
-<div class="section"><h2>Logo Concept & Meaning</h2><p>{bk.get('logo_meaning', 'N/A')}</p></div>
-<div class="section"><h2>Color Psychology</h2><p>{bk.get('psychology', 'N/A')}</p></div>
+<div class="section"><h2>Brand Strategy</h2><p>{html.escape(str(bk.get('brand_strategy', 'N/A')))}</p></div>
+<div class="section"><h2>Logo Concept & Meaning</h2><p>{html.escape(str(bk.get('logo_meaning', 'N/A')))}</p></div>
+<div class="section"><h2>Color Psychology</h2><p>{html.escape(str(bk.get('psychology', 'N/A')))}</p></div>
 <div class="section"><h2>Customer Personas</h2><ul>{personas_html if personas_html else '<li>No personas generated</li>'}</ul></div>
-<div class="section"><h2>Marketing Strategy</h2><p>{bk.get('marketing_strategy', 'N/A')}</p></div>
+<div class="section"><h2>Marketing Strategy</h2><p>{html.escape(str(bk.get('marketing_strategy', 'N/A')))}</p></div>
 </body></html>"""
     
     return assets

@@ -41,7 +41,7 @@ Return ONLY valid JSON matching this schema:
 }}
 """
     system = f"You are a brand identity expert. Output ONLY valid JSON. All customer-facing brand copy must be in {canonical_lang}. Keep all JSON keys in English."
-    raw_data = await safe_json_invoke(system, prompt, max_tokens=1200)
+    raw_data = await safe_json_invoke(system, prompt, max_tokens=2000)
 
     try:
         validated = BrandKitModel.model_validate(raw_data)
