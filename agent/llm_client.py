@@ -173,7 +173,7 @@ def _create_llm_client(provider: str, max_tokens: int = 1500, timeout: float = 1
         api_key = os.environ.get("GROQ_API_KEY")
         if not api_key:
             raise ValueError("GROQ_API_KEY not configured.")
-        model_name = os.environ.get("GROQ_MODEL", "llama-3.1-8b-instant")
+        model_name = os.environ.get("GROQ_MODEL", "openai/gpt-oss-20b")
         return ChatGroq(
             model=model_name,
             groq_api_key=api_key,

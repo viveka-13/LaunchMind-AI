@@ -61,6 +61,7 @@ from agent.asset_manager import generate_all_assets
 from agent.financial_prompts import PRICING_MODEL_PROMPT, FINANCIAL_PROJECTION_PROMPT, CAP_TABLE_PROMPT
 from agent.financial_model_generator import generate_financial_model
 from agent.investor_matcher import match_investors
+from agent.plan_schema import validate_node_output, PLAN_SECTION_KEYS
 
 logger = logging.getLogger(__name__)
 
@@ -244,6 +245,29 @@ def node_boundary(node_name: str, required_fields: Optional[List[str]] = None):
 
             try:
                 out = await fn(state)
+                # Output Contract Validation
+                is_valid, validation_err = validate_node_output(node_name, out)
+                if not is_valid:
+                    logger.error(f"[Graph] Output validation failed for node '{node_name}': {validation_err}")
+                    err_record = {
+                        "node": node_name,
+                        "reason": f"Output validation failed: {validation_err}",
+                        "attempts": 1,
+                        "timestamp": asyncio.get_event_loop().time(),
+                    }
+                    errors = list(state.get("errors", []))
+                    errors.append(err_record)
+                    failed_list = list(state.get("failed_nodes", []))
+                    if node_name not in failed_list:
+                        failed_list.append(node_name)
+                    await emit(sid, {
+                        "type": "node_error",
+                        "node": node_name,
+                        "reason": validation_err,
+                        "retryable": False,
+                    })
+                    return {"errors": errors, "failed_nodes": failed_list}
+
                 completed_list = list(state.get("completed_nodes", []))
                 if node_name not in completed_list:
                     completed_list.append(node_name)
@@ -497,7 +521,7 @@ async def node_synthesize_research(state: StartupState) -> dict:
     return {"research_by_source": research_sources, "research_brief": json.dumps(brief, ensure_ascii=False)}
 
 
-@node_boundary("competitor_swot", required_fields=["research_brief"])
+@node_boundary("competitor_swot", required_fields=["idea"])
 async def node_competitor_swot(state: StartupState) -> dict:
     """Node 5: Competitor Matrix & SWOT Analysis"""
     sid = state.get("session_id", "")
@@ -624,7 +648,7 @@ async def node_analyze_gaps(state: StartupState) -> dict:
     return {"market_gap": market_gap}
 
 
-@node_boundary("calculate_market_size", required_fields=["research_brief"])
+@node_boundary("calculate_market_size", required_fields=["idea"])
 async def node_calculate_market_size(state: StartupState) -> dict:
     """Node 8: TAM / SAM / SOM Calculator"""
     sid = state.get("session_id", "")
@@ -665,7 +689,7 @@ async def node_calculate_market_size(state: StartupState) -> dict:
     return {"market_sizing": json.dumps(market_sizing, ensure_ascii=False)}
 
 
-@node_boundary("generate_solution", required_fields=["market_gap"])
+@node_boundary("generate_solution", required_fields=["idea"])
 async def node_generate_solution(state: StartupState) -> dict:
     """Node 9: Generate Solution Strategy"""
     sid = state.get("session_id", "")
@@ -680,8 +704,8 @@ async def node_generate_solution(state: StartupState) -> dict:
 
     solution_prompt = SOLUTION_PROMPT.format(
         idea=state.get("idea", ""),
-        market_gap=state.get("market_gap", "")[:500],
-        market_research=state.get("market_research", "")[:600] + "\nCompetitors: " + state.get("competitor_swot", "")[:300],
+        market_gap=state.get("market_gap", "Unaddressed customer workflow bottlenecks")[:500],
+        market_research=(state.get("market_research", "")[:600] + "\nCompetitors: " + state.get("competitor_swot", "")[:300]) or state.get("idea", ""),
     )
 
     solution = await llm_invoke(
@@ -698,10 +722,16 @@ async def node_generate_solution(state: StartupState) -> dict:
         "content": sanitize_html(solution),
     })
 
-    return {"solution_strategy": solution}
+    # Generate startup title early so it is never missing or "Your Startup"
+    startup_title = state.get("startup_title")
+    if not startup_title or startup_title.lower() in ("startup", "your startup", ""):
+        words = [w for w in state.get("idea", "Startup").split() if len(w) > 2]
+        startup_title = " ".join(words[:3]).title() if words else "Startup"
+
+    return {"solution_strategy": solution, "startup_title": startup_title}
 
 
-@node_boundary("generate_features", required_fields=["solution_strategy"])
+@node_boundary("generate_features", required_fields=["idea"])
 async def node_generate_features(state: StartupState) -> dict:
     """Node 10: Generate Core Product Features"""
     sid = state.get("session_id", "")
@@ -714,9 +744,10 @@ async def node_generate_features(state: StartupState) -> dict:
         "message": "Generating product features based on solution strategy...",
     })
 
+    solution_context = state.get("solution_strategy") or state.get("idea", "")
     features_prompt = FEATURES_PROMPT.format(
         idea=state.get("idea", ""),
-        solution=state.get("solution_strategy", "")[:600] + "\nCompetitors: " + state.get("competitor_swot", "")[:300],
+        solution=solution_context[:600] + "\nCompetitors: " + state.get("competitor_swot", "")[:300],
     )
 
     features = await llm_invoke(
@@ -736,7 +767,7 @@ async def node_generate_features(state: StartupState) -> dict:
     return {"core_features": features}
 
 
-@node_boundary("generate_revenue", required_fields=["solution_strategy"])
+@node_boundary("generate_revenue", required_fields=["idea"])
 async def node_generate_revenue(state: StartupState) -> dict:
     """Node 11: Generate Revenue Model"""
     sid = state.get("session_id", "")
@@ -772,7 +803,7 @@ async def node_generate_revenue(state: StartupState) -> dict:
     return {"revenue_model": revenue, "business_model": revenue}
 
 
-@node_boundary("pricing_model", required_fields=["revenue_model"])
+@node_boundary("pricing_model", required_fields=["idea"])
 async def node_pricing_model(state: StartupState) -> dict:
     """Node 12: Generate Pricing Model (JSON)"""
     sid = state.get("session_id", "")
@@ -785,9 +816,10 @@ async def node_pricing_model(state: StartupState) -> dict:
         "message": "Generating pricing tiers and MRR projections...",
     })
 
+    revenue_ctx = state.get("revenue_model") or state.get("idea", "")
     prompt = PRICING_MODEL_PROMPT.format(
         idea=state.get("idea", ""),
-        revenue_model=state.get("revenue_model", "")[:500],
+        revenue_model=revenue_ctx[:500],
         market_sizing=state.get("market_sizing", "")[:300],
         competitor_analysis=state.get("competitor_analysis", "")[:300],
     )
@@ -810,7 +842,7 @@ async def node_pricing_model(state: StartupState) -> dict:
     return {"pricing_model": json.dumps(pricing_data)}
 
 
-@node_boundary("financial_projection", required_fields=["revenue_model"])
+@node_boundary("financial_projection", required_fields=["idea"])
 async def node_financial_projection(state: StartupState) -> dict:
     """Node 13: Generate 3-Year P&L Projection (JSON)"""
     sid = state.get("session_id", "")
@@ -823,10 +855,12 @@ async def node_financial_projection(state: StartupState) -> dict:
         "message": "Calculating 3-year P&L, burn rate, and hiring costs...",
     })
 
+    revenue_ctx = state.get("revenue_model") or state.get("idea", "")
+    features_ctx = state.get("core_features") or state.get("idea", "")
     prompt = FINANCIAL_PROJECTION_PROMPT.format(
         idea=state.get("idea", ""),
-        revenue_model=state.get("revenue_model", "")[:500],
-        core_features=state.get("core_features", "")[:400],
+        revenue_model=revenue_ctx[:500],
+        core_features=features_ctx[:400],
         market_sizing=state.get("market_sizing", "")[:300],
     )
 
@@ -848,7 +882,7 @@ async def node_financial_projection(state: StartupState) -> dict:
     return {"financial_projection": json.dumps(proj_data)}
 
 
-@node_boundary("cap_table", required_fields=["financial_projection"])
+@node_boundary("cap_table", required_fields=["idea"])
 async def node_cap_table(state: StartupState) -> dict:
     """Node 14: Generate Cap Table & Funding Ask (JSON)"""
     sid = state.get("session_id", "")
@@ -869,9 +903,10 @@ async def node_cap_table(state: StartupState) -> dict:
         initial_cash = 100000
         burn = 10000
 
+    revenue_ctx = state.get("revenue_model") or state.get("idea", "")
     prompt = CAP_TABLE_PROMPT.format(
         idea=state.get("idea", ""),
-        revenue_model=state.get("revenue_model", "")[:500],
+        revenue_model=revenue_ctx[:500],
         market_sizing=state.get("market_sizing", "")[:300],
         initial_cash=initial_cash,
         monthly_burn=burn,
@@ -895,7 +930,7 @@ async def node_cap_table(state: StartupState) -> dict:
     return {"cap_table": json.dumps(cap_data)}
 
 
-@node_boundary("investor_matching", required_fields=["cap_table"])
+@node_boundary("investor_matching", required_fields=["idea"])
 async def node_investor_matching(state: StartupState) -> dict:
     """Node 15: AI Investor Matching Engine"""
     sid = state.get("session_id", "")
@@ -914,10 +949,12 @@ async def node_investor_matching(state: StartupState) -> dict:
     except Exception:
         initial_cash = "$500,000"
 
+    revenue_ctx = state.get("revenue_model") or state.get("idea", "")
+    features_ctx = state.get("core_features") or state.get("idea", "")
     matched = await match_investors(
         idea=state.get("idea", ""),
-        revenue_model=state.get("revenue_model", ""),
-        core_features=state.get("core_features", ""),
+        revenue_model=revenue_ctx,
+        core_features=features_ctx,
         initial_cash=str(initial_cash),
         language=state.get("language", "English"),
     )
@@ -925,7 +962,7 @@ async def node_investor_matching(state: StartupState) -> dict:
     return {"matched_investors": json.dumps(matched)}
 
 
-@node_boundary("generate_roadmap", required_fields=["core_features"])
+@node_boundary("generate_roadmap", required_fields=["idea"])
 async def node_generate_roadmap(state: StartupState) -> dict:
     """Node 16: Generate Implementation Roadmap"""
     sid = state.get("session_id", "")
@@ -938,10 +975,12 @@ async def node_generate_roadmap(state: StartupState) -> dict:
         "message": "Planning 12-month execution roadmap...",
     })
 
+    features_ctx = state.get("core_features") or state.get("idea", "")
+    revenue_ctx = state.get("revenue_model") or state.get("idea", "")
     roadmap_prompt = ROADMAP_PROMPT.format(
         idea=state.get("idea", ""),
-        features=state.get("core_features", "")[:400],
-        revenue=state.get("revenue_model", "")[:400],
+        features=features_ctx[:400],
+        revenue=revenue_ctx[:400],
     )
 
     roadmap = await llm_invoke(
@@ -962,7 +1001,7 @@ async def node_generate_roadmap(state: StartupState) -> dict:
     return {"implementation_roadmap": roadmap}
 
 
-@node_boundary("generate_pitch", required_fields=["solution_strategy", "revenue_model"])
+@node_boundary("generate_pitch", required_fields=["idea"])
 async def node_generate_pitch(state: StartupState) -> dict:
     """Node 17: Generate Pitch Deck Outline"""
     sid = state.get("session_id", "")
@@ -975,10 +1014,12 @@ async def node_generate_pitch(state: StartupState) -> dict:
         "message": "Structuring investor pitch deck...",
     })
 
+    solution_ctx = state.get("solution_strategy") or state.get("idea", "")
+    revenue_ctx = state.get("revenue_model") or state.get("idea", "")
     pitch_prompt = PITCH_PROMPT.format(
         idea=state.get("idea", ""),
-        solution=state.get("solution_strategy", "")[:400],
-        revenue=state.get("revenue_model", "")[:400],
+        solution=solution_ctx[:400],
+        revenue=revenue_ctx[:400],
         market_research=state.get("market_research", "")[:500],
     )
 
@@ -999,7 +1040,7 @@ async def node_generate_pitch(state: StartupState) -> dict:
     return {"pitch_deck_outline": pitch}
 
 
-@node_boundary("compile_plan", required_fields=["solution_strategy"])
+@node_boundary("compile_plan", required_fields=["idea"])
 async def node_compile_plan(state: StartupState) -> dict:
     """Node 18: Compile Final Plan"""
     sid = state.get("session_id", "")
@@ -1035,7 +1076,8 @@ Roadmap: {state.get('implementation_roadmap', '')[:300]}
         session_id=sid,
     )
 
-    startup_title = state.get("idea", "Startup").title()
+    # Use existing startup_title from state (generated in step 9) or idea
+    startup_title = state.get("startup_title") or state.get("idea", "Smart Venture").title()
     problem_statement = ""
     target_audience = ""
     executive_summary = ""
@@ -1047,7 +1089,7 @@ Roadmap: {state.get('implementation_roadmap', '')[:300]}
     def flush(key, buf):
         text = " ".join(buf).strip()
         nonlocal startup_title, problem_statement, target_audience, executive_summary
-        if key == "STARTUP_TITLE":
+        if key == "STARTUP_TITLE" and text and text.lower() not in ("your startup", "startup", "untitled startup"):
             startup_title = text
         elif key == "PROBLEM_STATEMENT":
             problem_statement = text
@@ -1084,6 +1126,9 @@ Roadmap: {state.get('implementation_roadmap', '')[:300]}
     if current_key:
         flush(current_key, buffer)
 
+    if not startup_title or startup_title.lower() in ("your startup", "startup", "untitled startup"):
+        startup_title = state.get("startup_title") or f"{state.get('idea', 'Smart Venture').title()}"
+
     if not problem_statement:
         problem_statement = f"The {state.get('idea', '')} sector lacks modern, AI-powered solutions that address user needs effectively."
     if not target_audience:
@@ -1099,7 +1144,7 @@ Roadmap: {state.get('implementation_roadmap', '')[:300]}
     }
 
 
-@node_boundary("adversarial_review", required_fields=["startup_title"])
+@node_boundary("adversarial_review", required_fields=["idea"])
 async def node_adversarial_review(state: StartupState) -> dict:
     """Node 19: Devil's Advocate / Adversarial Review"""
     sid = state.get("session_id", "")
@@ -1112,7 +1157,8 @@ async def node_adversarial_review(state: StartupState) -> dict:
         "message": "Performing adversarial review to find critical flaws...",
     })
 
-    compiled_plan = f"Title: {state.get('startup_title', '')}\nSummary: {state.get('executive_summary', '')}\nProblem: {state.get('problem_statement', '')}\nSolution: {state.get('solution_strategy', '')}\nRevenue: {state.get('revenue_model', '')}"
+    title = state.get('startup_title') or state.get('idea', 'Startup').title()
+    compiled_plan = f"Title: {title}\nSummary: {state.get('executive_summary', '')}\nProblem: {state.get('problem_statement', '')}\nSolution: {state.get('solution_strategy', '')}\nRevenue: {state.get('revenue_model', '')}"
 
     prompt = DEVILS_ADVOCATE_PROMPT.format(
         startup_idea=state.get('idea', '')[:500],
