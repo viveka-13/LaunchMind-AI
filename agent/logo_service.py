@@ -9,13 +9,20 @@ async def generate_logo(idea: str, brand_kit: dict, images: list, asset_llm_invo
     secondary = html.escape(str(brand_kit.get("colors", {}).get("secondary", "#06b6d4")))
     accent = html.escape(str(brand_kit.get("colors", {}).get("accent", "#f59e0b")))
 
-    # Ask the LLM for a single relevant emoji
-    system = "You are a designer. Return ONLY a SINGLE emoji that best represents the given startup idea. Do not return any text, explanation, or quotes."
-    emoji = await asset_llm_invoke(system, idea, max_tokens=10)
-    emoji = emoji.strip().replace("'", "").replace('"', "")
+    # Ask the LLM for a single relevant emoji (with safe fallback)
+    emoji = ""
+    try:
+        system = "You are a designer. Return ONLY a SINGLE emoji that best represents the given startup idea. Do not return any text, explanation, or quotes."
+        raw_emoji = await asset_llm_invoke(system, idea, max_tokens=60)
+        raw_emoji = raw_emoji.strip().replace("'", "").replace('"', "")
+        if raw_emoji:
+            # Grab the first character or emoji
+            emoji = raw_emoji.split()[0] if raw_emoji.split() else raw_emoji
+    except Exception:
+        emoji = ""
     
     if len(emoji) > 5 or not emoji:
-        emoji = brand_name[0].upper() if brand_name else "S"
+        emoji = brand_name[0].upper() if brand_name else "🚀"
     emoji = html.escape(emoji)
 
     # Use a background image if available

@@ -1384,7 +1384,12 @@ async def node_save_plan(state: StartupState) -> dict:
         "status": run_status,
     })
 
-    return {"images": images, "narration_status": narration_status, "run_summary": run_summary}
+    return {
+        "plan_id": state["plan_id"],
+        "images": images,
+        "narration_status": narration_status,
+        "run_summary": run_summary,
+    }
 
 
 @node_boundary("generate_assets", required_fields=["plan_id"])
@@ -1408,8 +1413,13 @@ async def node_generate_assets(state: StartupState) -> dict:
             "content": f"<p>{sanitize_html(msg)}</p>",
         })
 
-    assets = await generate_all_assets(state, emit_progress)
-    
+    assets = {}
+    try:
+        assets = await generate_all_assets(state, emit_progress)
+    except Exception as e:
+        logger.error(f"[Workflow] Error during asset generation: {e}")
+        assets = state.get("assets", {})
+
     await emit(sid, {
         "type": "dashboard",
         "assets": assets,
@@ -1548,6 +1558,7 @@ async def run_agent(
                 "type": "error",
                 "message": f"Agent encountered an error: {str(e)}",
             })
-            await event_queues[session_id].put(None)
     finally:
+        if session_id in event_queues:
+            await event_queues[session_id].put(None)
         reset_circuit_breaker(session_id)

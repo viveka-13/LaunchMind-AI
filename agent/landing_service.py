@@ -27,7 +27,10 @@ Return ONLY valid JSON:
 }}
 """
     system = "You are an elite copywriter. Output ONLY valid JSON."
-    text = await asset_llm_invoke(system, copy_prompt, max_tokens=800)
+    try:
+        text = await asset_llm_invoke(system, copy_prompt, max_tokens=800)
+    except Exception:
+        text = ""
     import json
     try:
         clean = extract_code_block(text, "json")

@@ -84,3 +84,5 @@ async def generate_investor_report(idea: str, critique: str, plan_id: str) -> di
         return {"status": "ok", "path": file_path}
     except (FPDFUnicodeEncodingException, UnicodeEncodeError):
         return {"status": "skipped", "reason": "font does not support this language", "path": None}
+    except Exception as e:
+        return {"status": "skipped", "reason": str(e), "path": None}

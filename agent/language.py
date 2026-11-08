@@ -5,6 +5,10 @@ SUPPORTED_LANGUAGES = {
     "en": "English",
     "hi": "Hindi",
     "te": "Telugu",
+    "ta": "Tamil",
+    "kn": "Kannada",
+    "ml": "Malayalam",
+    "mr": "Marathi",
     "es": "Spanish",
     "fr": "French",
     "de": "German",
@@ -32,4 +36,3 @@ def validate_language(lang: str) -> str:
             
     supported_codes = sorted(list(SUPPORTED_LANGUAGES.keys()))
     raise ValueError(f"Unsupported language code: '{lang}'. Supported language codes are: {supported_codes}")
-

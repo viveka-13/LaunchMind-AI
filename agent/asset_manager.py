@@ -24,8 +24,8 @@ async def asset_llm_invoke(system_prompt: str, user_content: str, max_tokens: in
     return result.text
 
 async def safe_json_invoke(system_prompt: str, prompt: str, max_tokens: int = 1000) -> dict:
-    text = await asset_llm_invoke(system_prompt, prompt, max_tokens)
     try:
+        text = await asset_llm_invoke(system_prompt, prompt, max_tokens)
         clean = extract_code_block(text, "json")
         return json.loads(clean)
     except Exception:
@@ -66,37 +66,84 @@ async def generate_all_assets(state: dict, emit_callback) -> dict:
     }
 
     # 1. Brand Kit
-    await emit_callback("Generating Brand Identity...")
-    assets["brand_kit"] = await generate_brand_kit(idea, language, safe_json_invoke)
-    
+    try:
+        await emit_callback("Generating Brand Identity...")
+        assets["brand_kit"] = await asyncio.wait_for(
+            generate_brand_kit(idea, language, safe_json_invoke),
+            timeout=35.0
+        )
+    except Exception as e:
+        assets["brand_kit"] = {
+            "brand_name": idea.title(),
+            "tagline": f"AI-Powered Solution for {idea}",
+            "colors": {"primary": "#6366f1", "secondary": "#06b6d4", "accent": "#f59e0b", "background": "#0f172a"},
+        }
+
     # 2. Logo
-    await emit_callback("Generating Logo...")
-    images = state.get("images", [])
-    assets["logo_svg"] = await generate_logo(idea, assets["brand_kit"], images, asset_llm_invoke, extract_code_block)
-    
+    try:
+        await emit_callback("Generating Logo...")
+        images = state.get("images", [])
+        assets["logo_svg"] = await asyncio.wait_for(
+            generate_logo(idea, assets["brand_kit"], images, asset_llm_invoke, extract_code_block),
+            timeout=35.0
+        )
+    except Exception as e:
+        assets["logo_svg"] = f'<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 400" width="400" height="400"><rect width="400" height="400" rx="40" fill="#0f172a"/><text x="200" y="220" font-size="100" text-anchor="middle" fill="#6366f1">🚀</text></svg>'
+
     # 3. Poster
-    await emit_callback("Generating Marketing Poster...")
-    assets["poster_html"] = await generate_poster(idea, assets["brand_kit"], images, asset_llm_invoke, extract_code_block)
-    
+    try:
+        await emit_callback("Generating Marketing Poster...")
+        images = state.get("images", [])
+        assets["poster_html"] = await asyncio.wait_for(
+            generate_poster(idea, assets["brand_kit"], images, asset_llm_invoke, extract_code_block),
+            timeout=35.0
+        )
+    except Exception as e:
+        assets["poster_html"] = f"<div><h3>{html.escape(idea)}</h3><p>Poster could not be rendered.</p></div>"
+
     # 4. Landing Page
-    await emit_callback("Generating Landing Page...")
-    features = state.get("core_features", "")
-    assets["landing_page_html"] = await generate_landing_page(idea, features, assets["brand_kit"], asset_llm_invoke, extract_code_block)
-    
+    try:
+        await emit_callback("Generating Landing Page...")
+        features = state.get("core_features", "")
+        assets["landing_page_html"] = await asyncio.wait_for(
+            generate_landing_page(idea, features, assets["brand_kit"], asset_llm_invoke, extract_code_block),
+            timeout=35.0
+        )
+    except Exception as e:
+        assets["landing_page_html"] = f"<div><h1>{html.escape(idea)}</h1><p>Landing page preview unavailable.</p></div>"
+
     # 5. Wireframes
-    await emit_callback("Generating MVP Wireframes...")
-    assets["wireframes_svg"] = await generate_wireframes(idea, asset_llm_invoke, extract_code_block)
-    
+    try:
+        await emit_callback("Generating MVP Wireframes...")
+        assets["wireframes_svg"] = await asyncio.wait_for(
+            generate_wireframes(idea, asset_llm_invoke, extract_code_block),
+            timeout=35.0
+        )
+    except Exception as e:
+        assets["wireframes_svg"] = f'<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 600" width="800" height="600"><rect width="800" height="600" fill="#0f172a"/><text x="400" y="300" font-size="24" text-anchor="middle" fill="#64748b">Wireframe Preview</text></svg>'
+
     # 6. Architecture
-    await emit_callback("Generating System Architecture...")
-    assets["architecture_html"] = await generate_architecture(idea, state["plan_id"], safe_json_invoke)
-    
+    try:
+        await emit_callback("Generating System Architecture...")
+        assets["architecture_html"] = await asyncio.wait_for(
+            generate_architecture(idea, state.get("plan_id", "unknown"), safe_json_invoke),
+            timeout=35.0
+        )
+    except Exception as e:
+        assets["architecture_html"] = f"<div><p>System architecture diagram unavailable.</p></div>"
+
     # 7. Investor Report
-    await emit_callback("Generating Investor Report...")
-    critique = state.get("critique", "{}")
-    plan_id = state.get("plan_id", "unknown")
-    report_res = await generate_investor_report(idea, critique, plan_id)
-    assets["investor_report_pdf"] = report_res.get("path") if isinstance(report_res, dict) and report_res.get("status") == "ok" else (report_res if isinstance(report_res, str) else "")
+    try:
+        await emit_callback("Generating Investor Report...")
+        critique = state.get("critique", "{}")
+        plan_id = state.get("plan_id", "unknown")
+        report_res = await asyncio.wait_for(
+            generate_investor_report(idea, critique, plan_id),
+            timeout=35.0
+        )
+        assets["investor_report_pdf"] = report_res.get("path") if isinstance(report_res, dict) and report_res.get("status") == "ok" else (report_res if isinstance(report_res, str) else "")
+    except Exception as e:
+        assets["investor_report_pdf"] = ""
     
     # 8. Brand Strategy Document
     await emit_callback("Generating Brand Strategy Document...")

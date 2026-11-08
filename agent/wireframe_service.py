@@ -11,7 +11,10 @@ And for each, one short 3-5 word description.
 Output ONLY a JSON array like: [{{"screen":"Dashboard","desc":"View your daily stats"}}, ...]"""
     
     system = "Output ONLY valid JSON array. No markdown, no explanation."
-    text = await asset_llm_invoke(system, prompt, max_tokens=300)
+    try:
+        text = await asset_llm_invoke(system, prompt, max_tokens=300)
+    except Exception:
+        text = ""
     
     import json
     try:
