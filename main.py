@@ -258,113 +258,303 @@ async def download_investor_report(plan_id: str):
 
 
 # ─────────────────────────────────────────────
-# Fundraising Platform APIs
+# Fundraising Platform & Pitch Simulator APIs
 # ─────────────────────────────────────────────
 
-from pydantic import BaseModel
+from typing import Optional
+from pydantic import BaseModel, Field
+from agent.investor_personas import resolve_persona, INVESTOR_PERSONAS
+from agent.pitch_practice import (
+    generate_pitch_question,
+    evaluate_pitch_answer,
+    generate_pitch_session_summary,
+    export_simulation_transcript,
+)
+from agent.memory import (
+    create_pitch_session,
+    get_pitch_session,
+    update_pitch_session,
+    save_practice_turn,
+    get_session_turns,
+)
+
+
 class PracticeStartReq(BaseModel):
-    persona_id: str
+    persona_id: Optional[str] = None
+    persona: Optional[str] = None
+    num_questions: Optional[int] = Field(default=5, ge=1, le=10)
+    language: Optional[str] = None
+
 
 class PracticeAnswerReq(BaseModel):
     session_id: str
     answer: str
 
+
+@app.get("/api/practice/personas")
+async def list_practice_personas():
+    """Return all available investor & evaluator personas for pitch practice."""
+    return {"personas": list(INVESTOR_PERSONAS.values())}
+
+
 @app.post("/api/practice/start/{plan_id}")
 async def start_pitch_practice(plan_id: str, req: PracticeStartReq):
+    """
+    Start an interactive pitch practice simulation session against an AI investor persona.
+    """
     plan = get_plan_by_id(plan_id)
     if not plan:
-        raise HTTPException(status_code=404, detail="Plan not found")
-    
-    import uuid
+        raise HTTPException(status_code=404, detail="Plan not found.")
+
+    # Accept persona or persona_id, supporting legacy aliases
+    raw_persona = req.persona or req.persona_id or "aggressive_vc"
+    persona = resolve_persona(raw_persona)
+    num_questions = req.num_questions or 5
+    lang = req.language or plan.get("language") or "en"
+
     session_id = str(uuid.uuid4())
-    
-    # Generate first question
     history = []
+
+    # Generate first question grounded in the full plan
     question = await generate_pitch_question(
-        idea=plan.get("idea", ""),
-        core_features=plan.get("core_features", ""),
-        revenue_model=plan.get("revenue_model", ""),
-        persona_id=req.persona_id,
-        history=history
+        plan=plan,
+        persona_id=persona["id"],
+        history=history,
+        language=lang,
+        turn_index=1,
+        total_turns=num_questions,
     )
-    
+
     history.append({"role": "investor", "content": question})
-    
-    # Save to db
-    import sqlite3
-    conn = sqlite3.connect("./data/startup_history.db")
-    cursor = conn.cursor()
-    cursor.execute(
-        "INSERT INTO pitch_sessions (id, plan_id, persona, messages) VALUES (?, ?, ?, ?)",
-        (session_id, plan_id, req.persona_id, __import__("json").dumps(history))
+
+    success = create_pitch_session(
+        session_id=session_id,
+        plan_id=plan_id,
+        persona=persona["id"],
+        messages=history,
+        num_questions=num_questions,
+        language=lang,
     )
-    conn.commit()
-    conn.close()
-    
-    return {"session_id": session_id, "question": question}
+    if not success:
+        raise HTTPException(status_code=500, detail="Failed to initialize practice session in database.")
+
+    return {
+        "session_id": session_id,
+        "persona": persona["id"],
+        "persona_name": persona["name"],
+        "persona_title": persona.get("title", ""),
+        "question": question,
+        "turn_index": 1,
+        "total_turns": num_questions,
+        "language": lang,
+    }
+
 
 @app.post("/api/practice/answer")
 async def answer_pitch_question(req: PracticeAnswerReq):
-    import sqlite3
-    import json
-    
-    conn = sqlite3.connect("./data/startup_history.db")
-    cursor = conn.cursor()
-    cursor.execute("SELECT plan_id, persona, messages FROM pitch_sessions WHERE id = ?", (req.session_id,))
-    row = cursor.fetchone()
-    if not row:
-        conn.close()
-        raise HTTPException(status_code=404, detail="Session not found")
-        
-    plan_id, persona_id, messages_json = row
-    history = json.loads(messages_json)
-    
-    # The last message was the investor's question
-    last_question = history[-1]["content"] if history else ""
-    
-    # Evaluate answer
-    evaluation = await evaluate_pitch_answer(last_question, req.answer)
-    
-    # Add answer to history
-    history.append({"role": "founder", "content": req.answer})
-    history.append({"role": "evaluator", "content": json.dumps(evaluation)})
-    
-    # Generate NEXT question
+    """
+    Submit a founder's answer, receive a rigorous evaluation, and either get the next question
+    or the final session summary if all questions are completed.
+    """
+    raw_ans = req.answer.strip() if req.answer else ""
+    if not raw_ans:
+        raise HTTPException(status_code=422, detail="Answer cannot be empty or whitespace only.")
+    if len(raw_ans) > 3000:
+        raise HTTPException(status_code=422, detail="Answer too long (maximum 3000 characters allowed).")
+
+    session = get_pitch_session(req.session_id)
+    if not session:
+        raise HTTPException(status_code=404, detail="Practice session not found.")
+
+    if session.get("status") == "completed":
+        raise HTTPException(status_code=409, detail="This practice session has already been completed.")
+
+    plan_id = session["plan_id"]
     plan = get_plan_by_id(plan_id)
+    if not plan:
+        raise HTTPException(status_code=404, detail="Associated startup plan not found.")
+
+    persona_dict = resolve_persona(session.get("persona", "aggressive_vc"))
+    history = session.get("messages", [])
+    lang = session.get("language", "en")
+    total_turns = session.get("num_questions", 5)
+
+    # Last question was the most recent investor message
+    last_question = ""
+    for msg in reversed(history):
+        if msg.get("role") == "investor":
+            last_question = msg.get("content", "")
+            break
+
+    if not last_question:
+        last_question = f"Could you pitch the core value proposition of {plan.get('startup_title', 'your startup')}?"
+
+    # Evaluate the founder's answer
+    evaluation = await evaluate_pitch_answer(
+        question=last_question,
+        answer=raw_ans,
+        plan=plan,
+        language=lang,
+    )
+
+    turn_score = int(evaluation.get("score", 5))
+
+    # Calculate turn index
+    past_turns_count = sum(1 for m in history if m.get("role") == "founder")
+    current_turn_index = past_turns_count + 1
+
+    # Record turn into practice_turns
+    turn_id = str(uuid.uuid4())
+    save_practice_turn(
+        turn_id=turn_id,
+        session_id=req.session_id,
+        turn_index=current_turn_index,
+        question=last_question,
+        answer=raw_ans,
+        evaluation=evaluation,
+        score=turn_score,
+    )
+
+    # Append to history
+    history.append({"role": "founder", "content": raw_ans})
+    history.append({"role": "evaluator", "content": json.dumps(evaluation, ensure_ascii=False)})
+
+    is_finished = current_turn_index >= total_turns
+
+    if is_finished:
+        from datetime import datetime
+        finished_at = datetime.utcnow().isoformat() + "Z"
+
+        summary = await generate_pitch_session_summary(
+            history=history,
+            plan=plan,
+            language=lang,
+        )
+
+        overall_score = int(round(summary.get("overall_score", turn_score)))
+
+        # Export simulation_transcript.json
+        transcript_path = export_simulation_transcript(
+            session_id=req.session_id,
+            plan_id=plan_id,
+            persona=persona_dict,
+            history=history,
+            summary=summary,
+            language=lang,
+        )
+
+        update_pitch_session(
+            session_id=req.session_id,
+            messages=history,
+            score=overall_score,
+            status="completed",
+            summary=summary,
+            transcript_path=transcript_path,
+            finished_at=finished_at,
+        )
+
+        return {
+            "evaluation": evaluation,
+            "next_question": None,
+            "finished": True,
+            "summary": summary,
+            "turn_index": current_turn_index,
+            "total_turns": total_turns,
+            "transcript_url": f"/api/practice/transcript/{req.session_id}",
+        }
+
+    # Generate NEXT question
     next_question = await generate_pitch_question(
-        idea=plan.get("idea", ""),
-        core_features=plan.get("core_features", ""),
-        revenue_model=plan.get("revenue_model", ""),
-        persona_id=persona_id,
-        history=history
+        plan=plan,
+        persona_id=persona_dict["id"],
+        history=history,
+        language=lang,
+        turn_index=current_turn_index + 1,
+        total_turns=total_turns,
     )
+
     history.append({"role": "investor", "content": next_question})
-    
-    cursor.execute(
-        "UPDATE pitch_sessions SET messages = ? WHERE id = ?",
-        (json.dumps(history), req.session_id)
+
+    update_pitch_session(
+        session_id=req.session_id,
+        messages=history,
+        score=turn_score,
+        status="active",
     )
-    conn.commit()
-    conn.close()
-    
+
     return {
         "evaluation": evaluation,
-        "next_question": next_question
+        "next_question": next_question,
+        "finished": False,
+        "summary": None,
+        "turn_index": current_turn_index + 1,
+        "total_turns": total_turns,
     }
+
+
+@app.get("/api/practice/session/{session_id}")
+async def get_practice_session_details(session_id: str):
+    """Return full session transcript, scores, and summary."""
+    session = get_pitch_session(session_id)
+    if not session:
+        raise HTTPException(status_code=404, detail="Practice session not found.")
+
+    turns = get_session_turns(session_id)
+    persona = resolve_persona(session.get("persona", "aggressive_vc"))
+
+    return {
+        "session_id": session["id"],
+        "plan_id": session["plan_id"],
+        "persona": persona,
+        "status": session["status"],
+        "overall_score": session["score"],
+        "summary": session.get("summary"),
+        "total_turns": session.get("num_questions", 5),
+        "created_at": session["created_at"],
+        "finished_at": session.get("finished_at"),
+        "turns": turns,
+        "transcript_url": f"/api/practice/transcript/{session_id}" if session.get("status") == "completed" else None,
+    }
+
 
 @app.get("/api/practice/report/{session_id}")
 async def get_practice_report(session_id: str):
-    import sqlite3
-    import json
-    conn = sqlite3.connect("./data/startup_history.db")
-    cursor = conn.cursor()
-    cursor.execute("SELECT messages FROM pitch_sessions WHERE id = ?", (session_id,))
-    row = cursor.fetchone()
-    conn.close()
-    if not row:
-        raise HTTPException(status_code=404, detail="Session not found")
-    
-    return {"history": json.loads(row[0])}
+    """Legacy backward-compatible endpoint for practice report."""
+    session = get_pitch_session(session_id)
+    if not session:
+        raise HTTPException(status_code=404, detail="Session not found.")
+    return {
+        "session_id": session_id,
+        "history": session.get("messages", []),
+        "summary": session.get("summary"),
+    }
+
+
+@app.get("/api/practice/transcript/{session_id}")
+async def download_simulation_transcript(session_id: str):
+    """Safely download the exported simulation_transcript.json for a session."""
+    session = get_pitch_session(session_id)
+    if not session:
+        raise HTTPException(status_code=404, detail="Session not found.")
+
+    path = session.get("transcript_path")
+    if not path or not os.path.exists(path):
+        # Fallback to standard convention
+        plan_id = session.get("plan_id", "unknown")
+        fallback_path = os.path.abspath(f"./data/pitch/{plan_id}/{session_id}_transcript.json")
+        canonical_fallback = os.path.abspath(f"./data/pitch/{plan_id}/simulation_transcript.json")
+        if os.path.exists(fallback_path):
+            path = fallback_path
+        elif os.path.exists(canonical_fallback):
+            path = canonical_fallback
+        else:
+            raise HTTPException(status_code=404, detail="Simulation transcript not yet generated.")
+
+    return FileResponse(
+        path,
+        media_type="application/json",
+        filename="simulation_transcript.json",
+    )
 
 @app.post("/api/export/{plan_id}/{target}")
 async def export_target(plan_id: str, target: str):

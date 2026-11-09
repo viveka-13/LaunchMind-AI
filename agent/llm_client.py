@@ -278,12 +278,18 @@ async def llm_call(
 
         # Truncated response check
         if finish_reason in ("length", "max_tokens"):
-            raise LLMCallError(
-                node=node,
-                reason=f"truncated_response: token limit ({max_tokens}) reached on node '{node}'",
-                retryable=False,
-                attempts=attempt_counter,
-            )
+            if text and len(text.strip()) > 30:
+                logger.warning(
+                    f"[LLM] Truncated response on node '{node}' (limit {max_tokens}), "
+                    f"but got {len(text)} usable chars; accepting partial output."
+                )
+            else:
+                raise LLMCallError(
+                    node=node,
+                    reason=f"truncated_response: token limit ({max_tokens}) reached on node '{node}'",
+                    retryable=True,
+                    attempts=attempt_counter,
+                )
 
         # Token usage
         usage = meta.get("token_usage", {})

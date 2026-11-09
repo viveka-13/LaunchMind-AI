@@ -185,6 +185,20 @@ def init_db():
             )
         """)
 
+        cursor.execute("""
+            CREATE TABLE IF NOT EXISTS practice_turns (
+                id              TEXT PRIMARY KEY,
+                session_id      TEXT NOT NULL,
+                turn_index      INTEGER NOT NULL,
+                question        TEXT NOT NULL,
+                answer          TEXT,
+                evaluation_json TEXT,
+                score           INTEGER,
+                created_at      TEXT DEFAULT (datetime('now')),
+                FOREIGN KEY(session_id) REFERENCES pitch_sessions(id) ON DELETE CASCADE
+            )
+        """)
+
         # Migrations
         # Migration 1: audio_generations details
         cursor.execute("PRAGMA table_info(audio_generations)")
@@ -214,7 +228,22 @@ def init_db():
         if "reason" not in export_cols:
             cursor.execute("ALTER TABLE export_history ADD COLUMN reason TEXT")
 
+        # Migration 4: pitch_sessions extensions
+        cursor.execute("PRAGMA table_info(pitch_sessions)")
+        pitch_cols = {r[1] for r in cursor.fetchall()}
+        for col, col_def in [
+            ("status", "TEXT DEFAULT 'active'"),
+            ("num_questions", "INTEGER DEFAULT 5"),
+            ("language", "TEXT DEFAULT 'en'"),
+            ("transcript_path", "TEXT"),
+            ("summary_json", "TEXT"),
+            ("finished_at", "TEXT"),
+        ]:
+            if col not in pitch_cols:
+                cursor.execute(f"ALTER TABLE pitch_sessions ADD COLUMN {col} {col_def}")
+
         cursor.execute("INSERT OR IGNORE INTO schema_version (version) VALUES (3)")
+        cursor.execute("INSERT OR IGNORE INTO schema_version (version) VALUES (4)")
         logger.info("[DB] SQLite database initialized and migrations applied.")
 
 
@@ -426,5 +455,160 @@ def get_export_history(plan_id: str) -> list:
     except Exception as e:
         logger.error(f"[DB] Get export history error: {e}")
         return []
+
+
+def create_pitch_session(
+    session_id: str,
+    plan_id: str,
+    persona: str,
+    messages: list,
+    num_questions: int = 5,
+    language: str = "en",
+) -> bool:
+    """Create a new pitch practice session record."""
+    try:
+        with get_db_connection() as conn:
+            cursor = conn.cursor()
+            cursor.execute(
+                """
+                INSERT INTO pitch_sessions (id, plan_id, persona, messages, score, status, num_questions, language)
+                VALUES (?, ?, ?, ?, 0, 'active', ?, ?)
+                """,
+                (session_id, plan_id, persona, json.dumps(messages, ensure_ascii=False), num_questions, language),
+            )
+        return True
+    except Exception as e:
+        logger.error(f"[DB] Create pitch session error: {e}")
+        return False
+
+
+def get_pitch_session(session_id: str) -> Optional[dict]:
+    """Retrieve a pitch session record by id."""
+    try:
+        with get_db_connection() as conn:
+            cursor = conn.cursor()
+            cursor.execute(
+                """
+                SELECT id, plan_id, persona, messages, score, created_at, status, num_questions, language, transcript_path, summary_json, finished_at
+                FROM pitch_sessions
+                WHERE id = ?
+                """,
+                (session_id,),
+            )
+            row = cursor.fetchone()
+            if not row:
+                return None
+            return {
+                "id": row[0],
+                "plan_id": row[1],
+                "persona": row[2],
+                "messages": json.loads(row[3]) if row[3] else [],
+                "score": row[4],
+                "created_at": row[5],
+                "status": row[6] or "active",
+                "num_questions": row[7] or 5,
+                "language": row[8] or "en",
+                "transcript_path": row[9],
+                "summary": json.loads(row[10]) if row[10] else None,
+                "finished_at": row[11],
+            }
+    except Exception as e:
+        logger.error(f"[DB] Get pitch session error: {e}")
+        return None
+
+
+def update_pitch_session(
+    session_id: str,
+    messages: list,
+    score: int = 0,
+    status: str = "active",
+    summary: Optional[dict] = None,
+    transcript_path: Optional[str] = None,
+    finished_at: Optional[str] = None,
+) -> bool:
+    """Update messages, score, status, and summary of a pitch session."""
+    try:
+        with get_db_connection() as conn:
+            cursor = conn.cursor()
+            summary_json = json.dumps(summary, ensure_ascii=False) if summary else None
+            cursor.execute(
+                """
+                UPDATE pitch_sessions
+                SET messages = ?, score = ?, status = ?, summary_json = COALESCE(?, summary_json),
+                    transcript_path = COALESCE(?, transcript_path), finished_at = COALESCE(?, finished_at)
+                WHERE id = ?
+                """,
+                (
+                    json.dumps(messages, ensure_ascii=False),
+                    score,
+                    status,
+                    summary_json,
+                    transcript_path,
+                    finished_at,
+                    session_id,
+                ),
+            )
+        return True
+    except Exception as e:
+        logger.error(f"[DB] Update pitch session error: {e}")
+        return False
+
+
+def save_practice_turn(
+    turn_id: str,
+    session_id: str,
+    turn_index: int,
+    question: str,
+    answer: str,
+    evaluation: dict,
+    score: int,
+) -> bool:
+    """Record a normalized turn in practice_turns table."""
+    try:
+        with get_db_connection() as conn:
+            cursor = conn.cursor()
+            cursor.execute(
+                """
+                INSERT INTO practice_turns (id, session_id, turn_index, question, answer, evaluation_json, score)
+                VALUES (?, ?, ?, ?, ?, ?, ?)
+                """,
+                (turn_id, session_id, turn_index, question, answer, json.dumps(evaluation, ensure_ascii=False), score),
+            )
+        return True
+    except Exception as e:
+        logger.error(f"[DB] Save practice turn error: {e}")
+        return False
+
+
+def get_session_turns(session_id: str) -> list:
+    """Retrieve all turns for a practice session in sequential order."""
+    try:
+        with get_db_connection() as conn:
+            cursor = conn.cursor()
+            cursor.execute(
+                """
+                SELECT turn_index, question, answer, evaluation_json, score, created_at
+                FROM practice_turns
+                WHERE session_id = ?
+                ORDER BY turn_index ASC
+                """,
+                (session_id,),
+            )
+            rows = cursor.fetchall()
+            return [
+                {
+                    "turn_index": r[0],
+                    "question": r[1],
+                    "answer": r[2],
+                    "evaluation": json.loads(r[3]) if r[3] else {},
+                    "score": r[4],
+                    "created_at": r[5],
+                }
+                for r in rows
+            ]
+    except Exception as e:
+        logger.error(f"[DB] Get session turns error: {e}")
+        return []
+
 
 

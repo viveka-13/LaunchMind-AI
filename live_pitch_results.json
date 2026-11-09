@@ -1,0 +1,97 @@
+[
+  {
+    "persona_id": "aggressive_vc",
+    "persona_name": "Aggressive VC (Marcus Vance)",
+    "session_id": "8af06c7f-e42e-45bb-9240-dae5d7f605aa",
+    "q1": "How do you achieve a positive gross margin with a ₹199/month basic and ₹399/month premium subscription when real‑time AI inference, data storage, and 24/7 voice/video support are high‑cost services, especially given that you’re competing against free GPS/SOS apps?",
+    "eval1_score": 6,
+    "q2": "How do you plan to keep gross margins above 70% when scaling to 1 M paying users, given that the premium tier includes 24/7 voice/video support and emergency dispatch—both high‑cost services that require significant bandwidth, server capacity, and staffing?",
+    "eval2_score": 2,
+    "q3": "How will you keep the per‑user cost of 24/7 voice/video support and emergency dispatch below ₹50 while maintaining a 70% gross margin at 1 M paying users, and what is your realistic CAC to acquire that scale?",
+    "eval3_score": 5,
+    "overall_score": 4.3,
+    "scores_per_turn": [
+      6,
+      2,
+      5
+    ],
+    "top_strengths": [
+      "Clear passion and domain knowledge",
+      "Grounded feature breakdown"
+    ],
+    "top_weaknesses": [
+      "Vague pricing strategy",
+      "Incomplete defensibility answer",
+      "Unclear unit economics"
+    ],
+    "key_improvements": [
+      "Memorize tier pricing and CAC numbers",
+      "Prepare a clear 2‑minute moat story",
+      "Practice answering with concrete metrics"
+    ],
+    "transcript_url": "/api/practice/transcript/8af06c7f-e42e-45bb-9240-dae5d7f605aa"
+  },
+  {
+    "persona_id": "technical_angel",
+    "persona_name": "Technical Angel (Dr. Elena Chen)",
+    "session_id": "058b6651-23e9-4f6e-bdb5-1a6e64b6d660",
+    "q1": "Your premium tier is ₹399/month for real‑time AI‑driven risk prediction using continuous audio and GPS. How will you design the on‑device inference pipeline to keep latency under 200 ms on a mid‑range Android phone, ensure end‑to‑end privacy (no raw audio upload), and mitigate hallucinations in the risk model, given the limited compute and battery constraints?",
+    "eval1_score": 6,
+    "q2": "What concrete profiling data (model size, inference time, CPU/GPU usage, battery drain) on a mid‑range Android device backs your claim that on‑device acoustic anomaly detection can stay under 200 ms while keeping per‑active‑user compute cost at ₹25, and how do you bound the false‑positive rate of that detector to avoid costly emergency dispatches that would erode the >70 % gross margin you project?",
+    "eval2_score": 5,
+    "q3": "With a ₹399/month premium subscription you claim a ₹25 per active‑user compute cost and a 70 % gross margin, yet on‑device acoustic anomaly detection on a mid‑range Android phone will likely consume ~30 % of battery and 200 ms inference time; what concrete profiling data and false‑positive rate do you have that keeps the cost and battery overhead within those margins, and how will you prevent costly dispatches from false alarms?",
+    "eval3_score": 2,
+    "overall_score": 4.3,
+    "scores_per_turn": [
+      6,
+      5,
+      2
+    ],
+    "top_strengths": [
+      "Clear passion and domain knowledge",
+      "Grounded feature breakdown"
+    ],
+    "top_weaknesses": [
+      "Vague pricing strategy",
+      "Incomplete defensibility answer"
+    ],
+    "key_improvements": [
+      "Memorize tier pricing and CAC numbers",
+      "Prepare a clear 2‑minute moat story",
+      "Practice answering with concrete metrics"
+    ],
+    "transcript_url": "/api/practice/transcript/058b6651-23e9-4f6e-bdb5-1a6e64b6d660"
+  },
+  {
+    "persona_id": "academic_examiner",
+    "persona_name": "Academic Examiner (Prof. Jonathan Croft)",
+    "session_id": "49654ac9-db8f-4a13-9a68-46df490bd2b3",
+    "q1": "How do you justify the ₹199/basic and ₹399/premium monthly pricing—given a 25 % COGS and the high cost of 24/7 voice/video support—by providing concrete churn, conversion, and pilot data that demonstrate users will actually pay for the premium AI‑risk features in a market where free GPS+SOS apps already exist?",
+    "eval1_score": 5,
+    "q2": "How did you empirically validate that your on‑device acoustic anomaly model achieves the claimed ₹25 per active user compute cost, given the need to maintain low inference latency, minimal battery drain, and an acceptable false‑positive rate in real‑world urban settings—can you share pilot data that quantifies these metrics and demonstrates they support a 70 % gross margin?",
+    "eval2_score": 2,
+    "q3": "How do you reconcile the claimed ₹25 per active user compute cost and a 70 % gross margin with the premium tier’s 24/7 voice/video support—which normally incurs several hundred rupees per hour in server and bandwidth costs—by providing a detailed cost breakdown and pilot data that validates these assumptions at scale?",
+    "eval3_score": 5,
+    "overall_score": 4.0,
+    "scores_per_turn": [
+      5,
+      2,
+      5
+    ],
+    "top_strengths": [
+      "Clear passion and domain knowledge",
+      "Detailed feature and revenue model outline"
+    ],
+    "top_weaknesses": [
+      "Lack of concrete unit economics and pilot data",
+      "Unclear pricing justification and defensibility",
+      "Insufficient validation of technical claims"
+    ],
+    "key_improvements": [
+      "Provide concrete pilot metrics for compute cost, battery, latency, and false‑positive rates",
+      "Show a detailed cost breakdown for 24/7 voice/video support and validate gross margin assumptions",
+      "Develop a data‑driven pricing and churn model with realistic CAC and conversion projections"
+    ],
+    "transcript_url": "/api/practice/transcript/49654ac9-db8f-4a13-9a68-46df490bd2b3"
+  }
+]

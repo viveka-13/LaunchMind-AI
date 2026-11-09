@@ -1,19 +1,29 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>AutoStartup AI — Autonomous Startup Generator</title>
   <link rel="preconnect" href="https://fonts.googleapis.com" />
-  <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Rajdhani:wght@400;500;600;700&family=Nunito:wght@300;400;600;700&family=Fira+Code:wght@400;500&display=swap" rel="stylesheet" />
+  <link
+    href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Rajdhani:wght@400;500;600;700&family=Nunito:wght@300;400;600;700&family=Fira+Code:wght@400;500&display=swap"
+    rel="stylesheet" />
   <style>
     /* ── Reset & Variables ── */
-    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    *,
+    *::before,
+    *::after {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
     :root {
       --bg: #060b14;
       --surface: #0d1626;
       --surface2: #111d33;
-      --border: rgba(0,229,255,0.12);
+      --border: rgba(0, 229, 255, 0.12);
       --cyan: #00e5ff;
       --purple: #a855f7;
       --amber: #f59e0b;
@@ -22,14 +32,17 @@
       --text: #cdd9f0;
       --text-dim: #6b88a8;
       --text-bright: #e8f4ff;
-      --glow: 0 0 20px rgba(0,229,255,0.3);
+      --glow: 0 0 20px rgba(0, 229, 255, 0.3);
     }
 
-    html { scroll-behavior: smooth; }
+    html {
+      scroll-behavior: smooth;
+    }
+
     body {
       background: var(--bg);
       color: var(--text);
-      font-family: 'Nunito', sans-serif;
+      font-family: 'Nunito', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Noto Sans Tamil', 'Noto Sans Telugu', 'Noto Sans Devanagari', sans-serif;
       min-height: 100vh;
       overflow-x: hidden;
     }
@@ -40,15 +53,22 @@
       position: fixed;
       inset: 0;
       background:
-        radial-gradient(ellipse 80% 60% at 20% 10%, rgba(0,229,255,0.04) 0%, transparent 60%),
-        radial-gradient(ellipse 60% 50% at 80% 90%, rgba(168,85,247,0.05) 0%, transparent 60%),
-        repeating-linear-gradient(0deg, transparent, transparent 59px, rgba(0,229,255,0.02) 60px),
-        repeating-linear-gradient(90deg, transparent, transparent 59px, rgba(0,229,255,0.02) 60px);
+        radial-gradient(ellipse 80% 60% at 20% 10%, rgba(0, 229, 255, 0.04) 0%, transparent 60%),
+        radial-gradient(ellipse 60% 50% at 80% 90%, rgba(168, 85, 247, 0.05) 0%, transparent 60%),
+        repeating-linear-gradient(0deg, transparent, transparent 59px, rgba(0, 229, 255, 0.02) 60px),
+        repeating-linear-gradient(90deg, transparent, transparent 59px, rgba(0, 229, 255, 0.02) 60px);
       pointer-events: none;
       z-index: -1;
     }
 
-    .page { position: relative; z-index: 1; max-width: 1400px; margin: 0 auto; padding: 0 24px; isolation: isolate; }
+    .page {
+      position: relative;
+      z-index: 1;
+      max-width: 1400px;
+      margin: 0 auto;
+      padding: 0 24px;
+      isolation: isolate;
+    }
 
     /* ── Header ── */
     header {
@@ -59,19 +79,25 @@
       border-bottom: 1px solid var(--border);
       margin-bottom: 40px;
     }
+
     .logo {
       display: flex;
       align-items: center;
       gap: 14px;
     }
+
     .logo-icon {
-      width: 44px; height: 44px;
+      width: 44px;
+      height: 44px;
       background: linear-gradient(135deg, var(--cyan), var(--purple));
       border-radius: 10px;
-      display: flex; align-items: center; justify-content: center;
+      display: flex;
+      align-items: center;
+      justify-content: center;
       font-size: 22px;
-      box-shadow: 0 0 24px rgba(0,229,255,0.4);
+      box-shadow: 0 0 24px rgba(0, 229, 255, 0.4);
     }
+
     .logo-text {
       font-family: 'Bebas Neue', sans-serif;
       font-size: 28px;
@@ -81,6 +107,7 @@
       -webkit-text-fill-color: transparent;
       background-clip: text;
     }
+
     .logo-sub {
       font-family: 'Rajdhani', sans-serif;
       font-size: 11px;
@@ -88,11 +115,13 @@
       letter-spacing: 3px;
       text-transform: uppercase;
     }
+
     .header-badges {
       display: flex;
       gap: 10px;
       flex-wrap: wrap;
     }
+
     .badge {
       font-family: 'Rajdhani', sans-serif;
       font-size: 11px;
@@ -103,14 +132,30 @@
       border-radius: 20px;
       border: 1px solid;
     }
-    .badge-cyan { color: var(--cyan); border-color: rgba(0,229,255,0.3); background: rgba(0,229,255,0.05); }
-    .badge-purple { color: var(--purple); border-color: rgba(168,85,247,0.3); background: rgba(168,85,247,0.05); }
-    .badge-amber { color: var(--amber); border-color: rgba(245,158,11,0.3); background: rgba(245,158,11,0.05); }
 
-    .lang-select, .format-select {
+    .badge-cyan {
+      color: var(--cyan);
+      border-color: rgba(0, 229, 255, 0.3);
+      background: rgba(0, 229, 255, 0.05);
+    }
+
+    .badge-purple {
+      color: var(--purple);
+      border-color: rgba(168, 85, 247, 0.3);
+      background: rgba(168, 85, 247, 0.05);
+    }
+
+    .badge-amber {
+      color: var(--amber);
+      border-color: rgba(245, 158, 11, 0.3);
+      background: rgba(245, 158, 11, 0.05);
+    }
+
+    .lang-select,
+    .format-select {
       background: var(--surface2);
       color: var(--cyan);
-      border: 1px solid rgba(0,229,255,0.3);
+      border: 1px solid rgba(0, 229, 255, 0.3);
       border-radius: 8px;
       padding: 6px 12px;
       font-family: 'Rajdhani', sans-serif;
@@ -120,13 +165,16 @@
       outline: none;
       cursor: pointer;
     }
-    .lang-select option, .format-select option {
+
+    .lang-select option,
+    .format-select option {
       background: var(--surface);
       color: var(--text-bright);
     }
+
     .mic-btn {
       background: var(--surface2);
-      border: 1px solid rgba(0,229,255,0.15);
+      border: 1px solid rgba(0, 229, 255, 0.15);
       border-radius: 12px;
       color: var(--text-bright);
       font-size: 20px;
@@ -137,21 +185,32 @@
       cursor: pointer;
       transition: all 0.2s;
     }
+
     .mic-btn:hover {
-      border-color: rgba(0,229,255,0.5);
-      background: rgba(0,229,255,0.05);
+      border-color: rgba(0, 229, 255, 0.5);
+      background: rgba(0, 229, 255, 0.05);
     }
+
     .mic-btn.recording {
       color: var(--red);
       border-color: var(--red);
-      background: rgba(244,63,94,0.1);
-      box-shadow: 0 0 15px rgba(244,63,94,0.4);
+      background: rgba(244, 63, 94, 0.1);
+      box-shadow: 0 0 15px rgba(244, 63, 94, 0.4);
       animation: micPulse 1.5s infinite;
     }
+
     @keyframes micPulse {
-      0% { box-shadow: 0 0 0 0 rgba(244,63,94,0.4); }
-      70% { box-shadow: 0 0 0 10px rgba(244,63,94,0); }
-      100% { box-shadow: 0 0 0 0 rgba(244,63,94,0); }
+      0% {
+        box-shadow: 0 0 0 0 rgba(244, 63, 94, 0.4);
+      }
+
+      70% {
+        box-shadow: 0 0 0 10px rgba(244, 63, 94, 0);
+      }
+
+      100% {
+        box-shadow: 0 0 0 0 rgba(244, 63, 94, 0);
+      }
     }
 
     /* ── Hero Section ── */
@@ -159,6 +218,7 @@
       text-align: center;
       margin-bottom: 50px;
     }
+
     .hero-tag {
       font-family: 'Rajdhani', sans-serif;
       font-size: 12px;
@@ -169,6 +229,7 @@
       margin-bottom: 16px;
       opacity: 0.8;
     }
+
     .hero h1 {
       font-family: 'Bebas Neue', sans-serif;
       font-size: clamp(48px, 7vw, 88px);
@@ -177,12 +238,14 @@
       color: var(--text-bright);
       margin-bottom: 18px;
     }
+
     .hero h1 span {
       background: linear-gradient(90deg, var(--cyan), var(--purple));
       -webkit-background-clip: text;
       -webkit-text-fill-color: transparent;
       background-clip: text;
     }
+
     .hero-sub {
       font-size: 17px;
       color: var(--text-dim);
@@ -202,13 +265,17 @@
       position: relative;
       overflow: hidden;
     }
+
     .input-card::before {
       content: '';
       position: absolute;
-      top: 0; left: 0; right: 0;
+      top: 0;
+      left: 0;
+      right: 0;
       height: 2px;
       background: linear-gradient(90deg, transparent, var(--cyan), var(--purple), transparent);
     }
+
     .input-label {
       font-family: 'Rajdhani', sans-serif;
       font-size: 12px;
@@ -219,28 +286,35 @@
       margin-bottom: 14px;
       display: block;
     }
+
     .input-row {
       display: flex;
       gap: 12px;
       align-items: stretch;
     }
+
     #ideaInput {
       flex: 1;
       background: var(--surface2);
-      border: 1px solid rgba(0,229,255,0.15);
+      border: 1px solid rgba(0, 229, 255, 0.15);
       border-radius: 12px;
       padding: 16px 20px;
       color: var(--text-bright);
-      font-family: 'Nunito', sans-serif;
+      font-family: 'Nunito', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Noto Sans Tamil', 'Noto Sans Telugu', 'Noto Sans Devanagari', sans-serif;
       font-size: 16px;
       outline: none;
       transition: border-color 0.2s, box-shadow 0.2s;
     }
+
     #ideaInput:focus {
-      border-color: rgba(0,229,255,0.5);
-      box-shadow: 0 0 0 3px rgba(0,229,255,0.08);
+      border-color: rgba(0, 229, 255, 0.5);
+      box-shadow: 0 0 0 3px rgba(0, 229, 255, 0.08);
     }
-    #ideaInput::placeholder { color: var(--text-dim); }
+
+    #ideaInput::placeholder {
+      color: var(--text-dim);
+    }
+
     .btn-generate {
       background: linear-gradient(135deg, var(--cyan), #0099cc);
       color: #000;
@@ -255,23 +329,27 @@
       cursor: pointer;
       transition: all 0.2s;
       white-space: nowrap;
-      box-shadow: 0 4px 20px rgba(0,229,255,0.3);
+      box-shadow: 0 4px 20px rgba(0, 229, 255, 0.3);
     }
+
     .btn-generate:hover:not(:disabled) {
       transform: translateY(-1px);
-      box-shadow: 0 8px 30px rgba(0,229,255,0.5);
+      box-shadow: 0 8px 30px rgba(0, 229, 255, 0.5);
     }
+
     .btn-generate:disabled {
       opacity: 0.5;
       cursor: not-allowed;
       transform: none;
     }
+
     .example-chips {
       display: flex;
       flex-wrap: wrap;
       gap: 8px;
       margin-top: 18px;
     }
+
     .chip-label {
       font-family: 'Rajdhani', sans-serif;
       font-size: 11px;
@@ -280,9 +358,10 @@
       text-transform: uppercase;
       align-self: center;
     }
+
     .chip {
-      background: rgba(255,255,255,0.04);
-      border: 1px solid rgba(255,255,255,0.08);
+      background: rgba(255, 255, 255, 0.04);
+      border: 1px solid rgba(255, 255, 255, 0.08);
       border-radius: 20px;
       padding: 6px 14px;
       font-size: 13px;
@@ -290,10 +369,11 @@
       cursor: pointer;
       transition: all 0.15s;
     }
+
     .chip:hover {
-      border-color: rgba(0,229,255,0.3);
+      border-color: rgba(0, 229, 255, 0.3);
       color: var(--cyan);
-      background: rgba(0,229,255,0.05);
+      background: rgba(0, 229, 255, 0.05);
     }
 
     /* ── Main Layout: Agent + Results ── */
@@ -304,10 +384,21 @@
       margin-bottom: 60px;
       animation: fadeUp 0.5s ease;
     }
-    .workspace.active { display: grid; }
+
+    .workspace.active {
+      display: grid;
+    }
+
     @keyframes fadeUp {
-      from { opacity: 0; transform: translateY(20px); }
-      to { opacity: 1; transform: translateY(0); }
+      from {
+        opacity: 0;
+        transform: translateY(20px);
+      }
+
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
     }
 
     /* ── Agent Steps Panel ── */
@@ -322,6 +413,7 @@
       display: flex;
       flex-direction: column;
     }
+
     .agent-panel-header {
       padding: 20px 24px;
       border-bottom: 1px solid var(--border);
@@ -329,6 +421,7 @@
       align-items: center;
       gap: 10px;
     }
+
     .agent-panel-header h3 {
       font-family: 'Rajdhani', sans-serif;
       font-size: 13px;
@@ -337,23 +430,42 @@
       text-transform: uppercase;
       color: var(--text);
     }
+
     .pulse-dot {
-      width: 8px; height: 8px;
+      width: 8px;
+      height: 8px;
       border-radius: 50%;
       background: var(--emerald);
       box-shadow: 0 0 8px var(--emerald);
       animation: pulse-glow 1.5s ease-in-out infinite;
     }
-    .pulse-dot.idle { background: var(--text-dim); box-shadow: none; animation: none; }
-    @keyframes pulse-glow {
-      0%, 100% { opacity: 1; transform: scale(1); }
-      50% { opacity: 0.4; transform: scale(0.8); }
+
+    .pulse-dot.idle {
+      background: var(--text-dim);
+      box-shadow: none;
+      animation: none;
     }
+
+    @keyframes pulse-glow {
+
+      0%,
+      100% {
+        opacity: 1;
+        transform: scale(1);
+      }
+
+      50% {
+        opacity: 0.4;
+        transform: scale(0.8);
+      }
+    }
+
     .progress-bar {
       height: 2px;
-      background: rgba(255,255,255,0.05);
+      background: rgba(255, 255, 255, 0.05);
       position: relative;
     }
+
     .progress-fill {
       height: 100%;
       background: linear-gradient(90deg, var(--cyan), var(--purple));
@@ -361,6 +473,7 @@
       transition: width 0.6s ease;
       box-shadow: 0 0 8px var(--cyan);
     }
+
     #stepsContainer {
       flex: 1;
       overflow-y: auto;
@@ -368,6 +481,7 @@
       scrollbar-width: thin;
       scrollbar-color: var(--border) transparent;
     }
+
     .step-item {
       display: flex;
       gap: 12px;
@@ -378,20 +492,40 @@
       animation: slideIn 0.35s ease;
       transition: all 0.2s;
     }
+
     @keyframes slideIn {
-      from { opacity: 0; transform: translateX(-12px); }
-      to { opacity: 1; transform: translateX(0); }
+      from {
+        opacity: 0;
+        transform: translateX(-12px);
+      }
+
+      to {
+        opacity: 1;
+        transform: translateX(0);
+      }
     }
+
     .step-item.active {
-      background: rgba(0,229,255,0.06);
-      border-color: rgba(0,229,255,0.15);
+      background: rgba(0, 229, 255, 0.06);
+      border-color: rgba(0, 229, 255, 0.15);
     }
+
     .step-item.done {
-      background: rgba(16,185,129,0.04);
-      border-color: rgba(16,185,129,0.12);
+      background: rgba(16, 185, 129, 0.04);
+      border-color: rgba(16, 185, 129, 0.12);
     }
-    .step-icon { font-size: 18px; flex-shrink: 0; line-height: 1.4; }
-    .step-content { flex: 1; min-width: 0; }
+
+    .step-icon {
+      font-size: 18px;
+      flex-shrink: 0;
+      line-height: 1.4;
+    }
+
+    .step-content {
+      flex: 1;
+      min-width: 0;
+    }
+
     .step-title {
       font-family: 'Rajdhani', sans-serif;
       font-size: 13px;
@@ -399,23 +533,26 @@
       color: var(--text-bright);
       margin-bottom: 4px;
     }
+
     .step-msg {
       font-size: 12px;
       color: var(--text-dim);
       line-height: 1.5;
       word-break: break-word;
     }
+
     .step-tool {
       display: inline-block;
       font-family: 'Fira Code', monospace;
       font-size: 10px;
       color: var(--amber);
-      background: rgba(245,158,11,0.1);
-      border: 1px solid rgba(245,158,11,0.2);
+      background: rgba(245, 158, 11, 0.1);
+      border: 1px solid rgba(245, 158, 11, 0.2);
       border-radius: 4px;
       padding: 1px 6px;
       margin-top: 4px;
     }
+
     .step-num {
       font-family: 'Fira Code', monospace;
       font-size: 10px;
@@ -423,12 +560,14 @@
       flex-shrink: 0;
       margin-top: 2px;
     }
+
     .tasks-list {
       background: var(--surface2);
       border-radius: 8px;
       padding: 12px;
       margin-top: 6px;
     }
+
     .task-row {
       font-size: 11px;
       color: var(--text-dim);
@@ -436,10 +575,18 @@
       display: flex;
       gap: 6px;
       align-items: flex-start;
-      border-bottom: 1px solid rgba(255,255,255,0.03);
+      border-bottom: 1px solid rgba(255, 255, 255, 0.03);
     }
-    .task-row:last-child { border-bottom: none; }
-    .task-num { color: var(--cyan); font-family: 'Fira Code', monospace; flex-shrink: 0; }
+
+    .task-row:last-child {
+      border-bottom: none;
+    }
+
+    .task-num {
+      color: var(--cyan);
+      font-family: 'Fira Code', monospace;
+      flex-shrink: 0;
+    }
 
     /* ── Results Panel ── */
     .results-panel {
@@ -458,29 +605,45 @@
       align-items: center;
       gap: 16px;
     }
+
     .status-spinner {
-      width: 36px; height: 36px;
-      border: 3px solid rgba(0,229,255,0.15);
+      width: 36px;
+      height: 36px;
+      border: 3px solid rgba(0, 229, 255, 0.15);
       border-top-color: var(--cyan);
       border-radius: 50%;
       animation: spin 0.8s linear infinite;
       flex-shrink: 0;
     }
-    @keyframes spin { to { transform: rotate(360deg); } }
+
+    @keyframes spin {
+      to {
+        transform: rotate(360deg);
+      }
+    }
+
     .status-spinner.done {
       border-color: var(--emerald);
       animation: none;
-      background: rgba(16,185,129,0.1);
-      display: flex; align-items: center; justify-content: center;
+      background: rgba(16, 185, 129, 0.1);
+      display: flex;
+      align-items: center;
+      justify-content: center;
       font-size: 18px;
     }
+
     .status-text h4 {
       font-family: 'Rajdhani', sans-serif;
       font-size: 16px;
       font-weight: 700;
       color: var(--text-bright);
     }
-    .status-text p { font-size: 13px; color: var(--text-dim); margin-top: 4px; }
+
+    .status-text p {
+      font-size: 13px;
+      color: var(--text-dim);
+      margin-top: 4px;
+    }
 
     /* Result cards */
     .result-grid {
@@ -488,6 +651,7 @@
       grid-template-columns: 1fr 1fr;
       gap: 16px;
     }
+
     .result-card {
       background: var(--surface);
       border: 1px solid var(--border);
@@ -497,18 +661,39 @@
       position: relative;
       overflow: hidden;
     }
-    .result-card.full { grid-column: 1 / -1; }
+
+    .result-card.full {
+      grid-column: 1 / -1;
+    }
+
     .result-card::before {
       content: '';
       position: absolute;
-      top: 0; left: 0; right: 0;
+      top: 0;
+      left: 0;
+      right: 0;
       height: 2px;
     }
-    .card-cyan::before { background: linear-gradient(90deg, var(--cyan), transparent); }
-    .card-purple::before { background: linear-gradient(90deg, var(--purple), transparent); }
-    .card-amber::before { background: linear-gradient(90deg, var(--amber), transparent); }
-    .card-emerald::before { background: linear-gradient(90deg, var(--emerald), transparent); }
-    .card-red::before { background: linear-gradient(90deg, var(--red), transparent); }
+
+    .card-cyan::before {
+      background: linear-gradient(90deg, var(--cyan), transparent);
+    }
+
+    .card-purple::before {
+      background: linear-gradient(90deg, var(--purple), transparent);
+    }
+
+    .card-amber::before {
+      background: linear-gradient(90deg, var(--amber), transparent);
+    }
+
+    .card-emerald::before {
+      background: linear-gradient(90deg, var(--emerald), transparent);
+    }
+
+    .card-red::before {
+      background: linear-gradient(90deg, var(--red), transparent);
+    }
 
     .card-label {
       font-family: 'Rajdhani', sans-serif;
@@ -521,12 +706,30 @@
       align-items: center;
       gap: 8px;
     }
-    .card-label-icon { font-size: 16px; }
-    .card-cyan .card-label { color: var(--cyan); }
-    .card-purple .card-label { color: var(--purple); }
-    .card-amber .card-label { color: var(--amber); }
-    .card-emerald .card-label { color: var(--emerald); }
-    .card-red .card-label { color: var(--red); }
+
+    .card-label-icon {
+      font-size: 16px;
+    }
+
+    .card-cyan .card-label {
+      color: var(--cyan);
+    }
+
+    .card-purple .card-label {
+      color: var(--purple);
+    }
+
+    .card-amber .card-label {
+      color: var(--amber);
+    }
+
+    .card-emerald .card-label {
+      color: var(--emerald);
+    }
+
+    .card-red .card-label {
+      color: var(--red);
+    }
 
     .card-title {
       font-family: 'Bebas Neue', sans-serif;
@@ -536,17 +739,20 @@
       line-height: 1.1;
       margin-bottom: 8px;
     }
+
     .card-content {
       font-size: 14px;
       color: var(--text);
       line-height: 1.75;
       white-space: pre-wrap;
     }
+
     .feature-list {
       display: flex;
       flex-direction: column;
       gap: 8px;
     }
+
     .feature-item {
       display: flex;
       gap: 10px;
@@ -558,8 +764,10 @@
       color: var(--text);
       line-height: 1.5;
     }
+
     .feature-dot {
-      width: 6px; height: 6px;
+      width: 6px;
+      height: 6px;
       border-radius: 50%;
       background: var(--cyan);
       flex-shrink: 0;
@@ -568,13 +776,17 @@
 
     /* Executive summary highlight */
     .exec-summary {
-      background: linear-gradient(135deg, rgba(0,229,255,0.05), rgba(168,85,247,0.05));
-      border: 1px solid rgba(0,229,255,0.2);
+      background: linear-gradient(135deg, rgba(0, 229, 255, 0.05), rgba(168, 85, 247, 0.05));
+      border: 1px solid rgba(0, 229, 255, 0.2);
       border-radius: 16px;
       padding: 28px;
       animation: fadeUp 0.5s ease;
     }
-    .exec-summary .card-label { color: var(--cyan); }
+
+    .exec-summary .card-label {
+      color: var(--cyan);
+    }
+
     .exec-summary .card-content {
       font-size: 16px;
       line-height: 1.8;
@@ -586,10 +798,12 @@
       margin-top: 40px;
       animation: fadeUp 0.6s ease;
     }
+
     .studio-dashboard-header {
       text-align: center;
       margin-bottom: 32px;
     }
+
     .studio-dashboard-header h2 {
       font-family: 'Bebas Neue', sans-serif;
       font-size: clamp(28px, 4vw, 42px);
@@ -600,15 +814,18 @@
       background-clip: text;
       margin-bottom: 8px;
     }
+
     .studio-dashboard-header p {
       color: var(--text-dim);
       font-size: 14px;
     }
+
     .studio-grid {
       display: grid;
       grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
       gap: 20px;
     }
+
     .studio-card {
       background: var(--surface);
       border: 1px solid var(--border);
@@ -618,27 +835,48 @@
       overflow: hidden;
       transition: transform 0.2s, box-shadow 0.2s, border-color 0.2s;
     }
+
     .studio-card:hover {
       transform: translateY(-4px);
-      box-shadow: 0 12px 40px rgba(0,0,0,0.3);
-      border-color: rgba(0,229,255,0.3);
+      box-shadow: 0 12px 40px rgba(0, 0, 0, 0.3);
+      border-color: rgba(0, 229, 255, 0.3);
     }
+
     .studio-card::before {
       content: '';
       position: absolute;
-      top: 0; left: 0; right: 0;
+      top: 0;
+      left: 0;
+      right: 0;
       height: 3px;
       border-radius: 16px 16px 0 0;
     }
-    .studio-card.card-cyan::before { background: linear-gradient(90deg, var(--cyan), #0099cc); }
-    .studio-card.card-purple::before { background: linear-gradient(90deg, var(--purple), #c084fc); }
-    .studio-card.card-amber::before { background: linear-gradient(90deg, var(--amber), #fbbf24); }
-    .studio-card.card-emerald::before { background: linear-gradient(90deg, var(--emerald), #34d399); }
-    .studio-card.card-red::before { background: linear-gradient(90deg, var(--red), #fb7185); }
+
+    .studio-card.card-cyan::before {
+      background: linear-gradient(90deg, var(--cyan), #0099cc);
+    }
+
+    .studio-card.card-purple::before {
+      background: linear-gradient(90deg, var(--purple), #c084fc);
+    }
+
+    .studio-card.card-amber::before {
+      background: linear-gradient(90deg, var(--amber), #fbbf24);
+    }
+
+    .studio-card.card-emerald::before {
+      background: linear-gradient(90deg, var(--emerald), #34d399);
+    }
+
+    .studio-card.card-red::before {
+      background: linear-gradient(90deg, var(--red), #fb7185);
+    }
+
     .studio-card-icon {
       font-size: 36px;
       margin-bottom: 12px;
     }
+
     .studio-card-title {
       font-family: 'Rajdhani', sans-serif;
       font-size: 18px;
@@ -647,17 +885,20 @@
       margin-bottom: 6px;
       letter-spacing: 0.5px;
     }
+
     .studio-card-desc {
       font-size: 12px;
       color: var(--text-dim);
       margin-bottom: 16px;
       line-height: 1.5;
     }
+
     .studio-card-actions {
       display: flex;
       gap: 8px;
       flex-wrap: wrap;
     }
+
     .studio-btn {
       display: inline-flex;
       align-items: center;
@@ -674,36 +915,55 @@
       border: none;
       transition: all 0.2s;
     }
+
     .studio-btn-preview {
-      background: rgba(0,229,255,0.1);
+      background: rgba(0, 229, 255, 0.1);
       color: var(--cyan);
-      border: 1px solid rgba(0,229,255,0.25);
+      border: 1px solid rgba(0, 229, 255, 0.25);
     }
-    .studio-btn-preview:hover { background: rgba(0,229,255,0.2); }
+
+    .studio-btn-preview:hover {
+      background: rgba(0, 229, 255, 0.2);
+    }
+
     .studio-btn-download {
       background: linear-gradient(135deg, var(--cyan), #0099cc);
       color: #000;
     }
-    .studio-btn-download:hover { opacity: 0.85; }
-    .studio-btn-secondary {
-      background: rgba(168,85,247,0.1);
-      color: var(--purple);
-      border: 1px solid rgba(168,85,247,0.25);
+
+    .studio-btn-download:hover {
+      opacity: 0.85;
     }
-    .studio-btn-secondary:hover { background: rgba(168,85,247,0.2); }
+
+    .studio-btn-secondary {
+      background: rgba(168, 85, 247, 0.1);
+      color: var(--purple);
+      border: 1px solid rgba(168, 85, 247, 0.25);
+    }
+
+    .studio-btn-secondary:hover {
+      background: rgba(168, 85, 247, 0.2);
+    }
 
     /* Preview Modal (for SVG/HTML) */
     .preview-overlay {
       display: none;
       position: fixed;
-      top: 0; left: 0; right: 0; bottom: 0;
-      background: rgba(0,0,0,0.85);
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background: rgba(0, 0, 0, 0.85);
       z-index: 10000;
       justify-content: center;
       align-items: center;
       padding: 24px;
     }
-    .preview-overlay.active { display: flex; }
+
+    .preview-overlay.active {
+      display: flex;
+    }
+
     .preview-box {
       background: var(--surface);
       border: 1px solid var(--border);
@@ -714,6 +974,7 @@
       overflow: auto;
       position: relative;
     }
+
     .preview-box-header {
       display: flex;
       justify-content: space-between;
@@ -725,16 +986,18 @@
       background: var(--surface);
       z-index: 2;
     }
+
     .preview-box-header h3 {
       font-family: 'Rajdhani', sans-serif;
       color: var(--text-bright);
       font-size: 16px;
       letter-spacing: 1px;
     }
+
     .preview-close-btn {
-      background: rgba(244,63,94,0.15);
+      background: rgba(244, 63, 94, 0.15);
       color: var(--red);
-      border: 1px solid rgba(244,63,94,0.3);
+      border: 1px solid rgba(244, 63, 94, 0.3);
       border-radius: 8px;
       padding: 6px 14px;
       cursor: pointer;
@@ -742,9 +1005,11 @@
       font-size: 12px;
       font-weight: 600;
     }
+
     .preview-body {
       padding: 20px;
     }
+
     .preview-body svg,
     .preview-body img {
       max-width: 100%;
@@ -755,28 +1020,33 @@
     .history-section {
       margin-bottom: 80px;
     }
+
     .section-header {
       display: flex;
       align-items: center;
       gap: 12px;
       margin-bottom: 20px;
     }
+
     .section-title {
       font-family: 'Bebas Neue', sans-serif;
       font-size: 28px;
       letter-spacing: 2px;
       color: var(--text-bright);
     }
+
     .section-line {
       flex: 1;
       height: 1px;
       background: var(--border);
     }
+
     .history-grid {
       display: grid;
       grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
       gap: 16px;
     }
+
     .history-card {
       background: var(--surface);
       border: 1px solid var(--border);
@@ -786,11 +1056,13 @@
       transition: all 0.2s;
       animation: fadeUp 0.4s ease;
     }
+
     .history-card:hover {
-      border-color: rgba(0,229,255,0.3);
+      border-color: rgba(0, 229, 255, 0.3);
       transform: translateY(-2px);
-      box-shadow: 0 8px 24px rgba(0,0,0,0.3);
+      box-shadow: 0 8px 24px rgba(0, 0, 0, 0.3);
     }
+
     .history-title {
       font-family: 'Rajdhani', sans-serif;
       font-size: 15px;
@@ -798,23 +1070,27 @@
       color: var(--text-bright);
       margin-bottom: 6px;
     }
+
     .history-idea {
       font-size: 12px;
       color: var(--text-dim);
       margin-bottom: 12px;
       line-height: 1.5;
     }
+
     .history-date {
       font-family: 'Fira Code', monospace;
       font-size: 10px;
       color: var(--text-dim);
       opacity: 0.6;
     }
+
     .history-arrow {
       float: right;
       color: var(--cyan);
       font-size: 16px;
     }
+
     .empty-history {
       color: var(--text-dim);
       font-size: 14px;
@@ -829,13 +1105,17 @@
       display: none;
       position: fixed;
       inset: 0;
-      background: rgba(0,0,0,0.8);
+      background: rgba(0, 0, 0, 0.8);
       z-index: 100;
       align-items: center;
       justify-content: center;
       padding: 20px;
     }
-    .modal-overlay.active { display: flex; }
+
+    .modal-overlay.active {
+      display: flex;
+    }
+
     .modal {
       background: var(--surface);
       border: 1px solid var(--border);
@@ -848,10 +1128,12 @@
       position: relative;
       animation: fadeUp 0.3s ease;
     }
+
     .modal-close {
       position: absolute;
-      top: 20px; right: 20px;
-      background: rgba(255,255,255,0.08);
+      top: 20px;
+      right: 20px;
+      background: rgba(255, 255, 255, 0.08);
       border: none;
       border-radius: 8px;
       color: var(--text);
@@ -859,6 +1141,7 @@
       padding: 8px 12px;
       font-size: 18px;
     }
+
     .modal-title {
       font-family: 'Bebas Neue', sans-serif;
       font-size: 36px;
@@ -866,6 +1149,7 @@
       color: var(--text-bright);
       margin-bottom: 8px;
     }
+
     .modal-idea {
       font-size: 13px;
       color: var(--text-dim);
@@ -873,7 +1157,11 @@
       padding-bottom: 20px;
       border-bottom: 1px solid var(--border);
     }
-    .modal-section { margin-bottom: 24px; }
+
+    .modal-section {
+      margin-bottom: 24px;
+    }
+
     .modal-section-title {
       font-family: 'Rajdhani', sans-serif;
       font-size: 11px;
@@ -883,6 +1171,7 @@
       color: var(--cyan);
       margin-bottom: 10px;
     }
+
     .modal-section-content {
       font-size: 14px;
       color: var(--text);
@@ -907,14 +1196,32 @@
 
     /* ── Responsive ── */
     @media (max-width: 900px) {
-      .workspace { grid-template-columns: 1fr; }
-      .agent-panel { position: relative; max-height: 400px; }
-      .result-grid { grid-template-columns: 1fr; }
-      .header-badges { display: none; }
+      .workspace {
+        grid-template-columns: 1fr;
+      }
+
+      .agent-panel {
+        position: relative;
+        max-height: 400px;
+      }
+
+      .result-grid {
+        grid-template-columns: 1fr;
+      }
+
+      .header-badges {
+        display: none;
+      }
     }
+
     @media (max-width: 600px) {
-      .input-row { flex-direction: column; }
-      .hero h1 { font-size: 42px; }
+      .input-row {
+        flex-direction: column;
+      }
+
+      .hero h1 {
+        font-size: 42px;
+      }
     }
 
     /* ── TTS Read Aloud Controls ── */
@@ -924,42 +1231,51 @@
       gap: 4px;
       margin-left: auto;
     }
+
     .tts-btn {
-      background: rgba(0,229,255,0.08);
-      border: 1px solid rgba(0,229,255,0.2);
+      background: rgba(0, 229, 255, 0.08);
+      border: 1px solid rgba(0, 229, 255, 0.2);
       border-radius: 8px;
       color: var(--text-dim);
       font-size: 14px;
-      width: 32px; height: 32px;
-      display: flex; align-items: center; justify-content: center;
+      width: 32px;
+      height: 32px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
       cursor: pointer;
       transition: all 0.25s ease;
       position: relative;
     }
+
     .tts-btn:hover {
       color: var(--cyan);
-      border-color: rgba(0,229,255,0.5);
-      background: rgba(0,229,255,0.12);
-      box-shadow: 0 0 12px rgba(0,229,255,0.2);
+      border-color: rgba(0, 229, 255, 0.5);
+      background: rgba(0, 229, 255, 0.12);
+      box-shadow: 0 0 12px rgba(0, 229, 255, 0.2);
     }
+
     .tts-btn:focus-visible {
       outline: 2px solid var(--cyan);
       outline-offset: 2px;
     }
+
     .tts-btn.tts-active {
       color: var(--cyan);
       border-color: var(--cyan);
-      background: rgba(0,229,255,0.15);
-      box-shadow: 0 0 16px rgba(0,229,255,0.35);
+      background: rgba(0, 229, 255, 0.15);
+      box-shadow: 0 0 16px rgba(0, 229, 255, 0.35);
       animation: ttsPulse 1.8s infinite;
     }
+
     .tts-btn.tts-paused {
       color: var(--amber);
       border-color: var(--amber);
-      background: rgba(245,158,11,0.1);
-      box-shadow: 0 0 12px rgba(245,158,11,0.25);
+      background: rgba(245, 158, 11, 0.1);
+      box-shadow: 0 0 12px rgba(245, 158, 11, 0.25);
       animation: ttsPausePulse 2s infinite;
     }
+
     .tts-status-label {
       font-family: 'Rajdhani', sans-serif;
       font-size: 10px;
@@ -970,192 +1286,210 @@
       border-radius: 10px;
       display: none;
     }
+
     .tts-status-label.visible {
       display: inline-block;
     }
+
     .tts-status-label.playing {
       color: var(--cyan);
-      background: rgba(0,229,255,0.1);
-      border: 1px solid rgba(0,229,255,0.25);
+      background: rgba(0, 229, 255, 0.1);
+      border: 1px solid rgba(0, 229, 255, 0.25);
     }
+
     .tts-status-label.paused {
       color: var(--amber);
-      background: rgba(245,158,11,0.1);
-      border: 1px solid rgba(245,158,11,0.25);
+      background: rgba(245, 158, 11, 0.1);
+      border: 1px solid rgba(245, 158, 11, 0.25);
     }
+
     .tts-status-label.loading {
       color: var(--text-dim);
-      background: rgba(255,255,255,0.05);
-      border: 1px solid rgba(255,255,255,0.1);
+      background: rgba(255, 255, 255, 0.05);
+      border: 1px solid rgba(255, 255, 255, 0.1);
     }
+
     @keyframes ttsPulse {
-      0%, 100% { box-shadow: 0 0 8px rgba(0,229,255,0.2); }
-      50% { box-shadow: 0 0 20px rgba(0,229,255,0.5); }
+
+      0%,
+      100% {
+        box-shadow: 0 0 8px rgba(0, 229, 255, 0.2);
+      }
+
+      50% {
+        box-shadow: 0 0 20px rgba(0, 229, 255, 0.5);
+      }
     }
+
     @keyframes ttsPausePulse {
-      0%, 100% { box-shadow: 0 0 6px rgba(245,158,11,0.15); }
-      50% { box-shadow: 0 0 14px rgba(245,158,11,0.35); }
+
+      0%,
+      100% {
+        box-shadow: 0 0 6px rgba(245, 158, 11, 0.15);
+      }
+
+      50% {
+        box-shadow: 0 0 14px rgba(245, 158, 11, 0.35);
+      }
     }
   </style>
 </head>
+
 <body>
-<div class="page">
+  <div class="page">
 
-  <!-- Header -->
-  <header>
-    <div class="logo">
-      <div class="logo-icon">🚀</div>
-      <div>
-        <div class="logo-text">AutoStartup AI</div>
-        <div class="logo-sub">Autonomous Agent · LangGraph · RAG</div>
-      </div>
-    </div>
-    <div class="header-badges">
-      <select id="langSelect" class="lang-select" onchange="onLanguageChange()">
-        <option value="English">English</option>
-        <option value="Telugu">Telugu</option>
-        <option value="Hindi">Hindi</option>
-        <option value="Tamil">Tamil</option>
-        <option value="Kannada">Kannada</option>
-        <option value="Malayalam">Malayalam</option>
-        <option value="Marathi">Marathi</option>
-      </select>
-      <span class="badge badge-cyan">LangGraph</span>
-      <span class="badge badge-purple">ChromaDB RAG</span>
-      <span class="badge badge-amber">16-Step Workflow</span>
-    </div>
-  </header>
-
-  <!-- Hero -->
-  <div class="hero">
-    <div class="hero-tag">⚡ Powered by Echo Verse</div>
-    <h1 id="hero-title">Turn Any Idea Into a<br/><span>Complete Startup</span></h1>
-    <p class="hero-sub" id="hero-sub">
-      Our AI agent autonomously researches markets, analyzes competitors, identifies gaps, and generates a full business plan — with zero human intervention.
-    </p>
-  </div>
-
-  <!-- Input -->
-  <div class="input-card">
-    <label class="input-label" id="input-label">💬 Your Startup Idea</label>
-    <div class="input-row">
-      <input
-        id="ideaInput"
-        type="text"
-        placeholder="e.g., AI app for farmers, smart waste management platform..."
-        maxlength="300"
-        autocomplete="off"
-      />
-      <select id="formatSelect" class="format-select" title="Output Format">
-        <option value="ppt">PPT</option>
-        <option value="pdf">PDF</option>
-        <option value="word">Word</option>
-      </select>
-      <button id="micBtn" class="mic-btn" onclick="toggleRecording()" title="Voice Input">🎤</button>
-      <button class="btn-generate" id="generateBtn" onclick="startGeneration()">
-        ⚡ Generate
-      </button>
-    </div>
-    <div class="example-chips">
-      <span class="chip-label" id="chip-label">Try:</span>
-      <span class="chip" onclick="setIdea('AI app for farmers')">AI app for farmers</span>
-      <span class="chip" onclick="setIdea('smart waste management platform')">Smart waste management</span>
-      <span class="chip" onclick="setIdea('AI career guidance for graduates')">AI career guidance</span>
-      <span class="chip" onclick="setIdea('mental health app for teenagers')">Mental health app</span>
-      <span class="chip" onclick="setIdea('hyperlocal food delivery startup')">Hyperlocal food delivery</span>
-    </div>
-  </div>
-
-  <!-- Workspace (Agent + Results) -->
-  <div class="workspace" id="workspace">
-
-    <!-- Left: Agent Steps -->
-    <div class="agent-panel">
-      <div class="agent-panel-header">
-        <div class="pulse-dot idle" id="pulseIndicator"></div>
-        <h3 id="agent-log-title">Agent Execution Log</h3>
-      </div>
-      <div class="progress-bar">
-        <div class="progress-fill" id="progressFill"></div>
-      </div>
-      <div id="stepsContainer"></div>
-    </div>
-
-    <!-- Right: Results -->
-    <div class="results-panel" id="resultsPanel">
-      <div class="status-card" id="statusCard">
-        <div class="status-spinner" id="statusSpinner"></div>
-        <div class="status-text">
-          <h4 id="statusTitle">Initializing Agent...</h4>
-          <p id="statusMsg">The autonomous workflow is starting up.</p>
+    <!-- Header -->
+    <header>
+      <div class="logo">
+        <div class="logo-icon">🚀</div>
+        <div>
+          <div class="logo-text">AutoStartup AI</div>
+          <div class="logo-sub">Autonomous Agent · LangGraph · RAG</div>
         </div>
       </div>
+      <div class="header-badges">
+        <select id="langSelect" class="lang-select" onchange="onLanguageChange()">
+          <option value="English">English</option>
+          <option value="Telugu">Telugu</option>
+          <option value="Hindi">Hindi</option>
+          <option value="Tamil">Tamil</option>
+          <option value="Kannada">Kannada</option>
+          <option value="Malayalam">Malayalam</option>
+          <option value="Marathi">Marathi</option>
+        </select>
+        <span class="badge badge-cyan">LangGraph</span>
+        <span class="badge badge-purple">ChromaDB RAG</span>
+        <span class="badge badge-amber">16-Step Workflow</span>
+      </div>
+    </header>
+
+    <!-- Hero -->
+    <div class="hero">
+      <div class="hero-tag">⚡ Powered by Echo Verse</div>
+      <h1 id="hero-title">Turn Any Idea Into a<br /><span>Complete Startup</span></h1>
+      <p class="hero-sub" id="hero-sub">
+        Our AI agent autonomously researches markets, analyzes competitors, identifies gaps, and generates a full
+        business plan — with zero human intervention.
+      </p>
     </div>
 
-  </div>
-
-  <!-- History -->
-  <div class="history-section">
-    <div class="section-header">
-      <h2 class="section-title" id="history-title">History</h2>
-      <div class="section-line"></div>
-      <button id="history-refresh" onclick="loadHistory()" style="background:rgba(0,229,255,0.08);border:1px solid rgba(0,229,255,0.2);color:var(--cyan);border-radius:8px;padding:6px 14px;cursor:pointer;font-family:'Rajdhani',sans-serif;font-size:12px;letter-spacing:1px;text-transform:uppercase;">
-        Refresh
-      </button>
+    <!-- Input -->
+    <div class="input-card">
+      <label class="input-label" id="input-label">💬 Your Startup Idea</label>
+      <div class="input-row">
+        <input id="ideaInput" type="text" placeholder="e.g., AI app for farmers, smart waste management platform..."
+          maxlength="300" autocomplete="off" />
+        <select id="formatSelect" class="format-select" title="Output Format">
+          <option value="ppt">PPT</option>
+          <option value="pdf">PDF</option>
+          <option value="word">Word</option>
+        </select>
+        <button id="micBtn" class="mic-btn" onclick="toggleRecording()" title="Voice Input">🎤</button>
+        <button class="btn-generate" id="generateBtn" onclick="startGeneration()">
+          ⚡ Generate
+        </button>
+      </div>
+      <div class="example-chips">
+        <span class="chip-label" id="chip-label">Try:</span>
+        <span class="chip" onclick="setIdea('AI app for farmers')">AI app for farmers</span>
+        <span class="chip" onclick="setIdea('smart waste management platform')">Smart waste management</span>
+        <span class="chip" onclick="setIdea('AI career guidance for graduates')">AI career guidance</span>
+        <span class="chip" onclick="setIdea('mental health app for teenagers')">Mental health app</span>
+        <span class="chip" onclick="setIdea('hyperlocal food delivery startup')">Hyperlocal food delivery</span>
+      </div>
     </div>
-    <div class="history-grid" id="historyGrid">
-      <div class="empty-history" id="empty-history">No startup plans generated yet. Create your first one above!</div>
+
+    <!-- Workspace (Agent + Results) -->
+    <div class="workspace" id="workspace">
+
+      <!-- Left: Agent Steps -->
+      <div class="agent-panel">
+        <div class="agent-panel-header">
+          <div class="pulse-dot idle" id="pulseIndicator"></div>
+          <h3 id="agent-log-title">Agent Execution Log</h3>
+        </div>
+        <div class="progress-bar">
+          <div class="progress-fill" id="progressFill"></div>
+        </div>
+        <div id="stepsContainer"></div>
+      </div>
+
+      <!-- Right: Results -->
+      <div class="results-panel" id="resultsPanel">
+        <div class="status-card" id="statusCard">
+          <div class="status-spinner" id="statusSpinner"></div>
+          <div class="status-text">
+            <h4 id="statusTitle">Initializing Agent...</h4>
+            <p id="statusMsg">The autonomous workflow is starting up.</p>
+          </div>
+        </div>
+      </div>
+
+    </div>
+
+    <!-- History -->
+    <div class="history-section">
+      <div class="section-header">
+        <h2 class="section-title" id="history-title">History</h2>
+        <div class="section-line"></div>
+        <button id="history-refresh" onclick="loadHistory()"
+          style="background:rgba(0,229,255,0.08);border:1px solid rgba(0,229,255,0.2);color:var(--cyan);border-radius:8px;padding:6px 14px;cursor:pointer;font-family:'Rajdhani',sans-serif;font-size:12px;letter-spacing:1px;text-transform:uppercase;">
+          Refresh
+        </button>
+      </div>
+      <div class="history-grid" id="historyGrid">
+        <div class="empty-history" id="empty-history">No startup plans generated yet. Create your first one above!</div>
+      </div>
+    </div>
+
+    <footer>AutoStartup AI &nbsp;·&nbsp; Hackathon Project &nbsp;·&nbsp; Built with LangGraph </footer>
+  </div>
+
+  <!-- Modal -->
+  <div class="modal-overlay" id="modalOverlay" onclick="closeModal(event)">
+    <div class="modal" id="modal">
+      <button class="modal-close" onclick="closeModalDirect()">✕</button>
+      <div id="modalContent"></div>
     </div>
   </div>
 
-  <footer>AutoStartup AI &nbsp;·&nbsp; Hackathon Project &nbsp;·&nbsp; Built with LangGraph </footer>
-</div>
-
-<!-- Modal -->
-<div class="modal-overlay" id="modalOverlay" onclick="closeModal(event)">
-  <div class="modal" id="modal">
-    <button class="modal-close" onclick="closeModalDirect()">✕</button>
-    <div id="modalContent"></div>
-  </div>
-</div>
-
-<!-- Preview Overlay (for Studio assets) -->
-<div class="preview-overlay" id="previewOverlay" onclick="if(event.target===this) closePreview()">
-  <div class="preview-box">
-    <div class="preview-box-header">
-      <h3 id="previewTitle">Preview</h3>
-      <button class="preview-close-btn" onclick="closePreview()">✕ Close</button>
+  <!-- Preview Overlay (for Studio assets) -->
+  <div class="preview-overlay" id="previewOverlay" onclick="if(event.target===this) closePreview()">
+    <div class="preview-box">
+      <div class="preview-box-header">
+        <h3 id="previewTitle">Preview</h3>
+        <button class="preview-close-btn" onclick="closePreview()">✕ Close</button>
+      </div>
+      <div class="preview-body" id="previewBody"></div>
     </div>
-    <div class="preview-body" id="previewBody"></div>
   </div>
-</div>
 
-<script>
-  // ── Language & Localization ──
-  const langMap = {
-    'English': 'en-US',
-    'Telugu': 'te-IN',
-    'Hindi': 'hi-IN',
-    'Tamil': 'ta-IN',
-    'Kannada': 'kn-IN',
-    'Malayalam': 'ml-IN',
-    'Marathi': 'mr-IN'
-  };
+  <script>
+    // ── Language & Localization ──
+    const langMap = {
+      'English': 'en-US',
+      'Telugu': 'te-IN',
+      'Hindi': 'hi-IN',
+      'Tamil': 'ta-IN',
+      'Kannada': 'kn-IN',
+      'Malayalam': 'ml-IN',
+      'Marathi': 'mr-IN'
+    };
 
-  // ── TTS (Text-to-Speech) Read Aloud Engine ──
-  // Global state for the TTS system
-  let ttsCurrentCardId = null;  // ID of the card currently being read
-  let ttsUtterance = null;      // Current SpeechSynthesisUtterance object
-  let ttsStatus = 'idle';       // idle | loading | playing | paused
-  let ttsCardCounter = 0;       // Auto-incrementing unique ID for each card
+    // ── TTS (Text-to-Speech) Read Aloud Engine ──
+    // Global state for the TTS system
+    let ttsCurrentCardId = null;  // ID of the card currently being read
+    let ttsUtterance = null;      // Current SpeechSynthesisUtterance object
+    let ttsStatus = 'idle';       // idle | loading | playing | paused
+    let ttsCardCounter = 0;       // Auto-incrementing unique ID for each card
 
-  /**
-   * Generate the HTML for TTS control buttons.
-   * @param {string} cardId - Unique ID for the card element.
-   * @returns {string} HTML string for the TTS controls.
-   */
-  function getTTSControlsHTML(cardId) {
-    return `
+    /**
+     * Generate the HTML for TTS control buttons.
+     * @param {string} cardId - Unique ID for the card element.
+     * @returns {string} HTML string for the TTS controls.
+     */
+    function getTTSControlsHTML(cardId) {
+      return `
       <div class="tts-controls" id="tts-controls-${cardId}">
         <span class="tts-status-label" id="tts-status-${cardId}"></span>
         <button class="tts-btn" id="tts-play-${cardId}" onclick="ttsPlay('${cardId}')" aria-label="Read aloud" title="Read Aloud">
@@ -1172,521 +1506,521 @@
         </button>
       </div>
     `;
-  }
-
-  /**
-   * Update the visual state of TTS buttons for a specific card.
-   * @param {string} cardId - The card to update.
-   * @param {string} status - 'idle' | 'loading' | 'playing' | 'paused'
-   */
-  function ttsUpdateUI(cardId, status) {
-    const playBtn = document.getElementById(`tts-play-${cardId}`);
-    const pauseBtn = document.getElementById(`tts-pause-${cardId}`);
-    const resumeBtn = document.getElementById(`tts-resume-${cardId}`);
-    const stopBtn = document.getElementById(`tts-stop-${cardId}`);
-    const statusLabel = document.getElementById(`tts-status-${cardId}`);
-    if (!playBtn) return;
-
-    // Reset all
-    playBtn.style.display = 'none';
-    pauseBtn.style.display = 'none';
-    resumeBtn.style.display = 'none';
-    stopBtn.style.display = 'none';
-    playBtn.classList.remove('tts-active', 'tts-paused');
-    statusLabel.className = 'tts-status-label';
-    statusLabel.textContent = '';
-
-    switch (status) {
-      case 'loading':
-        playBtn.style.display = 'flex';
-        playBtn.classList.add('tts-active');
-        statusLabel.textContent = 'Loading...';
-        statusLabel.classList.add('visible', 'loading');
-        break;
-      case 'playing':
-        pauseBtn.style.display = 'flex';
-        stopBtn.style.display = 'flex';
-        statusLabel.textContent = 'Playing';
-        statusLabel.classList.add('visible', 'playing');
-        break;
-      case 'paused':
-        resumeBtn.style.display = 'flex';
-        stopBtn.style.display = 'flex';
-        statusLabel.textContent = 'Paused';
-        statusLabel.classList.add('visible', 'paused');
-        break;
-      case 'idle':
-      default:
-        playBtn.style.display = 'flex';
-        break;
     }
-  }
 
-  /**
-   * Extract readable text from a card's content area.
-   * Strips HTML tags for natural speech.
-   * @param {string} cardId - Card ID to extract text from.
-   * @returns {string} Plain text content.
-   */
-  function ttsGetCardText(cardId) {
-    const card = document.getElementById(`tts-card-${cardId}`);
-    if (!card) return '';
-    // Find the content area(s) within the card
-    const contentEl = card.querySelector('.card-content, .feature-list, .exec-summary .card-content');
-    if (contentEl) return contentEl.innerText || contentEl.textContent || '';
-    // Fallback: read the entire card
-    return card.innerText || card.textContent || '';
-  }
+    /**
+     * Update the visual state of TTS buttons for a specific card.
+     * @param {string} cardId - The card to update.
+     * @param {string} status - 'idle' | 'loading' | 'playing' | 'paused'
+     */
+    function ttsUpdateUI(cardId, status) {
+      const playBtn = document.getElementById(`tts-play-${cardId}`);
+      const pauseBtn = document.getElementById(`tts-pause-${cardId}`);
+      const resumeBtn = document.getElementById(`tts-resume-${cardId}`);
+      const stopBtn = document.getElementById(`tts-stop-${cardId}`);
+      const statusLabel = document.getElementById(`tts-status-${cardId}`);
+      if (!playBtn) return;
 
-  /**
-   * Split long text into chunks for SpeechSynthesis.
-   * Some browsers cut off after ~200-300 characters.
-   * @param {string} text - Full text to split.
-   * @param {number} maxLen - Max characters per chunk.
-   * @returns {string[]} Array of text chunks.
-   */
-  function ttsSplitText(text, maxLen = 180) {
-    // Replace newlines with spaces so they don't break TTS
-    const cleanText = text.replace(/\n+/g, ' ');
-    // Split by spaces (words)
-    const words = cleanText.split(/\s+/);
-    
-    const chunks = [];
-    let current = '';
-    
-    for (const word of words) {
-      if (!word.trim()) continue;
-      
-      // If adding the next word exceeds maxLen
-      if ((current + ' ' + word).length > maxLen) {
-        if (current) {
-          chunks.push(current);
-        }
-        current = word;
-        
-        // Edge case: single word is larger than maxLen (e.g. unbroken URL)
-        while (current.length > maxLen) {
-          chunks.push(current.substring(0, maxLen));
-          current = current.substring(maxLen);
-        }
-      } else {
-        current += (current ? ' ' : '') + word;
+      // Reset all
+      playBtn.style.display = 'none';
+      pauseBtn.style.display = 'none';
+      resumeBtn.style.display = 'none';
+      stopBtn.style.display = 'none';
+      playBtn.classList.remove('tts-active', 'tts-paused');
+      statusLabel.className = 'tts-status-label';
+      statusLabel.textContent = '';
+
+      switch (status) {
+        case 'loading':
+          playBtn.style.display = 'flex';
+          playBtn.classList.add('tts-active');
+          statusLabel.textContent = 'Loading...';
+          statusLabel.classList.add('visible', 'loading');
+          break;
+        case 'playing':
+          pauseBtn.style.display = 'flex';
+          stopBtn.style.display = 'flex';
+          statusLabel.textContent = 'Playing';
+          statusLabel.classList.add('visible', 'playing');
+          break;
+        case 'paused':
+          resumeBtn.style.display = 'flex';
+          stopBtn.style.display = 'flex';
+          statusLabel.textContent = 'Paused';
+          statusLabel.classList.add('visible', 'paused');
+          break;
+        case 'idle':
+        default:
+          playBtn.style.display = 'flex';
+          break;
       }
     }
-    
-    if (current.trim()) {
-      chunks.push(current);
-    }
-    
-    return chunks.length ? chunks : [text];
-  }
 
-  /**
-   * Play TTS for a specific card.
-   * Stops any existing playback first.
-   * @param {string} cardId - The card to read aloud.
-   */
-  function ttsPlay(cardId) {
-    // Check browser support
-    if (!('speechSynthesis' in window)) {
-      const t = translations[currentLang] || translations['English'];
-      alert(t.micUnsupported || 'Text-to-Speech is not supported in this browser.');
-      return;
+    /**
+     * Extract readable text from a card's content area.
+     * Strips HTML tags for natural speech.
+     * @param {string} cardId - Card ID to extract text from.
+     * @returns {string} Plain text content.
+     */
+    function ttsGetCardText(cardId) {
+      const card = document.getElementById(`tts-card-${cardId}`);
+      if (!card) return '';
+      // Find the content area(s) within the card
+      const contentEl = card.querySelector('.card-content, .feature-list, .exec-summary .card-content');
+      if (contentEl) return contentEl.innerText || contentEl.textContent || '';
+      // Fallback: read the entire card
+      return card.innerText || card.textContent || '';
     }
 
-    // Stop any existing playback
-    ttsStop();
+    /**
+     * Split long text into chunks for SpeechSynthesis.
+     * Some browsers cut off after ~200-300 characters.
+     * @param {string} text - Full text to split.
+     * @param {number} maxLen - Max characters per chunk.
+     * @returns {string[]} Array of text chunks.
+     */
+    function ttsSplitText(text, maxLen = 180) {
+      // Replace newlines with spaces so they don't break TTS
+      const cleanText = text.replace(/\n+/g, ' ');
+      // Split by spaces (words)
+      const words = cleanText.split(/\s+/);
 
-    const text = ttsGetCardText(cardId);
-    if (!text.trim()) return;
+      const chunks = [];
+      let current = '';
 
-    ttsCurrentCardId = cardId;
-    ttsStatus = 'loading';
-    ttsUpdateUI(cardId, 'loading');
+      for (const word of words) {
+        if (!word.trim()) continue;
 
-    // Get the TTS language locale from the current app language
-    const locale = langMap[currentLang] || 'en-US';
+        // If adding the next word exceeds maxLen
+        if ((current + ' ' + word).length > maxLen) {
+          if (current) {
+            chunks.push(current);
+          }
+          current = word;
 
-    // Split long text into speakable chunks
-    const chunks = ttsSplitText(text);
-    let chunkIndex = 0;
+          // Edge case: single word is larger than maxLen (e.g. unbroken URL)
+          while (current.length > maxLen) {
+            chunks.push(current.substring(0, maxLen));
+            current = current.substring(maxLen);
+          }
+        } else {
+          current += (current ? ' ' : '') + word;
+        }
+      }
 
-    function speakNextChunk() {
-      if (chunkIndex >= chunks.length || ttsCurrentCardId !== cardId) {
-        // Done or interrupted
-        if (ttsCurrentCardId === cardId) {
+      if (current.trim()) {
+        chunks.push(current);
+      }
+
+      return chunks.length ? chunks : [text];
+    }
+
+    /**
+     * Play TTS for a specific card.
+     * Stops any existing playback first.
+     * @param {string} cardId - The card to read aloud.
+     */
+    function ttsPlay(cardId) {
+      // Check browser support
+      if (!('speechSynthesis' in window)) {
+        const t = translations[currentLang] || translations['English'];
+        alert(t.micUnsupported || 'Text-to-Speech is not supported in this browser.');
+        return;
+      }
+
+      // Stop any existing playback
+      ttsStop();
+
+      const text = ttsGetCardText(cardId);
+      if (!text.trim()) return;
+
+      ttsCurrentCardId = cardId;
+      ttsStatus = 'loading';
+      ttsUpdateUI(cardId, 'loading');
+
+      // Get the TTS language locale from the current app language
+      const locale = langMap[currentLang] || 'en-US';
+
+      // Split long text into speakable chunks
+      const chunks = ttsSplitText(text);
+      let chunkIndex = 0;
+
+      function speakNextChunk() {
+        if (chunkIndex >= chunks.length || ttsCurrentCardId !== cardId) {
+          // Done or interrupted
+          if (ttsCurrentCardId === cardId) {
+            ttsStatus = 'idle';
+            ttsCurrentCardId = null;
+            ttsUpdateUI(cardId, 'idle');
+          }
+          return;
+        }
+
+        const utterance = new SpeechSynthesisUtterance(chunks[chunkIndex]);
+        utterance.lang = locale;
+        utterance.rate = 0.95;
+        utterance.pitch = 1.0;
+
+        // Try to find a matching voice for the locale
+        const voices = speechSynthesis.getVoices();
+        const langPrefix = locale.split('-')[0];
+        const matchedVoice = voices.find(v => v.lang === locale) ||
+          voices.find(v => v.lang.startsWith(langPrefix));
+        if (matchedVoice) utterance.voice = matchedVoice;
+
+        utterance.onstart = () => {
+          ttsStatus = 'playing';
+          ttsUpdateUI(cardId, 'playing');
+        };
+
+        utterance.onend = () => {
+          chunkIndex++;
+          speakNextChunk();
+        };
+
+        utterance.onerror = (e) => {
+          console.error('TTS Error:', e);
           ttsStatus = 'idle';
           ttsCurrentCardId = null;
           ttsUpdateUI(cardId, 'idle');
+        };
+
+        ttsUtterance = utterance;
+        speechSynthesis.speak(utterance);
+      }
+
+      // Ensure voices are loaded (some browsers load them async)
+      if (speechSynthesis.getVoices().length === 0) {
+        speechSynthesis.addEventListener('voiceschanged', () => {
+          speakNextChunk();
+        }, { once: true });
+      } else {
+        speakNextChunk();
+      }
+    }
+
+    /**
+     * Pause TTS playback.
+     */
+    function ttsPause() {
+      if (speechSynthesis.speaking && !speechSynthesis.paused) {
+        speechSynthesis.pause();
+        ttsStatus = 'paused';
+        if (ttsCurrentCardId) ttsUpdateUI(ttsCurrentCardId, 'paused');
+      }
+    }
+
+    /**
+     * Resume TTS playback.
+     */
+    function ttsResume() {
+      if (speechSynthesis.paused) {
+        speechSynthesis.resume();
+        ttsStatus = 'playing';
+        if (ttsCurrentCardId) ttsUpdateUI(ttsCurrentCardId, 'playing');
+      }
+    }
+
+    /**
+     * Stop TTS playback completely.
+     */
+    function ttsStop() {
+      speechSynthesis.cancel();
+      if (ttsCurrentCardId) {
+        ttsUpdateUI(ttsCurrentCardId, 'idle');
+      }
+      ttsCurrentCardId = null;
+      ttsUtterance = null;
+      ttsStatus = 'idle';
+    }
+
+    /**
+     * Generate a unique card ID for TTS targeting.
+     * @returns {string} Unique card ID.
+     */
+    function ttsNextCardId() {
+      return 'card-' + (++ttsCardCounter);
+    }
+
+    const translations = {
+      'English': {
+        heroTitle: 'Turn Any Idea Into a<br/><span>Complete Startup</span>',
+        heroSub: 'Our AI agent autonomously researches markets, analyzes competitors, identifies gaps, and generates a full business plan — with zero human intervention.',
+        inputLabel: '💬 Your Startup Idea',
+        inputPlaceholder: 'e.g., AI app for farmers, smart waste management platform...',
+        generateBtn: '⚡ Generate',
+        chipLabel: 'Try:',
+        agentLogTitle: 'Agent Execution Log',
+        historyTitle: 'History',
+        refreshBtn: 'Refresh',
+        emptyHistory: 'No startup plans generated yet. Create your first one above!',
+        micUnsupported: 'Microphone is not supported in this browser.',
+        statusStarting: '🧠 Agent Starting...',
+        statusInitMsg: 'Initializing 16-step autonomous workflow for: ',
+        statusError: '❌ Error',
+        statusAgentErr: '❌ Agent Error'
+      },
+      'Hindi': {
+        heroTitle: 'किसी भी विचार को<br/><span>पूर्ण स्टार्टअप</span> में बदलें',
+        heroSub: 'हमारा AI एजेंट स्वायत्त रूप से बाजारों पर शोध करता है, प्रतिस्पर्धियों का विश्लेषण करता है, अंतराल की पहचान करता है, और शून्य मानवीय हस्तक्षेप के साथ एक पूर्ण व्यवसाय योजना तैयार करता है।',
+        inputLabel: '💬 आपका स्टार्टअप विचार',
+        inputPlaceholder: 'उदाहरण के लिए, किसानों के लिए AI ऐप, स्मार्ट कचरा प्रबंधन प्लेटफॉर्म...',
+        generateBtn: '⚡ जेनरेट करें',
+        chipLabel: 'प्रयास करें:',
+        agentLogTitle: 'एजेंट निष्पादन लॉग',
+        historyTitle: 'इतिहास',
+        refreshBtn: 'रीफ़्रेश करें',
+        emptyHistory: 'अभी तक कोई स्टार्टअप योजना तैयार नहीं की गई है। ऊपर अपनी पहली योजना बनाएं!',
+        micUnsupported: 'इस ब्राउज़र में माइक्रोफ़ोन समर्थित नहीं है।',
+        statusStarting: '🧠 एजेंट शुरू हो रहा है...',
+        statusInitMsg: 'के लिए 16-चरणीय स्वायत्त कार्यप्रवाह प्रारंभ किया जा रहा है: ',
+        statusError: '❌ त्रुटि',
+        statusAgentErr: '❌ एजेंट त्रुटि'
+      },
+      'Telugu': {
+        heroTitle: 'ఏదైనా ఆలోచనను<br/><span>పూర్తి స్టార్టప్‌గా</span> మార్చండి',
+        heroSub: 'మా AI ఏజెంట్ స్వయంప్రతిపత్తితో మార్కెట్‌లను పరిశోధిస్తుంది, పోటీదారులను విశ్లేషిస్తుంది, అంతరాలను గుర్తిస్తుంది మరియు మానవ ప్రమేయం లేకుండా పూర్తి వ్యాపార ప్రణాళికను రూపొందిస్తుంది.',
+        inputLabel: '💬 మీ స్టార్టప్ ఆలోచన',
+        inputPlaceholder: 'ఉదాహరణకు, రైతుల కోసం AI యాప్, స్మార్ట్ వ్యర్థాల నిర్వహణ ప్లాట్‌ఫారమ్...',
+        generateBtn: '⚡ సృష్టించండి',
+        chipLabel: 'ప్రయత్నించండి:',
+        agentLogTitle: 'ఏజెంట్ ఎగ్జిక్యూషన్ లాగ్',
+        historyTitle: 'చరిత్ర',
+        refreshBtn: 'రిఫ్రెష్ చేయండి',
+        emptyHistory: 'ఇంకా స్టార్టప్ ప్లాన్‌లు ఏవీ సృష్టించబడలేదు. పైన మీ మొదటి ప్లాన్‌ను సృష్టించండి!',
+        micUnsupported: 'ఈ బ్రౌజర్‌లో మైక్రోఫోన్ పని చేయదు.',
+        statusStarting: '🧠 ఏజెంట్ ప్రారంభమవుతోంది...',
+        statusInitMsg: 'దీని కోసం 16-దశల స్వయంప్రతిపత్త వర్క్‌ఫ్లో ప్రారంభించబడుతోంది: ',
+        statusError: '❌ లోపం',
+        statusAgentErr: '❌ ఏజెంట్ లోపం'
+      },
+      'Tamil': {
+        heroTitle: 'எந்தவொரு யோசனையையும்<br/><span>முழுமையான ஸ்டார்ட்அப்</span> ஆக மாற்றவும்',
+        heroSub: 'எங்கள் AI ஏஜென்ட் தன்னிச்சையாக சந்தைகளை ஆராய்கிறது, போட்டியாளர்களை பகுப்பாய்வு செய்கிறது, இடைவெளிகளை அடையாளம் காட்டுகிறது மற்றும் மனித தலையீடு இல்லாமல் முழு வணிகத் திட்டத்தையும் உருவாக்குகிறது.',
+        inputLabel: '💬 உங்கள் ஸ்டார்ட்அப் யோசனை',
+        inputPlaceholder: 'எ.கா., விவசாயிகளுக்கான AI ஆப், ஸ்மார்ட் கழிவு மேலாண்மை தளம்...',
+        generateBtn: '⚡ உருவாக்கு',
+        chipLabel: 'முயற்சிக்கவும்:',
+        agentLogTitle: 'ஏஜென்ட் செயல்பாட்டு பதிவு',
+        historyTitle: 'வரலாறு',
+        refreshBtn: 'புதுப்பி',
+        emptyHistory: 'இதுவரை எந்த ஸ்டார்ட்அப் திட்டங்களும் உருவாக்கப்படவில்லை. மேலே உங்கள் முதல் திட்டத்தை உருவாக்கவும்!',
+        micUnsupported: 'இந்த உலாவியில் மைக்ரோஃபோன் ஆதரிக்கப்படவில்லை.',
+        statusStarting: '🧠 ஏஜென்ட் தொடங்குகிறது...',
+        statusInitMsg: 'இதற்கான 16-படி தன்னாட்சி பணிப்பாய்வு தொடங்கப்படுகிறது: ',
+        statusError: '❌ பிழை',
+        statusAgentErr: '❌ ஏஜென்ட் பிழை'
+      },
+      'Kannada': {
+        heroTitle: 'ಯಾವುದೇ ಕಲ್ಪನೆಯನ್ನು<br/><span>ಸಂಪೂರ್ಣ ಸ್ಟಾರ್ಟ್ಅಪ್</span> ಆಗಿ ಪರಿವರ್ತಿಸಿ',
+        heroSub: 'ನಮ್ಮ AI ಏಜೆಂಟ್ ಸ್ವಾಯತ್ತವಾಗಿ ಮಾರುಕಟ್ಟೆಗಳನ್ನು ಸಂಶೋಧಿಸುತ್ತದೆ, ಪ್ರತಿಸ್ಪರ್ಧಿಗಳನ್ನು ವಿಶ್ಲೇಷಿಸುತ್ತದೆ, ಅಂತರಗಳನ್ನು ಗುರುತಿಸುತ್ತದೆ ಮತ್ತು ಯಾವುದೇ ಮಾನವ ಹಸ್ತಕ್ಷೇಪವಿಲ್ಲದೆ ಸಂಪೂರ್ಣ ವ್ಯಾಪಾರ ಯೋಜನೆಯನ್ನು ರಚಿಸುತ್ತದೆ.',
+        inputLabel: '💬 ನಿಮ್ಮ ಸ್ಟಾರ್ಟ್ಅಪ್ ಕಲ್ಪನೆ',
+        inputPlaceholder: 'ಉದಾಹರಣೆಗೆ, ರೈತರಿಗಾಗಿ AI ಅಪ್ಲಿಕೇಶನ್, ಸ್ಮಾರ್ಟ್ ತ್ಯಾಜ್ಯ ನಿರ್ವಹಣಾ ವೇದಿಕೆ...',
+        generateBtn: '⚡ ರಚಿಸಿ',
+        chipLabel: 'ಪ್ರಯತ್ನಿಸಿ:',
+        agentLogTitle: 'ಏಜೆಂಟ್ ಎಕ್ಸಿಕ್ಯೂಶನ್ ಲಾಗ್',
+        historyTitle: 'ಇತಿಹಾಸ',
+        refreshBtn: 'ರಿಫ್ರೆಶ್ ಮಾಡಿ',
+        emptyHistory: 'ಇನ್ನೂ ಯಾವುದೇ ಸ್ಟಾರ್ಟ್ಅಪ್ ಯೋಜನೆಗಳನ್ನು ರಚಿಸಲಾಗಿಲ್ಲ. ಮೇಲೆ ನಿಮ್ಮ ಮೊದಲನೆಯದನ್ನು ರಚಿಸಿ!',
+        micUnsupported: 'ಈ ಬ್ರೌಸರ್‌ನಲ್ಲಿ ಮೈಕ್ರೊಫೋನ್ ಬೆಂಬಲಿತವಾಗಿಲ್ಲ.',
+        statusStarting: '🧠 ಏಜೆಂಟ್ ಪ್ರಾರಂಭವಾಗುತ್ತಿದೆ...',
+        statusInitMsg: 'ಇದಕ್ಕಾಗಿ 16-ಹಂತದ ಸ್ವಾಯತ್ತ ವರ್ಕ್‌ಫ್ಲೋ ಪ್ರಾರಂಭಿಸಲಾಗುತ್ತಿದೆ: ',
+        statusError: '❌ ದೋಷ',
+        statusAgentErr: '❌ ಏಜೆಂಟ್ ದೋಷ'
+      },
+      'Malayalam': {
+        heroTitle: 'ഏത് ആശയത്തെയും<br/><span>പൂർണ്ണ സ്റ്റാർട്ടപ്പാക്കി</span> മാറ്റുക',
+        heroSub: 'ഞങ്ങളുടെ AI ഏജൻ്റ് സ്വയംഭരണാധികാരത്തോടെ വിപണികളെക്കുറിച്ച് ഗവേഷണം നടത്തുന്നു, എതിരാളികളെ വിശകലനം ചെയ്യുന്നു, വിടവുകൾ കണ്ടെത്തുന്നു, മനുഷ്യൻ്റെ ഇടപെടലില്ലാതെ പൂർണ്ണമായ ബിസിനസ്സ് പ്ലാൻ തയ്യാറാക്കുന്നു.',
+        inputLabel: '💬 നിങ്ങളുടെ സ്റ്റാർട്ടപ്പ് ആശയം',
+        inputPlaceholder: 'ഉദാഹരണത്തിന്, കർഷകർക്കുള്ള AI ആപ്പ്, സ്മാർട്ട് മാലിന്യ സംസ്കരണ പ്ലാറ്റ്ഫോം...',
+        generateBtn: '⚡ സൃഷ്ടിക്കുക',
+        chipLabel: 'ശ്രമിക്കുക:',
+        agentLogTitle: 'ഏജൻ്റ് എക്സിക്യൂഷൻ ലോഗ്',
+        historyTitle: 'ചരിത്രം',
+        refreshBtn: 'റിഫ്രഷ് ചെയ്യുക',
+        emptyHistory: 'ഇതുവരെ സ്റ്റാർട്ടപ്പ് പ്ലാനുകളൊന്നും സൃഷ്ടിച്ചിട്ടില്ല. മുകളിൽ നിങ്ങളുടെ ആദ്യത്തേത് സൃഷ്ടിക്കുക!',
+        micUnsupported: 'ഈ ബ്രൗസറിൽ മൈക്രോഫോൺ പിന്തുണയ്ക്കുന്നില്ല.',
+        statusStarting: '🧠 ഏജൻ്റ് ആരംഭിക്കുന്നു...',
+        statusInitMsg: 'ഇതിനായി 16-ഘട്ട സ്വയംഭരണ വർക്ക്ഫ്ലോ ആരംഭിക്കുന്നു: ',
+        statusError: '❌ പിശക്',
+        statusAgentErr: '❌ ഏജൻ്റ് പിശക്'
+      },
+      'Marathi': {
+        heroTitle: 'कोणतीही कल्पना<br/><span>पूर्ण स्टार्टअप</span> मध्ये बदला',
+        heroSub: 'आमचा AI एजंट स्वायत्तपणे बाजारांचे संशोधन करतो, प्रतिस्पर्ध्यांचे विश्लेषण करतो, अंतर ओळखतो आणि मानवी हस्तक्षेपाशिवाय संपूर्ण व्यवसाय योजना तयार करतो.',
+        inputLabel: '💬 तुमची स्टार्टअप कल्पना',
+        inputPlaceholder: 'उदा., शेतकऱ्यांसाठी AI ॲप, स्मार्ट कचरा व्यवस्थापन प्लॅटफॉर्म...',
+        generateBtn: '⚡ तयार करा',
+        chipLabel: 'प्रयत्न करा:',
+        agentLogTitle: 'एजंट एक्झिक्यूशन लॉग',
+        historyTitle: 'इतिहास',
+        refreshBtn: 'रिफ्रेश करा',
+        emptyHistory: 'अद्याप कोणतीही स्टार्टअप योजना तयार केलेली नाही. वर तुमची पहिली योजना तयार करा!',
+        micUnsupported: 'या ब्राउझरमध्ये मायक्रोफोन समर्थित नाही.',
+        statusStarting: '🧠 एजंट सुरू होत आहे...',
+        statusInitMsg: 'यासाठी 16-टप्प्यांची स्वायत्त वर्कफ्लो सुरू केली जात आहे: ',
+        statusError: '❌ त्रुटी',
+        statusAgentErr: '❌ एजंट त्रुटी'
+      }
+    };
+
+    let currentLang = 'English';
+
+    function initLanguage() {
+      let savedLang = localStorage.getItem('selectedLanguage');
+      if (!savedLang) {
+        const browserLang = navigator.language;
+        const localeMatch = Object.entries(langMap).find(([name, locale]) => browserLang.startsWith(locale.split('-')[0]));
+        savedLang = localeMatch ? localeMatch[0] : 'English';
+      }
+      currentLang = savedLang;
+      const select = document.getElementById('langSelect');
+      if (select) select.value = currentLang;
+      applyTranslations();
+    }
+
+    function onLanguageChange() {
+      const select = document.getElementById('langSelect');
+      currentLang = select.value;
+      localStorage.setItem('selectedLanguage', currentLang);
+      applyTranslations();
+      if (recognition) {
+        recognition.lang = langMap[currentLang];
+      }
+    }
+
+    function applyTranslations() {
+      const t = translations[currentLang] || translations['English'];
+      const safeHtml = (id, html) => { const el = document.getElementById(id); if (el) el.innerHTML = html; };
+      const safeText = (id, text) => { const el = document.getElementById(id); if (el) el.textContent = text; };
+
+      safeHtml('hero-title', t.heroTitle);
+      safeText('hero-sub', t.heroSub);
+      safeText('input-label', t.inputLabel);
+
+      const input = document.getElementById('ideaInput');
+      if (input && !isRecording) input.placeholder = t.inputPlaceholder;
+
+      safeHtml('generateBtn', t.generateBtn);
+      safeText('chip-label', t.chipLabel);
+      safeText('agent-log-title', t.agentLogTitle);
+      safeText('history-title', t.historyTitle);
+      safeText('history-refresh', t.refreshBtn);
+
+      const emptyEl = document.getElementById('empty-history');
+      if (emptyEl) emptyEl.textContent = t.emptyHistory;
+    }
+
+    // --- Voice Input ---
+    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+    let recognition = null;
+    let isRecording = false;
+
+    if (SpeechRecognition) {
+      recognition = new SpeechRecognition();
+      recognition.continuous = false;
+      recognition.interimResults = true;
+
+      recognition.onstart = () => {
+        isRecording = true;
+        document.getElementById('micBtn').classList.add('recording');
+        document.getElementById('ideaInput').placeholder = 'Listening...';
+      };
+
+      recognition.onresult = (event) => {
+        let interimTranscript = '';
+        let finalTranscript = '';
+
+        for (let i = event.resultIndex; i < event.results.length; ++i) {
+          if (event.results[i].isFinal) {
+            finalTranscript += event.results[i][0].transcript;
+          } else {
+            interimTranscript += event.results[i][0].transcript;
+          }
+        }
+
+        const input = document.getElementById('ideaInput');
+        if (finalTranscript) {
+          input.value = finalTranscript;
+        } else if (interimTranscript) {
+          input.value = interimTranscript;
+        }
+      };
+
+      recognition.onerror = (event) => {
+        console.error('Speech recognition error', event.error);
+        stopRecording();
+      };
+
+      recognition.onend = () => {
+        stopRecording();
+      };
+    }
+
+    function toggleRecording() {
+      if (!SpeechRecognition) {
+        alert(translations[currentLang].micUnsupported || translations['English'].micUnsupported);
+        return;
+      }
+
+      if (isRecording) {
+        stopRecording();
+      } else {
+        recognition.lang = langMap[currentLang];
+        recognition.start();
+      }
+    }
+
+    function stopRecording() {
+      if (recognition && isRecording) {
+        recognition.stop();
+      }
+      isRecording = false;
+      document.getElementById('micBtn').classList.remove('recording');
+      const t = translations[currentLang] || translations['English'];
+      document.getElementById('ideaInput').placeholder = t.inputPlaceholder;
+    }
+
+    // ── State ──
+    let isGenerating = false;
+    let currentEventSource = null;
+    let currentPlan = null;
+
+    // ── Utilities ──
+    function setIdea(text) {
+      document.getElementById('ideaInput').value = text;
+      document.getElementById('ideaInput').focus();
+    }
+
+    function updateProgress(step, total) {
+      const pct = total > 0 ? (step / total) * 100 : 0;
+      document.getElementById('progressFill').style.width = pct + '%';
+    }
+
+    function updateStatus(title, msg) {
+      document.getElementById('statusTitle').textContent = title;
+      document.getElementById('statusMsg').textContent = msg;
+    }
+
+    function addStepItem({ step, total, icon, title, message, tool, done }) {
+      const container = document.getElementById('stepsContainer');
+      const existing = container.querySelector(`[data-step="${step}"]`);
+      if (existing) {
+        if (done) {
+          existing.classList.remove('active');
+          existing.classList.add('done');
         }
         return;
       }
 
-      const utterance = new SpeechSynthesisUtterance(chunks[chunkIndex]);
-      utterance.lang = locale;
-      utterance.rate = 0.95;
-      utterance.pitch = 1.0;
+      const el = document.createElement('div');
+      el.className = 'step-item active';
+      el.setAttribute('data-step', step);
 
-      // Try to find a matching voice for the locale
-      const voices = speechSynthesis.getVoices();
-      const langPrefix = locale.split('-')[0];
-      const matchedVoice = voices.find(v => v.lang === locale) ||
-                           voices.find(v => v.lang.startsWith(langPrefix));
-      if (matchedVoice) utterance.voice = matchedVoice;
+      const numStr = total ? `${step}/${total}` : '';
+      let toolHtml = tool ? `<span class="step-tool">tool: ${tool}()</span>` : '';
 
-      utterance.onstart = () => {
-        ttsStatus = 'playing';
-        ttsUpdateUI(cardId, 'playing');
-      };
-
-      utterance.onend = () => {
-        chunkIndex++;
-        speakNextChunk();
-      };
-
-      utterance.onerror = (e) => {
-        console.error('TTS Error:', e);
-        ttsStatus = 'idle';
-        ttsCurrentCardId = null;
-        ttsUpdateUI(cardId, 'idle');
-      };
-
-      ttsUtterance = utterance;
-      speechSynthesis.speak(utterance);
-    }
-
-    // Ensure voices are loaded (some browsers load them async)
-    if (speechSynthesis.getVoices().length === 0) {
-      speechSynthesis.addEventListener('voiceschanged', () => {
-        speakNextChunk();
-      }, { once: true });
-    } else {
-      speakNextChunk();
-    }
-  }
-
-  /**
-   * Pause TTS playback.
-   */
-  function ttsPause() {
-    if (speechSynthesis.speaking && !speechSynthesis.paused) {
-      speechSynthesis.pause();
-      ttsStatus = 'paused';
-      if (ttsCurrentCardId) ttsUpdateUI(ttsCurrentCardId, 'paused');
-    }
-  }
-
-  /**
-   * Resume TTS playback.
-   */
-  function ttsResume() {
-    if (speechSynthesis.paused) {
-      speechSynthesis.resume();
-      ttsStatus = 'playing';
-      if (ttsCurrentCardId) ttsUpdateUI(ttsCurrentCardId, 'playing');
-    }
-  }
-
-  /**
-   * Stop TTS playback completely.
-   */
-  function ttsStop() {
-    speechSynthesis.cancel();
-    if (ttsCurrentCardId) {
-      ttsUpdateUI(ttsCurrentCardId, 'idle');
-    }
-    ttsCurrentCardId = null;
-    ttsUtterance = null;
-    ttsStatus = 'idle';
-  }
-
-  /**
-   * Generate a unique card ID for TTS targeting.
-   * @returns {string} Unique card ID.
-   */
-  function ttsNextCardId() {
-    return 'card-' + (++ttsCardCounter);
-  }
-
-  const translations = {
-    'English': {
-      heroTitle: 'Turn Any Idea Into a<br/><span>Complete Startup</span>',
-      heroSub: 'Our AI agent autonomously researches markets, analyzes competitors, identifies gaps, and generates a full business plan — with zero human intervention.',
-      inputLabel: '💬 Your Startup Idea',
-      inputPlaceholder: 'e.g., AI app for farmers, smart waste management platform...',
-      generateBtn: '⚡ Generate',
-      chipLabel: 'Try:',
-      agentLogTitle: 'Agent Execution Log',
-      historyTitle: 'History',
-      refreshBtn: 'Refresh',
-      emptyHistory: 'No startup plans generated yet. Create your first one above!',
-      micUnsupported: 'Microphone is not supported in this browser.',
-      statusStarting: '🧠 Agent Starting...',
-      statusInitMsg: 'Initializing 16-step autonomous workflow for: ',
-      statusError: '❌ Error',
-      statusAgentErr: '❌ Agent Error'
-    },
-    'Hindi': {
-      heroTitle: 'किसी भी विचार को<br/><span>पूर्ण स्टार्टअप</span> में बदलें',
-      heroSub: 'हमारा AI एजेंट स्वायत्त रूप से बाजारों पर शोध करता है, प्रतिस्पर्धियों का विश्लेषण करता है, अंतराल की पहचान करता है, और शून्य मानवीय हस्तक्षेप के साथ एक पूर्ण व्यवसाय योजना तैयार करता है।',
-      inputLabel: '💬 आपका स्टार्टअप विचार',
-      inputPlaceholder: 'उदाहरण के लिए, किसानों के लिए AI ऐप, स्मार्ट कचरा प्रबंधन प्लेटफॉर्म...',
-      generateBtn: '⚡ जेनरेट करें',
-      chipLabel: 'प्रयास करें:',
-      agentLogTitle: 'एजेंट निष्पादन लॉग',
-      historyTitle: 'इतिहास',
-      refreshBtn: 'रीफ़्रेश करें',
-      emptyHistory: 'अभी तक कोई स्टार्टअप योजना तैयार नहीं की गई है। ऊपर अपनी पहली योजना बनाएं!',
-      micUnsupported: 'इस ब्राउज़र में माइक्रोफ़ोन समर्थित नहीं है।',
-      statusStarting: '🧠 एजेंट शुरू हो रहा है...',
-      statusInitMsg: 'के लिए 16-चरणीय स्वायत्त कार्यप्रवाह प्रारंभ किया जा रहा है: ',
-      statusError: '❌ त्रुटि',
-      statusAgentErr: '❌ एजेंट त्रुटि'
-    },
-    'Telugu': {
-      heroTitle: 'ఏదైనా ఆలోచనను<br/><span>పూర్తి స్టార్టప్‌గా</span> మార్చండి',
-      heroSub: 'మా AI ఏజెంట్ స్వయంప్రతిపత్తితో మార్కెట్‌లను పరిశోధిస్తుంది, పోటీదారులను విశ్లేషిస్తుంది, అంతరాలను గుర్తిస్తుంది మరియు మానవ ప్రమేయం లేకుండా పూర్తి వ్యాపార ప్రణాళికను రూపొందిస్తుంది.',
-      inputLabel: '💬 మీ స్టార్టప్ ఆలోచన',
-      inputPlaceholder: 'ఉదాహరణకు, రైతుల కోసం AI యాప్, స్మార్ట్ వ్యర్థాల నిర్వహణ ప్లాట్‌ఫారమ్...',
-      generateBtn: '⚡ సృష్టించండి',
-      chipLabel: 'ప్రయత్నించండి:',
-      agentLogTitle: 'ఏజెంట్ ఎగ్జిక్యూషన్ లాగ్',
-      historyTitle: 'చరిత్ర',
-      refreshBtn: 'రిఫ్రెష్ చేయండి',
-      emptyHistory: 'ఇంకా స్టార్టప్ ప్లాన్‌లు ఏవీ సృష్టించబడలేదు. పైన మీ మొదటి ప్లాన్‌ను సృష్టించండి!',
-      micUnsupported: 'ఈ బ్రౌజర్‌లో మైక్రోఫోన్ పని చేయదు.',
-      statusStarting: '🧠 ఏజెంట్ ప్రారంభమవుతోంది...',
-      statusInitMsg: 'దీని కోసం 16-దశల స్వయంప్రతిపత్త వర్క్‌ఫ్లో ప్రారంభించబడుతోంది: ',
-      statusError: '❌ లోపం',
-      statusAgentErr: '❌ ఏజెంట్ లోపం'
-    },
-    'Tamil': {
-      heroTitle: 'எந்தவொரு யோசனையையும்<br/><span>முழுமையான ஸ்டார்ட்அப்</span> ஆக மாற்றவும்',
-      heroSub: 'எங்கள் AI ஏஜென்ட் தன்னிச்சையாக சந்தைகளை ஆராய்கிறது, போட்டியாளர்களை பகுப்பாய்வு செய்கிறது, இடைவெளிகளை அடையாளம் காட்டுகிறது மற்றும் மனித தலையீடு இல்லாமல் முழு வணிகத் திட்டத்தையும் உருவாக்குகிறது.',
-      inputLabel: '💬 உங்கள் ஸ்டார்ட்அப் யோசனை',
-      inputPlaceholder: 'எ.கா., விவசாயிகளுக்கான AI ஆப், ஸ்மார்ட் கழிவு மேலாண்மை தளம்...',
-      generateBtn: '⚡ உருவாக்கு',
-      chipLabel: 'முயற்சிக்கவும்:',
-      agentLogTitle: 'ஏஜென்ட் செயல்பாட்டு பதிவு',
-      historyTitle: 'வரலாறு',
-      refreshBtn: 'புதுப்பி',
-      emptyHistory: 'இதுவரை எந்த ஸ்டார்ட்அப் திட்டங்களும் உருவாக்கப்படவில்லை. மேலே உங்கள் முதல் திட்டத்தை உருவாக்கவும்!',
-      micUnsupported: 'இந்த உலாவியில் மைக்ரோஃபோன் ஆதரிக்கப்படவில்லை.',
-      statusStarting: '🧠 ஏஜென்ட் தொடங்குகிறது...',
-      statusInitMsg: 'இதற்கான 16-படி தன்னாட்சி பணிப்பாய்வு தொடங்கப்படுகிறது: ',
-      statusError: '❌ பிழை',
-      statusAgentErr: '❌ ஏஜென்ட் பிழை'
-    },
-    'Kannada': {
-      heroTitle: 'ಯಾವುದೇ ಕಲ್ಪನೆಯನ್ನು<br/><span>ಸಂಪೂರ್ಣ ಸ್ಟಾರ್ಟ್ಅಪ್</span> ಆಗಿ ಪರಿವರ್ತಿಸಿ',
-      heroSub: 'ನಮ್ಮ AI ಏಜೆಂಟ್ ಸ್ವಾಯತ್ತವಾಗಿ ಮಾರುಕಟ್ಟೆಗಳನ್ನು ಸಂಶೋಧಿಸುತ್ತದೆ, ಪ್ರತಿಸ್ಪರ್ಧಿಗಳನ್ನು ವಿಶ್ಲೇಷಿಸುತ್ತದೆ, ಅಂತರಗಳನ್ನು ಗುರುತಿಸುತ್ತದೆ ಮತ್ತು ಯಾವುದೇ ಮಾನವ ಹಸ್ತಕ್ಷೇಪವಿಲ್ಲದೆ ಸಂಪೂರ್ಣ ವ್ಯಾಪಾರ ಯೋಜನೆಯನ್ನು ರಚಿಸುತ್ತದೆ.',
-      inputLabel: '💬 ನಿಮ್ಮ ಸ್ಟಾರ್ಟ್ಅಪ್ ಕಲ್ಪನೆ',
-      inputPlaceholder: 'ಉದಾಹರಣೆಗೆ, ರೈತರಿಗಾಗಿ AI ಅಪ್ಲಿಕೇಶನ್, ಸ್ಮಾರ್ಟ್ ತ್ಯಾಜ್ಯ ನಿರ್ವಹಣಾ ವೇದಿಕೆ...',
-      generateBtn: '⚡ ರಚಿಸಿ',
-      chipLabel: 'ಪ್ರಯತ್ನಿಸಿ:',
-      agentLogTitle: 'ಏಜೆಂಟ್ ಎಕ್ಸಿಕ್ಯೂಶನ್ ಲಾಗ್',
-      historyTitle: 'ಇತಿಹಾಸ',
-      refreshBtn: 'ರಿಫ್ರೆಶ್ ಮಾಡಿ',
-      emptyHistory: 'ಇನ್ನೂ ಯಾವುದೇ ಸ್ಟಾರ್ಟ್ಅಪ್ ಯೋಜನೆಗಳನ್ನು ರಚಿಸಲಾಗಿಲ್ಲ. ಮೇಲೆ ನಿಮ್ಮ ಮೊದಲನೆಯದನ್ನು ರಚಿಸಿ!',
-      micUnsupported: 'ಈ ಬ್ರೌಸರ್‌ನಲ್ಲಿ ಮೈಕ್ರೊಫೋನ್ ಬೆಂಬಲಿತವಾಗಿಲ್ಲ.',
-      statusStarting: '🧠 ಏಜೆಂಟ್ ಪ್ರಾರಂಭವಾಗುತ್ತಿದೆ...',
-      statusInitMsg: 'ಇದಕ್ಕಾಗಿ 16-ಹಂತದ ಸ್ವಾಯತ್ತ ವರ್ಕ್‌ಫ್ಲೋ ಪ್ರಾರಂಭಿಸಲಾಗುತ್ತಿದೆ: ',
-      statusError: '❌ ದೋಷ',
-      statusAgentErr: '❌ ಏಜೆಂಟ್ ದೋಷ'
-    },
-    'Malayalam': {
-      heroTitle: 'ഏത് ആശയത്തെയും<br/><span>പൂർണ്ണ സ്റ്റാർട്ടപ്പാക്കി</span> മാറ്റുക',
-      heroSub: 'ഞങ്ങളുടെ AI ഏജൻ്റ് സ്വയംഭരണാധികാരത്തോടെ വിപണികളെക്കുറിച്ച് ഗവേഷണം നടത്തുന്നു, എതിരാളികളെ വിശകലനം ചെയ്യുന്നു, വിടവുകൾ കണ്ടെത്തുന്നു, മനുഷ്യൻ്റെ ഇടപെടലില്ലാതെ പൂർണ്ണമായ ബിസിനസ്സ് പ്ലാൻ തയ്യാറാക്കുന്നു.',
-      inputLabel: '💬 നിങ്ങളുടെ സ്റ്റാർട്ടപ്പ് ആശയം',
-      inputPlaceholder: 'ഉദാഹരണത്തിന്, കർഷകർക്കുള്ള AI ആപ്പ്, സ്മാർട്ട് മാലിന്യ സംസ്കരണ പ്ലാറ്റ്ഫോം...',
-      generateBtn: '⚡ സൃഷ്ടിക്കുക',
-      chipLabel: 'ശ്രമിക്കുക:',
-      agentLogTitle: 'ഏജൻ്റ് എക്സിക്യൂഷൻ ലോഗ്',
-      historyTitle: 'ചരിത്രം',
-      refreshBtn: 'റിഫ്രഷ് ചെയ്യുക',
-      emptyHistory: 'ഇതുവരെ സ്റ്റാർട്ടപ്പ് പ്ലാനുകളൊന്നും സൃഷ്ടിച്ചിട്ടില്ല. മുകളിൽ നിങ്ങളുടെ ആദ്യത്തേത് സൃഷ്ടിക്കുക!',
-      micUnsupported: 'ഈ ബ്രൗസറിൽ മൈക്രോഫോൺ പിന്തുണയ്ക്കുന്നില്ല.',
-      statusStarting: '🧠 ഏജൻ്റ് ആരംഭിക്കുന്നു...',
-      statusInitMsg: 'ഇതിനായി 16-ഘട്ട സ്വയംഭരണ വർക്ക്ഫ്ലോ ആരംഭിക്കുന്നു: ',
-      statusError: '❌ പിശക്',
-      statusAgentErr: '❌ ഏജൻ്റ് പിശക്'
-    },
-    'Marathi': {
-      heroTitle: 'कोणतीही कल्पना<br/><span>पूर्ण स्टार्टअप</span> मध्ये बदला',
-      heroSub: 'आमचा AI एजंट स्वायत्तपणे बाजारांचे संशोधन करतो, प्रतिस्पर्ध्यांचे विश्लेषण करतो, अंतर ओळखतो आणि मानवी हस्तक्षेपाशिवाय संपूर्ण व्यवसाय योजना तयार करतो.',
-      inputLabel: '💬 तुमची स्टार्टअप कल्पना',
-      inputPlaceholder: 'उदा., शेतकऱ्यांसाठी AI ॲप, स्मार्ट कचरा व्यवस्थापन प्लॅटफॉर्म...',
-      generateBtn: '⚡ तयार करा',
-      chipLabel: 'प्रयत्न करा:',
-      agentLogTitle: 'एजंट एक्झिक्यूशन लॉग',
-      historyTitle: 'इतिहास',
-      refreshBtn: 'रिफ्रेश करा',
-      emptyHistory: 'अद्याप कोणतीही स्टार्टअप योजना तयार केलेली नाही. वर तुमची पहिली योजना तयार करा!',
-      micUnsupported: 'या ब्राउझरमध्ये मायक्रोफोन समर्थित नाही.',
-      statusStarting: '🧠 एजंट सुरू होत आहे...',
-      statusInitMsg: 'यासाठी 16-टप्प्यांची स्वायत्त वर्कफ्लो सुरू केली जात आहे: ',
-      statusError: '❌ त्रुटी',
-      statusAgentErr: '❌ एजंट त्रुटी'
-    }
-  };
-
-  let currentLang = 'English';
-
-  function initLanguage() {
-    let savedLang = localStorage.getItem('selectedLanguage');
-    if (!savedLang) {
-      const browserLang = navigator.language;
-      const localeMatch = Object.entries(langMap).find(([name, locale]) => browserLang.startsWith(locale.split('-')[0]));
-      savedLang = localeMatch ? localeMatch[0] : 'English';
-    }
-    currentLang = savedLang;
-    const select = document.getElementById('langSelect');
-    if (select) select.value = currentLang;
-    applyTranslations();
-  }
-
-  function onLanguageChange() {
-    const select = document.getElementById('langSelect');
-    currentLang = select.value;
-    localStorage.setItem('selectedLanguage', currentLang);
-    applyTranslations();
-    if (recognition) {
-        recognition.lang = langMap[currentLang];
-    }
-  }
-
-  function applyTranslations() {
-    const t = translations[currentLang] || translations['English'];
-    const safeHtml = (id, html) => { const el = document.getElementById(id); if (el) el.innerHTML = html; };
-    const safeText = (id, text) => { const el = document.getElementById(id); if (el) el.textContent = text; };
-    
-    safeHtml('hero-title', t.heroTitle);
-    safeText('hero-sub', t.heroSub);
-    safeText('input-label', t.inputLabel);
-    
-    const input = document.getElementById('ideaInput');
-    if (input && !isRecording) input.placeholder = t.inputPlaceholder;
-    
-    safeHtml('generateBtn', t.generateBtn);
-    safeText('chip-label', t.chipLabel);
-    safeText('agent-log-title', t.agentLogTitle);
-    safeText('history-title', t.historyTitle);
-    safeText('history-refresh', t.refreshBtn);
-    
-    const emptyEl = document.getElementById('empty-history');
-    if (emptyEl) emptyEl.textContent = t.emptyHistory;
-  }
-
-  // --- Voice Input ---
-  const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
-  let recognition = null;
-  let isRecording = false;
-
-  if (SpeechRecognition) {
-    recognition = new SpeechRecognition();
-    recognition.continuous = false;
-    recognition.interimResults = true;
-    
-    recognition.onstart = () => {
-      isRecording = true;
-      document.getElementById('micBtn').classList.add('recording');
-      document.getElementById('ideaInput').placeholder = 'Listening...';
-    };
-    
-    recognition.onresult = (event) => {
-      let interimTranscript = '';
-      let finalTranscript = '';
-      
-      for (let i = event.resultIndex; i < event.results.length; ++i) {
-        if (event.results[i].isFinal) {
-          finalTranscript += event.results[i][0].transcript;
-        } else {
-          interimTranscript += event.results[i][0].transcript;
-        }
-      }
-      
-      const input = document.getElementById('ideaInput');
-      if (finalTranscript) {
-         input.value = finalTranscript;
-      } else if (interimTranscript) {
-         input.value = interimTranscript;
-      }
-    };
-    
-    recognition.onerror = (event) => {
-      console.error('Speech recognition error', event.error);
-      stopRecording();
-    };
-    
-    recognition.onend = () => {
-      stopRecording();
-    };
-  }
-
-  function toggleRecording() {
-    if (!SpeechRecognition) {
-      alert(translations[currentLang].micUnsupported || translations['English'].micUnsupported);
-      return;
-    }
-    
-    if (isRecording) {
-      stopRecording();
-    } else {
-      recognition.lang = langMap[currentLang];
-      recognition.start();
-    }
-  }
-
-  function stopRecording() {
-    if (recognition && isRecording) {
-      recognition.stop();
-    }
-    isRecording = false;
-    document.getElementById('micBtn').classList.remove('recording');
-    const t = translations[currentLang] || translations['English'];
-    document.getElementById('ideaInput').placeholder = t.inputPlaceholder;
-  }
-
-  // ── State ──
-  let isGenerating = false;
-  let currentEventSource = null;
-  let currentPlan = null;
-
-  // ── Utilities ──
-  function setIdea(text) {
-    document.getElementById('ideaInput').value = text;
-    document.getElementById('ideaInput').focus();
-  }
-
-  function updateProgress(step, total) {
-    const pct = total > 0 ? (step / total) * 100 : 0;
-    document.getElementById('progressFill').style.width = pct + '%';
-  }
-
-  function updateStatus(title, msg) {
-    document.getElementById('statusTitle').textContent = title;
-    document.getElementById('statusMsg').textContent = msg;
-  }
-
-  function addStepItem({ step, total, icon, title, message, tool, done }) {
-    const container = document.getElementById('stepsContainer');
-    const existing = container.querySelector(`[data-step="${step}"]`);
-    if (existing) {
-      if (done) {
-        existing.classList.remove('active');
-        existing.classList.add('done');
-      }
-      return;
-    }
-
-    const el = document.createElement('div');
-    el.className = 'step-item active';
-    el.setAttribute('data-step', step);
-
-    const numStr = total ? `${step}/${total}` : '';
-    let toolHtml = tool ? `<span class="step-tool">tool: ${tool}()</span>` : '';
-
-    el.innerHTML = `
+      el.innerHTML = `
       <div class="step-icon">${icon || '⚙️'}</div>
       <div class="step-content">
         <div class="step-title">${title || ''}</div>
@@ -1696,91 +2030,92 @@
       <div class="step-num">${numStr}</div>
     `;
 
-    container.appendChild(el);
-    container.scrollTop = container.scrollHeight;
+      container.appendChild(el);
+      container.scrollTop = container.scrollHeight;
 
-    if (total) updateProgress(step, total);
-  }
+      if (total) updateProgress(step, total);
+    }
 
-  function addSection(label, content) {
-    // Find color for this section
-    const colorMap = {
-      'Market Gap Analysis': 'card-amber',
-      'Solution Strategy': 'card-cyan',
-      'Core Features': 'card-purple',
-      'Revenue Model': 'card-emerald',
-      'Implementation Roadmap': 'card-cyan',
-      'Pitch Deck Outline': 'card-purple',
-    };
-    const iconMap = {
-      'Market Gap Analysis': '🎯',
-      'Solution Strategy': '💡',
-      'Core Features': '⚡',
-      'Revenue Model': '💰',
-      'Implementation Roadmap': '🗺️',
-      'Pitch Deck Outline': '🎤',
-    };
+    function addSection(label, content) {
+      // Find color for this section
+      const colorMap = {
+        'Market Gap Analysis': 'card-amber',
+        'Solution Strategy': 'card-cyan',
+        'Core Features': 'card-purple',
+        'Revenue Model': 'card-emerald',
+        'Implementation Roadmap': 'card-cyan',
+        'Pitch Deck Outline': 'card-purple',
+      };
+      const iconMap = {
+        'Market Gap Analysis': '🎯',
+        'Solution Strategy': '💡',
+        'Core Features': '⚡',
+        'Revenue Model': '💰',
+        'Implementation Roadmap': '🗺️',
+        'Pitch Deck Outline': '🎤',
+      };
 
-    const colorClass = colorMap[label] || 'card-cyan';
-    const icon = iconMap[label] || '📋';
-    const panel = document.getElementById('resultsPanel');
+      const colorClass = colorMap[label] || 'card-cyan';
+      const icon = iconMap[label] || '📋';
+      const panel = document.getElementById('resultsPanel');
 
-    // Features get special treatment
-    if (label === 'Core Features') {
-      const lines = content.split('\n').filter(l => l.trim());
-      const featureItems = lines.map(l => `
+      // Features get special treatment
+      if (label === 'Core Features') {
+        const lines = content.split('\n').filter(l => l.trim());
+        const featureItems = lines.map(l => `
         <div class="feature-item">
           <div class="feature-dot"></div>
           <div>${l.trim()}</div>
         </div>
       `).join('');
 
-      const cid = ttsNextCardId();
-      const card = document.createElement('div');
-      card.className = `result-card full ${colorClass}`;
-      card.id = `tts-card-${cid}`;
-      card.innerHTML = `
+        const cid = ttsNextCardId();
+        const card = document.createElement('div');
+        card.className = `result-card full ${colorClass}`;
+        card.id = `tts-card-${cid}`;
+        card.innerHTML = `
         <div class="card-label"><span class="card-label-icon">${icon}</span>${label}${getTTSControlsHTML(cid)}</div>
         <div class="feature-list">${featureItems}</div>
       `;
-      panel.appendChild(card);
-      return;
-    }
+        panel.appendChild(card);
+        return;
+      }
 
-    const cid = ttsNextCardId();
-    const card = document.createElement('div');
-    card.className = `result-card ${colorClass}`;
-    card.id = `tts-card-${cid}`;
-    card.innerHTML = `
+      const cid = ttsNextCardId();
+      const card = document.createElement('div');
+      card.className = `result-card ${colorClass}`;
+      card.id = `tts-card-${cid}`;
+      card.innerHTML = `
       <div class="card-label"><span class="card-label-icon">${icon}</span>${label}${getTTSControlsHTML(cid)}</div>
       <div class="card-content">${content}</div>
     `;
-    panel.appendChild(card);
-  }
+      panel.appendChild(card);
+    }
 
-  function renderFinalPlan(plan) {
-    const panel = document.getElementById('resultsPanel');
+    function renderFinalPlan(plan) {
+      const panel = document.getElementById('resultsPanel');
 
-    let downloadEndpoint = `/api/download_ppt/${plan.id}`;
-    let downloadText = "📥 Download PPT";
-    if (plan.doc_format === 'pdf') { downloadEndpoint = `/api/download_pdf/${plan.id}`; downloadText = "📥 Download PDF"; }
-    if (plan.doc_format === 'word') { downloadEndpoint = `/api/download_word/${plan.id}`; downloadText = "📥 Download Word"; }
-        
-    const actionBtnHtml = `
-    <div style="display:flex; gap: 8px;">
+      let downloadEndpoint = `/api/download_ppt/${plan.id}`;
+      let downloadText = "📥 Download PPT";
+      if (plan.doc_format === 'pdf') { downloadEndpoint = `/api/download_pdf/${plan.id}`; downloadText = "📥 Download PDF"; }
+      if (plan.doc_format === 'word') { downloadEndpoint = `/api/download_word/${plan.id}`; downloadText = "📥 Download Word"; }
+
+      const actionBtnHtml = `
+    <div style="display:flex; gap: 8px; flex-wrap: wrap;">
       <a href="${downloadEndpoint}" class="generate-btn" style="text-decoration:none; padding:0.5rem 1rem; font-size:0.9rem; width:auto; display:inline-flex; border-radius:0.5rem;"><span class="btn-text">${downloadText}</span></a>
       ${(plan.pricing_model && plan.pricing_model !== '{}') ? `<a href="/api/download_financial_model/${plan.id}" class="generate-btn" style="text-decoration:none; padding:0.5rem 1rem; font-size:0.9rem; width:auto; display:inline-flex; border-radius:0.5rem; background: linear-gradient(135deg, var(--green), var(--teal)); color: #fff;"><span class="btn-text">📊 Download Financial Model</span></a>` : ''}
       <a href="/api/download_roadmap/${plan.id}" class="generate-btn" style="text-decoration:none; padding:0.5rem 1rem; font-size:0.9rem; width:auto; display:inline-flex; border-radius:0.5rem; background: linear-gradient(135deg, var(--purple), var(--cyan)); color: #fff;"><span class="btn-text">🖼️ Download Roadmap</span></a>
       <button onclick="viewCritique('${plan.id}')" class="generate-btn" style="text-decoration:none; padding:0.5rem 1rem; font-size:0.9rem; width:auto; display:inline-flex; border-radius:0.5rem; background: linear-gradient(135deg, var(--red), var(--amber)); color: #fff; cursor: pointer; border: none;"><span class="btn-text">⚖️ Investor Review</span></button>
+      <button onclick="openPitchPractice('${plan.id}')" class="generate-btn" style="text-decoration:none; padding:0.5rem 1rem; font-size:0.9rem; width:auto; display:inline-flex; border-radius:0.5rem; background: linear-gradient(135deg, #10b981, #06b6d4); color: #fff; cursor: pointer; border: none;"><span class="btn-text">🎤 Pitch Practice</span></button>
     </div>
     `;
 
-    // Title + Problem card
-    const titleCid = ttsNextCardId();
-    const titleCard = document.createElement('div');
-    titleCard.className = 'result-card full card-cyan';
-    titleCard.id = `tts-card-${titleCid}`;
-    titleCard.innerHTML = `
+      // Title + Problem card
+      const titleCid = ttsNextCardId();
+      const titleCard = document.createElement('div');
+      titleCard.className = 'result-card full card-cyan';
+      titleCard.id = `tts-card-${titleCid}`;
+      titleCard.innerHTML = `
       <div class="card-label"><span class="card-label-icon">🚀</span>Startup Name${getTTSControlsHTML(titleCid)}</div>
       <div style="display:flex; justify-content:space-between; align-items:flex-start;">
         <div class="card-title" style="margin:0;">${plan.startup_title || 'Your Startup'}</div>
@@ -1788,143 +2123,143 @@
       </div>
       <div class="card-content" style="margin-top:12px;">${plan.problem_statement || ''}</div>
     `;
-    panel.insertBefore(titleCard, panel.firstChild.nextSibling);
+      panel.insertBefore(titleCard, panel.firstChild.nextSibling);
 
-    // Target audience
-    if (plan.target_audience) {
-      const audCid = ttsNextCardId();
-      const audCard = document.createElement('div');
-      audCard.className = 'result-card card-purple';
-      audCard.id = `tts-card-${audCid}`;
-      audCard.innerHTML = `
+      // Target audience
+      if (plan.target_audience) {
+        const audCid = ttsNextCardId();
+        const audCard = document.createElement('div');
+        audCard.className = 'result-card card-purple';
+        audCard.id = `tts-card-${audCid}`;
+        audCard.innerHTML = `
         <div class="card-label"><span class="card-label-icon">👥</span>Target Audience${getTTSControlsHTML(audCid)}</div>
         <div class="card-content">${plan.target_audience}</div>
       `;
-      panel.insertBefore(audCard, panel.querySelector('.result-card.full.card-cyan').nextSibling);
-    }
+        panel.insertBefore(audCard, panel.querySelector('.result-card.full.card-cyan').nextSibling);
+      }
 
-    // Executive Summary (at the end)
-    if (plan.executive_summary) {
-      const execCid = ttsNextCardId();
-      const execCard = document.createElement('div');
-      execCard.className = 'exec-summary';
-      execCard.id = `tts-card-${execCid}`;
-      execCard.innerHTML = `
+      // Executive Summary (at the end)
+      if (plan.executive_summary) {
+        const execCid = ttsNextCardId();
+        const execCard = document.createElement('div');
+        execCard.className = 'exec-summary';
+        execCard.id = `tts-card-${execCid}`;
+        execCard.innerHTML = `
         <div class="card-label"><span class="card-label-icon">📌</span>Executive Summary${getTTSControlsHTML(execCid)}</div>
         <div class="card-content">${plan.executive_summary}</div>
       `;
-      panel.appendChild(execCard);
+        panel.appendChild(execCard);
+      }
+
+      // Update status
+      const spinner = document.getElementById('statusSpinner');
+      spinner.className = 'status-spinner done';
+      spinner.textContent = '✓';
+      updateStatus(
+        `✅ ${plan.startup_title || 'Your Startup'} — Plan Complete!`,
+        'The autonomous agent has finished. Scroll down to explore your full startup plan.'
+      );
+
+      // Mark all steps as done
+      document.querySelectorAll('.step-item').forEach(el => {
+        el.classList.remove('active');
+        el.classList.add('done');
+      });
+
+      updateProgress(16, 16);
+      document.getElementById('pulseIndicator').classList.add('idle');
+
+      // Reload history
+      setTimeout(loadHistory, 500);
+
+      currentPlan = plan;
     }
 
-    // Update status
-    const spinner = document.getElementById('statusSpinner');
-    spinner.className = 'status-spinner done';
-    spinner.textContent = '✓';
-    updateStatus(
-      `✅ ${plan.startup_title || 'Your Startup'} — Plan Complete!`,
-      'The autonomous agent has finished. Scroll down to explore your full startup plan.'
-    );
+    let rawAssetsCache = {};
 
-    // Mark all steps as done
-    document.querySelectorAll('.step-item').forEach(el => {
-      el.classList.remove('active');
-      el.classList.add('done');
-    });
+    function renderStudioDashboard(assets) {
+      rawAssetsCache = assets || {};
+      const panel = document.getElementById('resultsPanel');
 
-    updateProgress(16, 16);
-    document.getElementById('pulseIndicator').classList.add('idle');
-
-    // Reload history
-    setTimeout(loadHistory, 500);
-
-    currentPlan = plan;
-  }
-
-  let rawAssetsCache = {};
-
-  function renderStudioDashboard(assets) {
-    rawAssetsCache = assets || {};
-    const panel = document.getElementById('resultsPanel');
-    
-    // Create Dashboard Header
-    const header = document.createElement('div');
-    header.className = 'studio-dashboard';
-    header.innerHTML = `
+      // Create Dashboard Header
+      const header = document.createElement('div');
+      header.className = 'studio-dashboard';
+      header.innerHTML = `
       <div class="studio-dashboard-header">
         <h2>Your Startup Ecosystem</h2>
         <p>All assets have been generated and are ready to deploy.</p>
       </div>
       <div class="studio-grid" id="studioGrid"></div>
     `;
-    panel.appendChild(header);
+      panel.appendChild(header);
 
-    const grid = document.getElementById('studioGrid');
+      const grid = document.getElementById('studioGrid');
 
-    const addCard = (key, icon, title, desc, color, hasPreview, hasDownload, mime, ext) => {
-      const card = document.createElement('div');
-      card.className = `studio-card ${color}`;
-      
-      let actions = '';
-      if (hasPreview) {
-        actions += `<button class="studio-btn studio-btn-preview" onclick="openPreviewRaw('${key}', '${ext}', '${title}')">👁️ Preview</button>`;
-      }
-      if (hasDownload) {
-        actions += `<button class="studio-btn studio-btn-download" onclick="downloadAssetRaw('${key}', '${key}.${ext}', '${mime}')">📥 Download</button>`;
-      }
-      if (key === 'investor_report_pdf' && currentPlan && currentPlan.id) {
-        actions = `<button class="studio-btn studio-btn-download" onclick="window.location.href='/api/download_investor_report/${currentPlan.id}'">📥 Download PDF</button>`;
-      }
+      const addCard = (key, icon, title, desc, color, hasPreview, hasDownload, mime, ext) => {
+        const card = document.createElement('div');
+        card.className = `studio-card ${color}`;
 
-      card.innerHTML = `
+        let actions = '';
+        if (hasPreview) {
+          actions += `<button class="studio-btn studio-btn-preview" onclick="openPreviewRaw('${key}', '${ext}', '${title}')">👁️ Preview</button>`;
+        }
+        if (hasDownload) {
+          actions += `<button class="studio-btn studio-btn-download" onclick="downloadAssetRaw('${key}', '${key}.${ext}', '${mime}')">📥 Download</button>`;
+        }
+        if (key === 'investor_report_pdf' && currentPlan && currentPlan.id) {
+          actions = `<button class="studio-btn studio-btn-download" onclick="window.location.href='/api/download_investor_report/${currentPlan.id}'">📥 Download PDF</button>`;
+        }
+
+        card.innerHTML = `
         <div class="studio-card-icon">${icon}</div>
         <div class="studio-card-title">${title}</div>
         <div class="studio-card-desc">${desc}</div>
         <div class="studio-card-actions">${actions}</div>
       `;
-      grid.appendChild(card);
-    };
+        grid.appendChild(card);
+      };
 
-    if (assets.brand_kit) addCard('brand_kit', '✨', 'Brand Identity', 'Name, tagline, colors & typography', 'card-purple', true, true, 'application/json', 'json');
-    if (assets.logo_svg) addCard('logo_svg', '🎨', 'Vector Logo', 'Scalable SVG brand logo', 'card-cyan', true, true, 'image/svg+xml', 'svg');
-    if (assets.poster_html) addCard('poster_html', '🖼️', 'Marketing Poster', 'HTML/CSS promotional poster', 'card-red', true, true, 'text/html', 'html');
-    if (assets.landing_page_html) addCard('landing_page_html', '🌐', 'Landing Page', 'Responsive website layout', 'card-emerald', true, true, 'text/html', 'html');
-    if (assets.wireframes_svg) addCard('wireframes_svg', '📱', 'MVP Wireframes', 'Core application screens (SVG)', 'card-amber', true, true, 'image/svg+xml', 'svg');
-    if (assets.architecture_svg) addCard('architecture_svg', '⚙️', 'System Architecture', 'High-level cloud mapping', 'card-cyan', true, true, 'image/svg+xml', 'svg');
-    if (assets.investor_report_pdf) addCard('investor_report_pdf', '📊', 'Investor Report', 'Detailed PDF Readiness Review', 'card-red', false, true, '', 'pdf');
+      if (assets.brand_kit) addCard('brand_kit', '✨', 'Brand Identity', 'Name, tagline, colors & typography', 'card-purple', true, true, 'application/json', 'json');
+      if (assets.logo_svg) addCard('logo_svg', '🎨', 'Vector Logo', 'Scalable SVG brand logo', 'card-cyan', true, true, 'image/svg+xml', 'svg');
+      if (assets.poster_html) addCard('poster_html', '🖼️', 'Marketing Poster', 'HTML/CSS promotional poster', 'card-red', true, true, 'text/html', 'html');
+      if (assets.landing_page_html) addCard('landing_page_html', '🌐', 'Landing Page', 'Responsive website layout', 'card-emerald', true, true, 'text/html', 'html');
+      if (assets.wireframes_svg) addCard('wireframes_svg', '📱', 'MVP Wireframes', 'Core application screens (SVG)', 'card-amber', true, true, 'image/svg+xml', 'svg');
+      if (assets.architecture_svg) addCard('architecture_svg', '⚙️', 'System Architecture', 'High-level cloud mapping', 'card-cyan', true, true, 'image/svg+xml', 'svg');
+      if (assets.investor_report_pdf) addCard('investor_report_pdf', '📊', 'Investor Report', 'Detailed PDF Readiness Review', 'card-red', false, true, '', 'pdf');
 
-    document.getElementById('pulseIndicator').classList.add('idle');
-  }
-
-  function openPreviewRaw(assetKey, type, title) {
-      let content = rawAssetsCache[assetKey];
-      if(assetKey === 'brand_kit') content = '<pre style="white-space:pre-wrap;font-size:14px;color:var(--text-bright);font-family:monospace;">' + JSON.stringify(content, null, 2) + '</pre>';
-      openPreview(title, content, type);
-  }
-
-  function openPreview(title, content, type) {
-    document.getElementById('previewTitle').textContent = title;
-    const body = document.getElementById('previewBody');
-    if (type === 'svg') {
-      body.innerHTML = content;
-    } else if (type === 'html') {
-      // Use iframe to sandbox the HTML/CSS and prevent it from breaking the dashboard
-      const safeContent = content.replace(/"/g, '&quot;');
-      body.innerHTML = `<iframe srcdoc="${safeContent}" style="width:100%; height:70vh; border:none; border-radius:8px; background:#fff;"></iframe>`;
-    } else {
-      body.innerHTML = content;
+      document.getElementById('pulseIndicator').classList.add('idle');
     }
-    document.getElementById('previewOverlay').classList.add('active');
-  }
 
-  function closePreview() {
-    document.getElementById('previewOverlay').classList.remove('active');
-    document.getElementById('previewBody').innerHTML = '';
-  }
-
-  function downloadAssetRaw(assetKey, filename, mimeType) {
+    function openPreviewRaw(assetKey, type, title) {
       let content = rawAssetsCache[assetKey];
-      if(assetKey === 'brand_kit') content = JSON.stringify(content, null, 2);
-      
+      if (assetKey === 'brand_kit') content = '<pre style="white-space:pre-wrap;font-size:14px;color:var(--text-bright);font-family:monospace;">' + JSON.stringify(content, null, 2) + '</pre>';
+      openPreview(title, content, type);
+    }
+
+    function openPreview(title, content, type) {
+      document.getElementById('previewTitle').textContent = title;
+      const body = document.getElementById('previewBody');
+      if (type === 'svg') {
+        body.innerHTML = content;
+      } else if (type === 'html') {
+        // Use iframe to sandbox the HTML/CSS and prevent it from breaking the dashboard
+        const safeContent = content.replace(/"/g, '&quot;');
+        body.innerHTML = `<iframe srcdoc="${safeContent}" style="width:100%; height:70vh; border:none; border-radius:8px; background:#fff;"></iframe>`;
+      } else {
+        body.innerHTML = content;
+      }
+      document.getElementById('previewOverlay').classList.add('active');
+    }
+
+    function closePreview() {
+      document.getElementById('previewOverlay').classList.remove('active');
+      document.getElementById('previewBody').innerHTML = '';
+    }
+
+    function downloadAssetRaw(assetKey, filename, mimeType) {
+      let content = rawAssetsCache[assetKey];
+      if (assetKey === 'brand_kit') content = JSON.stringify(content, null, 2);
+
       const blob = new Blob([content], { type: mimeType });
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
@@ -1933,30 +2268,30 @@
       document.body.appendChild(a);
       a.click();
       setTimeout(() => { document.body.removeChild(a); URL.revokeObjectURL(url); }, 100);
-  }
+    }
 
-  // ── Main Generation Function ──
-  async function startGeneration() {
-    const input = document.getElementById('ideaInput');
-    const idea = input.value.trim();
-    if(!idea) return;
+    // ── Main Generation Function ──
+    async function startGeneration() {
+      const input = document.getElementById('ideaInput');
+      const idea = input.value.trim();
+      if (!idea) return;
 
-    const lang = document.getElementById('langSelect').value;
-    const docFormat = document.getElementById('formatSelect').value;
-    const generateBtn = document.getElementById('generateBtn');
-    
-    // Reset state
-    input.disabled = true;
-    generateBtn.disabled = true;
+      const lang = document.getElementById('langSelect').value;
+      const docFormat = document.getElementById('formatSelect').value;
+      const generateBtn = document.getElementById('generateBtn');
 
-    // Reset UI
-    document.getElementById('stepsContainer').innerHTML = '';
-    document.getElementById('progressFill').style.width = '0%';
-    document.getElementById('pulseIndicator').classList.remove('idle');
+      // Reset state
+      input.disabled = true;
+      generateBtn.disabled = true;
 
-    const t = translations[currentLang] || translations['English'];
-    const resultsPanel = document.getElementById('resultsPanel');
-    resultsPanel.innerHTML = `
+      // Reset UI
+      document.getElementById('stepsContainer').innerHTML = '';
+      document.getElementById('progressFill').style.width = '0%';
+      document.getElementById('pulseIndicator').classList.remove('idle');
+
+      const t = translations[currentLang] || translations['English'];
+      const resultsPanel = document.getElementById('resultsPanel');
+      resultsPanel.innerHTML = `
       <div class="status-card" id="statusCard">
         <div class="status-spinner" id="statusSpinner"></div>
         <div class="status-text" id="statusText">
@@ -1966,183 +2301,183 @@
       </div>
     `;
 
-    document.getElementById('workspace').classList.add('active');
-    document.getElementById('workspace').scrollIntoView({ behavior: 'smooth', block: 'start' });
+      document.getElementById('workspace').classList.add('active');
+      document.getElementById('workspace').scrollIntoView({ behavior: 'smooth', block: 'start' });
 
-    try {
-      const response = await fetch('/api/generate', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ idea: idea, language: lang, doc_format: docFormat }),
-      });
+      try {
+        const response = await fetch('/api/generate', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ idea: idea, language: lang, doc_format: docFormat }),
+        });
 
-      if (!response.ok) {
-        const err = await response.json();
-        let msg = 'Server error';
-        if (err.detail) {
-          if (typeof err.detail === 'string') {
-            msg = err.detail;
-          } else if (Array.isArray(err.detail)) {
-            msg = err.detail.map(d => d.msg || JSON.stringify(d)).join('; ');
-          } else {
-            msg = JSON.stringify(err.detail);
+        if (!response.ok) {
+          const err = await response.json();
+          let msg = 'Server error';
+          if (err.detail) {
+            if (typeof err.detail === 'string') {
+              msg = err.detail;
+            } else if (Array.isArray(err.detail)) {
+              msg = err.detail.map(d => d.msg || JSON.stringify(d)).join('; ');
+            } else {
+              msg = JSON.stringify(err.detail);
+            }
+          }
+          throw new Error(msg);
+        }
+
+        const reader = response.body.getReader();
+        const decoder = new TextDecoder();
+        let buffer = '';
+
+        while (true) {
+          const { value, done } = await reader.read();
+          if (done) break;
+
+          buffer += decoder.decode(value, { stream: true });
+          const lines = buffer.split('\n');
+          buffer = lines.pop();
+
+          for (const line of lines) {
+            if (line.startsWith('data: ')) {
+              try {
+                const event = JSON.parse(line.slice(6));
+                handleEvent(event);
+              } catch (e) { /* skip malformed */ }
+            }
           }
         }
-        throw new Error(msg);
+      } catch (err) {
+        console.error(err);
+        const t = translations[currentLang] || translations['English'];
+        updateStatus(t.statusError, err.message || 'Something went wrong. Check your API key and try again.');
+        document.getElementById('pulseIndicator').classList.add('idle');
+      } finally {
+        isGenerating = false;
+        document.getElementById('generateBtn').disabled = false;
       }
-
-      const reader = response.body.getReader();
-      const decoder = new TextDecoder();
-      let buffer = '';
-
-      while (true) {
-        const { value, done } = await reader.read();
-        if (done) break;
-
-        buffer += decoder.decode(value, { stream: true });
-        const lines = buffer.split('\n');
-        buffer = lines.pop();
-
-        for (const line of lines) {
-          if (line.startsWith('data: ')) {
-            try {
-              const event = JSON.parse(line.slice(6));
-              handleEvent(event);
-            } catch (e) { /* skip malformed */ }
-          }
-        }
-      }
-    } catch (err) {
-      console.error(err);
-      const t = translations[currentLang] || translations['English'];
-      updateStatus(t.statusError, err.message || 'Something went wrong. Check your API key and try again.');
-      document.getElementById('pulseIndicator').classList.add('idle');
-    } finally {
-      isGenerating = false;
-      document.getElementById('generateBtn').disabled = false;
     }
-  }
 
-  function handleEvent(event) {
-    switch (event.type) {
-      case 'start':
-        updateStatus('🔄 Agent Running', `Processing: "${event.idea}"`);
-        break;
+    function handleEvent(event) {
+      switch (event.type) {
+        case 'start':
+          updateStatus('🔄 Agent Running', `Processing: "${event.idea}"`);
+          break;
 
-      case 'step':
-        addStepItem(event);
-        updateStatus(`Step ${event.step}/16 — ${event.title}`, event.message);
-        break;
+        case 'step':
+          addStepItem(event);
+          updateStatus(`Step ${event.step}/16 — ${event.title}`, event.message);
+          break;
 
-      case 'tasks':
-        // Show decomposed tasks in the steps panel
-        const container = document.getElementById('stepsContainer');
-        const lastStep = container.lastElementChild;
-        if (lastStep) {
-          const taskHtml = event.tasks.map((t, i) => `
+        case 'tasks':
+          // Show decomposed tasks in the steps panel
+          const container = document.getElementById('stepsContainer');
+          const lastStep = container.lastElementChild;
+          if (lastStep) {
+            const taskHtml = event.tasks.map((t, i) => `
             <div class="task-row">
-              <span class="task-num">${i+1}.</span>
+              <span class="task-num">${i + 1}.</span>
               <span>${t.replace(/^Task \d+:\s*/i, '')}</span>
             </div>
           `).join('');
-          const taskDiv = document.createElement('div');
-          taskDiv.className = 'tasks-list';
-          taskDiv.innerHTML = taskHtml;
-          lastStep.querySelector('.step-content').appendChild(taskDiv);
-        }
-        break;
+            const taskDiv = document.createElement('div');
+            taskDiv.className = 'tasks-list';
+            taskDiv.innerHTML = taskHtml;
+            lastStep.querySelector('.step-content').appendChild(taskDiv);
+          }
+          break;
 
-      case 'data':
-        // Short preview in step panel
-        const c = document.getElementById('stepsContainer');
-        const l = c.lastElementChild;
-        if (l) {
-          const preview = document.createElement('div');
-          preview.style.cssText = 'font-size:10px;color:var(--text-dim);margin-top:6px;font-family:Fira Code,monospace;padding:6px;background:rgba(0,0,0,0.2);border-radius:4px;word-break:break-word;';
-          preview.textContent = (event.preview || '').substring(0, 120) + '...';
-          l.querySelector('.step-content').appendChild(preview);
-          c.scrollTop = c.scrollHeight;
-        }
-        break;
+        case 'data':
+          // Short preview in step panel
+          const c = document.getElementById('stepsContainer');
+          const l = c.lastElementChild;
+          if (l) {
+            const preview = document.createElement('div');
+            preview.style.cssText = 'font-size:10px;color:var(--text-dim);margin-top:6px;font-family:Fira Code,monospace;padding:6px;background:rgba(0,0,0,0.2);border-radius:4px;word-break:break-word;';
+            preview.textContent = (event.preview || '').substring(0, 120) + '...';
+            l.querySelector('.step-content').appendChild(preview);
+            c.scrollTop = c.scrollHeight;
+          }
+          break;
 
-      case 'memory':
-        // Memory indicator
-        const mc = document.getElementById('stepsContainer');
-        const ml = mc.lastElementChild;
-        if (ml) {
-          const memEl = document.createElement('div');
-          memEl.style.cssText = 'font-size:10px;color:var(--purple);margin-top:4px;';
-          memEl.textContent = '🔮 ' + event.message;
-          ml.querySelector('.step-content').appendChild(memEl);
-          mc.scrollTop = mc.scrollHeight;
-        }
-        break;
+        case 'memory':
+          // Memory indicator
+          const mc = document.getElementById('stepsContainer');
+          const ml = mc.lastElementChild;
+          if (ml) {
+            const memEl = document.createElement('div');
+            memEl.style.cssText = 'font-size:10px;color:var(--purple);margin-top:4px;';
+            memEl.textContent = '🔮 ' + event.message;
+            ml.querySelector('.step-content').appendChild(memEl);
+            mc.scrollTop = mc.scrollHeight;
+          }
+          break;
 
-      case 'section':
-        addSection(event.label, event.content);
-        break;
+        case 'section':
+          addSection(event.label, event.content);
+          break;
 
-      case 'complete':
-        event.plan.id = event.plan_id;
-        renderFinalPlan(event.plan);
-        break;
+        case 'complete':
+          event.plan.id = event.plan_id;
+          renderFinalPlan(event.plan);
+          break;
 
-      case 'dashboard':
-        renderStudioDashboard(event.assets);
-        break;
+        case 'dashboard':
+          renderStudioDashboard(event.assets);
+          break;
 
-      case 'narration_ready':
-        addSection('🎧 Pitch Narration', `
+        case 'narration_ready':
+          addSection('🎧 Pitch Narration', `
           <div style="padding:1rem; background:rgba(0,255,100,0.05); border-radius:8px; border:1px solid rgba(0,255,100,0.2);">
             <p style="color:var(--green); margin-bottom:0.5rem;">✅ Voice narration generated successfully (${(event.duration_seconds || 0).toFixed(1)}s)</p>
             <audio controls style="width:100%; margin-top:0.5rem;" src="${event.audio_url}">Your browser does not support audio playback.</audio>
           </div>
         `);
-        break;
+          break;
 
-      case 'narration_skip':
-        addSection('🎧 Pitch Narration', `
+        case 'narration_skip':
+          addSection('🎧 Pitch Narration', `
           <div style="padding:1rem; background:rgba(255,165,0,0.05); border-radius:8px; border:1px solid rgba(255,165,0,0.2);">
             <p style="color:var(--orange);">⚠️ Narration unavailable: ${event.reason || 'Unknown reason'}</p>
           </div>
         `);
-        break;
+          break;
 
-      case 'narration_error':
-        addSection('🎧 Pitch Narration', `
+        case 'narration_error':
+          addSection('🎧 Pitch Narration', `
           <div style="padding:1rem; background:rgba(255,60,60,0.05); border-radius:8px; border:1px solid rgba(255,60,60,0.2);">
             <p style="color:var(--red, #ff5555);">❌ Narration failed: ${event.reason || 'Unknown error'}</p>
           </div>
         `);
-        break;
+          break;
 
-      case 'done':
-        // Final cleanup
-        isGenerating = false;
-        document.getElementById('generateBtn').disabled = false;
-        break;
+        case 'done':
+          // Final cleanup
+          isGenerating = false;
+          document.getElementById('generateBtn').disabled = false;
+          break;
 
-      case 'error':
-        const tr = translations[currentLang] || translations['English'];
-        updateStatus(tr.statusAgentErr, event.message);
-        document.getElementById('pulseIndicator').classList.add('idle');
-        break;
-    }
-  }
-
-  // ── History ──
-  async function loadHistory() {
-    try {
-      const res = await fetch('/api/history');
-      const data = await res.json();
-      const grid = document.getElementById('historyGrid');
-
-      if (!data.plans || data.plans.length === 0) {
-        grid.innerHTML = '<div class="empty-history">No startup plans generated yet. Create your first one above!</div>';
-        return;
+        case 'error':
+          const tr = translations[currentLang] || translations['English'];
+          updateStatus(tr.statusAgentErr, event.message);
+          document.getElementById('pulseIndicator').classList.add('idle');
+          break;
       }
+    }
 
-      grid.innerHTML = data.plans.map(p => `
+    // ── History ──
+    async function loadHistory() {
+      try {
+        const res = await fetch('/api/history');
+        const data = await res.json();
+        const grid = document.getElementById('historyGrid');
+
+        if (!data.plans || data.plans.length === 0) {
+          grid.innerHTML = '<div class="empty-history">No startup plans generated yet. Create your first one above!</div>';
+          return;
+        }
+
+        grid.innerHTML = data.plans.map(p => `
         <div class="history-card" onclick="viewHistoryPlan('${p.id}')">
           <span class="history-arrow">→</span>
           <div class="history-title">${p.title || 'Untitled Startup'}</div>
@@ -2150,60 +2485,60 @@
           <div class="history-date">${formatDate(p.created_at)}</div>
         </div>
       `).join('');
-    } catch (e) {
-      console.error('History load error:', e);
+      } catch (e) {
+        console.error('History load error:', e);
+      }
     }
-  }
 
-  async function viewHistoryPlan(planId) {
-    try {
-      const res = await fetch(`/api/idea/${planId}`);
-      if (!res.ok) return;
-      const plan = await res.json();
-      showModal(plan);
-    } catch (e) {
-      console.error(e);
+    async function viewHistoryPlan(planId) {
+      try {
+        const res = await fetch(`/api/idea/${planId}`);
+        if (!res.ok) return;
+        const plan = await res.json();
+        showModal(plan);
+      } catch (e) {
+        console.error(e);
+      }
     }
-  }
 
-  async function viewCritique(planId) {
-    try {
-      const res = await fetch(`/api/critique/${planId}`);
-      if (!res.ok) return;
-      const critique = await res.json();
-      
-      const modalOverlay = document.getElementById('modalOverlay');
-      const modalContent = document.getElementById('modalContent');
-      
-      let html = `<div class="modal-title">Investor Readiness Review</div>`;
-      if (critique.feasibility_score !== undefined) {
+    async function viewCritique(planId) {
+      try {
+        const res = await fetch(`/api/critique/${planId}`);
+        if (!res.ok) return;
+        const critique = await res.json();
+
+        const modalOverlay = document.getElementById('modalOverlay');
+        const modalContent = document.getElementById('modalContent');
+
+        let html = `<div class="modal-title">Investor Readiness Review</div>`;
+        if (critique.feasibility_score !== undefined) {
           html += `<div class="modal-idea">Feasibility Score: ${critique.feasibility_score}/100</div>`;
           html += `<div class="modal-section"><div class="modal-section-title">Verdict</div><div class="modal-section-content">${critique.verdict}</div></div>`;
           if (critique.top_red_flags && critique.top_red_flags.length > 0) {
-              html += `<div class="modal-section"><div class="modal-section-title">Top Red Flags</div><div class="modal-section-content">`;
-              critique.top_red_flags.forEach((flag, i) => {
-                  html += `<b>${i+1}. [${flag.severity || 'High'}] ${flag.issue}</b><br/>→ Fix: ${flag.suggested_fix}<br/><br/>`;
-              });
-              html += `</div></div>`;
+            html += `<div class="modal-section"><div class="modal-section-title">Top Red Flags</div><div class="modal-section-content">`;
+            critique.top_red_flags.forEach((flag, i) => {
+              html += `<b>${i + 1}. [${flag.severity || 'High'}] ${flag.issue}</b><br/>→ Fix: ${flag.suggested_fix}<br/><br/>`;
+            });
+            html += `</div></div>`;
           }
-      } else {
+        } else {
           html += `<div class="modal-section-content"><pre>${JSON.stringify(critique, null, 2)}</pre></div>`;
-      }
-      
-      modalContent.innerHTML = html;
-      modalOverlay.classList.add('active');
-    } catch (e) {
-      console.error(e);
-    }
-  }
+        }
 
-  function showModal(plan) {
+        modalContent.innerHTML = html;
+        modalOverlay.classList.add('active');
+      } catch (e) {
+        console.error(e);
+      }
+    }
+
+    function showModal(plan) {
 
       plan.matched_investors_html = '';
-      if(plan.matched_investors && plan.matched_investors !== '{}' && plan.matched_investors !== '') {
+      if (plan.matched_investors && plan.matched_investors !== '{}' && plan.matched_investors !== '') {
         try {
           const m = JSON.parse(plan.matched_investors);
-          if(m.matched_investors) {
+          if (m.matched_investors) {
             plan.matched_investors_html = m.matched_investors.map(inv => `
               <div style="margin-bottom:15px; padding:15px; background:var(--surface); border-radius:8px; border: 1px solid var(--primary-dark);">
                 <h4 style="margin:0 0 5px 0; color:var(--primary);">${inv.investor_name} <span style="float:right; color:var(--green);">${inv.match_percentage}% Match</span></h4>
@@ -2215,37 +2550,37 @@
               </div>
             `).join('');
           }
-        } catch(e) {}
+        } catch (e) { }
       }
 
-    const sections = [
-      { key: 'problem_statement', label: 'Problem Statement', icon: '🔥' },
-      { key: 'target_audience', label: 'Target Audience', icon: '👥' },
-      { key: 'market_gap', label: 'Market Gap', icon: '🎯' },
-      { key: 'solution', label: 'Solution Strategy', icon: '💡' },
-      { key: 'core_features', label: 'Core Features', icon: '⚡' },
-      { key: 'revenue_model', label: 'Revenue Model', icon: '💰' },
-      { key: 'pricing_model', label: 'Pricing Scenarios', icon: '💲' },
-      { key: 'financial_projection', label: '3-Year P&L', icon: '📊' },
-      { key: 'cap_table', label: 'Cap Table & Funding', icon: '🏦' },
-      { key: 'implementation_roadmap', label: 'Roadmap', icon: '🗺️' },
-      { key: 'pitch_deck_outline', label: 'Pitch Deck', icon: '🎤' },
-      { key: 'executive_summary', label: 'Executive Summary', icon: '📌' },
-      { key: 'matched_investors_html', label: 'Matched Investors', icon: '🤝' },
-    ];
+      const sections = [
+        { key: 'problem_statement', label: 'Problem Statement', icon: '🔥' },
+        { key: 'target_audience', label: 'Target Audience', icon: '👥' },
+        { key: 'market_gap', label: 'Market Gap', icon: '🎯' },
+        { key: 'solution', label: 'Solution Strategy', icon: '💡' },
+        { key: 'core_features', label: 'Core Features', icon: '⚡' },
+        { key: 'revenue_model', label: 'Revenue Model', icon: '💰' },
+        { key: 'pricing_model', label: 'Pricing Scenarios', icon: '💲' },
+        { key: 'financial_projection', label: '3-Year P&L', icon: '📊' },
+        { key: 'cap_table', label: 'Cap Table & Funding', icon: '🏦' },
+        { key: 'implementation_roadmap', label: 'Roadmap', icon: '🗺️' },
+        { key: 'pitch_deck_outline', label: 'Pitch Deck', icon: '🎤' },
+        { key: 'executive_summary', label: 'Executive Summary', icon: '📌' },
+        { key: 'matched_investors_html', label: 'Matched Investors', icon: '🤝' },
+      ];
 
-    const content = sections.map(s => {
-      const val = plan[s.key];
-      if (!val) return '';
-      return `
+      const content = sections.map(s => {
+        const val = plan[s.key];
+        if (!val) return '';
+        return `
         <div class="modal-section">
           <div class="modal-section-title">${s.icon} ${s.label}</div>
           <div class="modal-section-content">${val}</div>
         </div>
       `;
-    }).join('');
+      }).join('');
 
-    document.getElementById('modalContent').innerHTML = `
+      document.getElementById('modalContent').innerHTML = `
       <div style="display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:1rem;">
         <div class="modal-title" style="margin:0;">${plan.startup_title || 'Startup Plan'}</div>
         <div style="display:flex; gap: 8px;">
@@ -2264,33 +2599,33 @@
       ${content}
     `;
 
-    document.getElementById('modalOverlay').classList.add('active');
-  }
+      document.getElementById('modalOverlay').classList.add('active');
+    }
 
-  function closeModal(e) {
-    if (e.target === document.getElementById('modalOverlay')) {
+    function closeModal(e) {
+      if (e.target === document.getElementById('modalOverlay')) {
+        document.getElementById('modalOverlay').classList.remove('active');
+      }
+    }
+    function closeModalDirect() {
       document.getElementById('modalOverlay').classList.remove('active');
     }
-  }
-  function closeModalDirect() {
-    document.getElementById('modalOverlay').classList.remove('active');
-  }
 
-  function formatDate(dt) {
-    if (!dt) return '';
-    try {
-      return new Date(dt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric', hour: '2-digit', minute: '2-digit' });
-    } catch { return dt; }
-  }
+    function formatDate(dt) {
+      if (!dt) return '';
+      try {
+        return new Date(dt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric', hour: '2-digit', minute: '2-digit' });
+      } catch { return dt; }
+    }
 
-  // ── Enter key to submit ──
-  document.getElementById('ideaInput').addEventListener('keydown', function(e) {
-    if (e.key === 'Enter') startGeneration();
-  });
+    // ── Enter key to submit ──
+    document.getElementById('ideaInput').addEventListener('keydown', function (e) {
+      if (e.key === 'Enter') startGeneration();
+    });
 
-  // ── Init language and load history ──
-  initLanguage();
-  loadHistory();
+    // ── Init language and load history ──
+    initLanguage();
+    loadHistory();
 
     // --- Pitch Practice & Export JS ---
     async function exportPlan(planId, type) {
@@ -2343,95 +2678,402 @@
       }
     }
 
+    function escapeHtml(str) {
+      if (str === null || str === undefined) return '';
+      return String(str)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#039;');
+    }
+
     let practiceSessionId = null;
+    let practiceTurnIndex = 1;
+    let practiceTotalTurns = 5;
+    let practiceRecognition = null;
+    let isRecordingPractice = false;
+
     async function openPitchPractice(planId) {
       document.getElementById('practiceModal').style.display = 'flex';
-      document.getElementById('practiceChat').innerHTML = '<i>Starting session...</i>';
       document.getElementById('practicePlanId').value = planId;
+      document.getElementById('practiceTurnBadge').textContent = 'Ready';
+      document.getElementById('practiceInputArea').style.display = 'none';
+      document.getElementById('practiceStartArea').style.display = 'flex';
+      document.getElementById('practiceChat').innerHTML = `
+        <div style="text-align:center; padding:2rem 1rem; color:#94a3b8;">
+          <div style="font-size:2.5rem; margin-bottom:0.75rem;">🎯</div>
+          <h3 style="color:#e2e8f0; margin-bottom:0.5rem;">Interactive AI Investor Pitch Simulator</h3>
+          <p style="font-size:0.9rem; max-width:440px; margin:0 auto; line-height:1.5;">
+            Practice your startup pitch live. Select an AI investor persona to get tough, realistic questions grounded in your plan, and receive instant rubric scores and feedback.
+          </p>
+        </div>
+      `;
     }
-    
+
     async function startPractice() {
       const planId = document.getElementById('practicePlanId').value;
       const persona = document.getElementById('practicePersona').value;
-      document.getElementById('practiceChat').innerHTML = '<i>Connecting to ' + persona + '...</i>';
+      const startBtn = document.getElementById('startPracticeBtn');
+      const chatDiv = document.getElementById('practiceChat');
+
+      startBtn.disabled = true;
+      startBtn.innerHTML = 'Connecting...';
+      chatDiv.innerHTML = `<div style="text-align:center; padding:2rem; color:#818cf8;"><div class="status-spinner" style="margin:0 auto 1rem;"></div>Connecting with investor...</div>`;
+
       try {
         const res = await fetch(`/api/practice/start/${planId}`, {
           method: 'POST',
-          headers: {'Content-Type': 'application/json'},
-          body: JSON.stringify({ persona_id: persona })
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ persona_id: persona, num_questions: 5 })
         });
+        if (!res.ok) {
+          const errData = await res.json().catch(() => ({}));
+          throw new Error(errData.detail || 'Failed to start practice session.');
+        }
+
         const data = await res.json();
         practiceSessionId = data.session_id;
-        document.getElementById('practiceChat').innerHTML = `<div style="margin-bottom:10px; color:var(--primary);"><b>Investor:</b> ${data.question}</div>`;
+        practiceTurnIndex = data.turn_index || 1;
+        practiceTotalTurns = data.total_turns || 5;
+
+        document.getElementById('practiceTurnBadge').textContent = `Question ${practiceTurnIndex} of ${practiceTotalTurns}`;
+        document.getElementById('practiceStartArea').style.display = 'none';
+        document.getElementById('practiceInputArea').style.display = 'flex';
+
+        chatDiv.innerHTML = `
+          <div class="pitch-investor-card" style="background:rgba(99,102,241,0.08); border:1px solid rgba(99,102,241,0.25); border-radius:12px; padding:1.25rem; margin-bottom:1rem;">
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:0.6rem;">
+              <div style="font-weight:700; color:#818cf8; display:flex; align-items:center; gap:6px;">
+                <span>💼</span> ${escapeHtml(data.persona_name || 'Investor')}
+                <span style="font-size:0.75rem; font-weight:normal; color:#94a3b8;">(${escapeHtml(data.persona_title || '')})</span>
+              </div>
+              <span style="font-size:0.75rem; background:rgba(99,102,241,0.2); color:#c7d2fe; padding:2px 8px; border-radius:10px;">Q${practiceTurnIndex}</span>
+            </div>
+            <div style="font-size:1rem; line-height:1.6; color:#f1f5f9; font-weight:500;">
+              ${escapeHtml(data.question)}
+            </div>
+          </div>
+        `;
+        document.getElementById('practiceAnswer').focus();
       } catch (e) {
-        document.getElementById('practiceChat').innerHTML = 'Failed to start.';
+        chatDiv.innerHTML = `<div style="padding:1rem; background:rgba(239,68,68,0.1); border:1px solid #ef4444; border-radius:8px; color:#f87171;">❌ ${escapeHtml(e.message)}</div>`;
+      } finally {
+        startBtn.disabled = false;
+        startBtn.innerHTML = 'Start Pitch';
       }
     }
 
     async function sendPracticeAnswer() {
       if (!practiceSessionId) return;
-      const ans = document.getElementById('practiceAnswer').value;
-      if (!ans) return;
-      document.getElementById('practiceChat').innerHTML += `<div style="margin-bottom:10px;"><b>You:</b> ${ans}</div>`;
-      document.getElementById('practiceAnswer').value = '';
-      
+      const ansInput = document.getElementById('practiceAnswer');
+      const ans = ansInput.value.trim();
+      const sendBtn = document.getElementById('sendAnswerBtn');
+      const chatDiv = document.getElementById('practiceChat');
+
+      if (!ans) {
+        alert('Please enter an answer to submit.');
+        return;
+      }
+
+      sendBtn.disabled = true;
+      sendBtn.innerHTML = 'Evaluating...';
+
+      // Append founder answer
+      chatDiv.innerHTML += `
+        <div class="pitch-founder-card" style="background:rgba(255,255,255,0.04); border:1px solid rgba(255,255,255,0.1); border-radius:12px; padding:1rem; margin-bottom:1rem; margin-left:1.5rem;">
+          <div style="font-size:0.8rem; font-weight:700; color:#94a3b8; margin-bottom:0.4rem;">YOU</div>
+          <div style="color:#e2e8f0; font-size:0.95rem; line-height:1.5;">${escapeHtml(ans)}</div>
+        </div>
+        <div id="practiceTyping" style="color:#818cf8; font-size:0.85rem; padding:0.5rem; margin-bottom:1rem;">
+          <i>Investor is evaluating your answer and taking notes...</i>
+        </div>
+      `;
+      chatDiv.scrollTop = chatDiv.scrollHeight;
+      ansInput.value = '';
+
       try {
         const res = await fetch(`/api/practice/answer`, {
           method: 'POST',
-          headers: {'Content-Type': 'application/json'},
+          headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ session_id: practiceSessionId, answer: ans })
         });
+
+        const typingEl = document.getElementById('practiceTyping');
+        if (typingEl) typingEl.remove();
+
+        if (!res.ok) {
+          const errData = await res.json().catch(() => ({}));
+          throw new Error(errData.detail || 'Evaluation failed. Please retry your answer.');
+        }
+
         const data = await res.json();
-        
-        let evalHtml = `<div style="margin-bottom:10px; padding:10px; background:var(--surface); border:1px solid var(--border);">`;
-        evalHtml += `<b>AI Evaluation Score:</b> ${data.evaluation.score}/10<br>`;
-        evalHtml += `<b>Strengths:</b> ${data.evaluation.strengths.join(', ')}<br>`;
-        evalHtml += `<b>Weaknesses:</b> ${data.evaluation.weaknesses.join(', ')}<br>`;
-        evalHtml += `<b>Better Answer:</b> ${data.evaluation.suggested_improved_answer}</div>`;
-        
-        document.getElementById('practiceChat').innerHTML += evalHtml;
-        document.getElementById('practiceChat').innerHTML += `<div style="margin-bottom:10px; color:var(--primary);"><b>Investor:</b> ${data.next_question}</div>`;
-        
-        const chatDiv = document.getElementById('practiceChat');
+        const ev = data.evaluation || {};
+        const score = ev.score !== undefined ? ev.score : 'N/A';
+
+        let scoreColor = '#10b981';
+        let scoreBg = 'rgba(16,185,129,0.15)';
+        if (score < 5) {
+          scoreColor = '#ef4444';
+          scoreBg = 'rgba(239,68,68,0.15)';
+        } else if (score < 7) {
+          scoreColor = '#f59e0b';
+          scoreBg = 'rgba(245,158,11,0.15)';
+        }
+
+        let evalCardHtml = `
+          <div class="pitch-eval-card" style="background:#0f172a; border:1px solid #334155; border-radius:12px; padding:1.25rem; margin-bottom:1.5rem; box-shadow:0 4px 15px rgba(0,0,0,0.3);">
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:0.75rem; border-bottom:1px solid #1e293b; padding-bottom:0.6rem;">
+              <span style="font-weight:700; color:#94a3b8; font-size:0.85rem; text-transform:uppercase; letter-spacing:0.5px;">Turn ${escapeHtml(String(data.turn_index || practiceTurnIndex))} Evaluation</span>
+              <span style="font-weight:800; font-size:1.1rem; color:${scoreColor}; background:${scoreBg}; padding:3px 12px; border-radius:12px; border:1px solid ${scoreColor}40;">
+                Score: ${escapeHtml(String(score))}/10
+              </span>
+            </div>
+        `;
+
+        if (ev.strengths && ev.strengths.length > 0) {
+          evalCardHtml += `
+            <div style="margin-bottom:0.6rem;">
+              <b style="color:#10b981; font-size:0.85rem;">✅ Strengths:</b>
+              <ul style="margin:0.25rem 0 0 1.25rem; padding:0; font-size:0.88rem; color:#cbd5e1;">
+                ${ev.strengths.map(s => `<li>${escapeHtml(s)}</li>`).join('')}
+              </ul>
+            </div>
+          `;
+        }
+
+        if (ev.weaknesses && ev.weaknesses.length > 0) {
+          evalCardHtml += `
+            <div style="margin-bottom:0.6rem;">
+              <b style="color:#ef4444; font-size:0.85rem;">⚠️ Areas to Improve:</b>
+              <ul style="margin:0.25rem 0 0 1.25rem; padding:0; font-size:0.88rem; color:#cbd5e1;">
+                ${ev.weaknesses.map(w => `<li>${escapeHtml(w)}</li>`).join('')}
+              </ul>
+            </div>
+          `;
+        }
+
+        if (ev.missed_points && ev.missed_points.length > 0) {
+          evalCardHtml += `
+            <div style="margin-bottom:0.6rem; background:rgba(245,158,11,0.06); padding:0.6rem 0.8rem; border-radius:6px; border-left:3px solid #f59e0b;">
+              <b style="color:#fbbf24; font-size:0.85rem;">📌 Plan Facts You Missed:</b>
+              <ul style="margin:0.25rem 0 0 1.25rem; padding:0; font-size:0.85rem; color:#fde68a;">
+                ${ev.missed_points.map(m => `<li>${escapeHtml(m)}</li>`).join('')}
+              </ul>
+            </div>
+          `;
+        }
+
+        if (ev.better_answer) {
+          evalCardHtml += `
+            <details style="margin-top:0.75rem; background:rgba(255,255,255,0.02); padding:0.5rem 0.8rem; border-radius:6px;">
+              <summary style="cursor:pointer; color:#818cf8; font-size:0.85rem; font-weight:600;">💡 View Model Answer (Grounded in Plan)</summary>
+              <div style="font-size:0.88rem; line-height:1.5; color:#e2e8f0; margin-top:0.5rem; white-space:pre-wrap;">${escapeHtml(ev.better_answer)}</div>
+            </details>
+          `;
+        }
+
+        if (ev.follow_up_hint) {
+          evalCardHtml += `
+            <div style="margin-top:0.6rem; font-size:0.82rem; color:#94a3b8; font-style:italic;">
+              ⚡ <b>Tip for next:</b> ${escapeHtml(ev.follow_up_hint)}
+            </div>
+          `;
+        }
+
+        evalCardHtml += `</div>`;
+        chatDiv.innerHTML += evalCardHtml;
+
+        // Check if finished
+        if (data.finished) {
+          document.getElementById('practiceTurnBadge').textContent = 'Completed';
+          document.getElementById('practiceInputArea').style.display = 'none';
+
+          const summary = data.summary || {};
+          const avgScore = summary.overall_score || score;
+          let sumColor = avgScore >= 7 ? '#10b981' : (avgScore >= 5 ? '#f59e0b' : '#ef4444');
+
+          let summaryHtml = `
+            <div class="pitch-summary-card" style="background:linear-gradient(135deg, rgba(15,23,42,0.95), rgba(30,41,59,0.95)); border:2px solid ${sumColor}; border-radius:16px; padding:1.75rem; margin-top:1.5rem; text-align:center;">
+              <div style="font-size:2rem; margin-bottom:0.5rem;">🏆</div>
+              <h3 style="color:#f8fafc; margin:0 0 0.5rem 0; font-size:1.3rem;">Pitch Simulation Completed!</h3>
+              <div style="font-size:2.5rem; font-weight:800; color:${sumColor}; margin:0.5rem 0;">
+                ${escapeHtml(String(avgScore))}<span style="font-size:1.2rem; color:#94a3b8;">/10</span>
+              </div>
+              <div style="font-size:1rem; font-weight:600; color:#e2e8f0; margin-bottom:1.25rem;">
+                ${escapeHtml(summary.verdict || 'Session Completed')}
+              </div>
+              
+              <div style="text-align:left; background:rgba(0,0,0,0.3); border-radius:10px; padding:1rem; margin-bottom:1.5rem;">
+                <h4 style="color:#818cf8; margin:0 0 0.6rem 0; font-size:0.9rem;">🎯 Top 3 Areas to Improve Before Real Investors:</h4>
+                <ol style="margin:0; padding-left:1.25rem; font-size:0.9rem; color:#cbd5e1; line-height:1.6;">
+                  ${(summary.key_improvements || ['Ground answers with metrics', 'Prepare defensibility moat', 'Practice unit economics']).map(imp => `<li>${escapeHtml(imp)}</li>`).join('')}
+                </ol>
+              </div>
+
+              <div style="display:flex; justify-content:center; gap:12px; flex-wrap:wrap;">
+                <a href="${data.transcript_url || `/api/practice/transcript/${practiceSessionId}`}" class="generate-btn" style="text-decoration:none; width:auto; padding:0.6rem 1.25rem; display:inline-flex; border-radius:8px; background:linear-gradient(135deg, var(--green, #10b981), var(--teal, #14b8a6)); color:#fff;">
+                  📥 Download Transcript (.json)
+                </a>
+                <button onclick="openPitchPractice(document.getElementById('practicePlanId').value)" class="generate-btn" style="width:auto; padding:0.6rem 1.25rem; border-radius:8px; background:#334155; color:#fff;">
+                  🔄 Practice Another Persona
+                </button>
+              </div>
+            </div>
+          `;
+          chatDiv.innerHTML += summaryHtml;
+        } else if (data.next_question) {
+          practiceTurnIndex = data.turn_index || (practiceTurnIndex + 1);
+          document.getElementById('practiceTurnBadge').textContent = `Question ${practiceTurnIndex} of ${practiceTotalTurns}`;
+
+          chatDiv.innerHTML += `
+            <div class="pitch-investor-card" style="background:rgba(99,102,241,0.08); border:1px solid rgba(99,102,241,0.25); border-radius:12px; padding:1.25rem; margin-bottom:1rem;">
+              <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:0.6rem;">
+                <div style="font-weight:700; color:#818cf8; display:flex; align-items:center; gap:6px;">
+                  <span>💼</span> Follow-Up Question
+                </div>
+                <span style="font-size:0.75rem; background:rgba(99,102,241,0.2); color:#c7d2fe; padding:2px 8px; border-radius:10px;">Q${practiceTurnIndex}</span>
+              </div>
+              <div style="font-size:1rem; line-height:1.6; color:#f1f5f9; font-weight:500;">
+                ${escapeHtml(data.next_question)}
+              </div>
+            </div>
+          `;
+          document.getElementById('practiceAnswer').focus();
+        }
+
         chatDiv.scrollTop = chatDiv.scrollHeight;
-      } catch(e) {}
+      } catch (e) {
+        const typingEl = document.getElementById('practiceTyping');
+        if (typingEl) typingEl.remove();
+        alert('Evaluation error: ' + e.message);
+      } finally {
+        sendBtn.disabled = false;
+        sendBtn.innerHTML = 'Send';
+      }
+    }
+
+    function togglePracticeMic() {
+      const micBtn = document.getElementById('practiceMicBtn');
+      const ansInput = document.getElementById('practiceAnswer');
+
+      if (!('webkitSpeechRecognition' in window) && !('SpeechRecognition' in window)) {
+        alert('Voice speech recognition is not supported in this browser. Please type your answer.');
+        return;
+      }
+
+      if (isRecordingPractice) {
+        if (practiceRecognition) practiceRecognition.stop();
+        isRecordingPractice = false;
+        micBtn.style.background = 'var(--surface)';
+        micBtn.innerHTML = '🎤 Speak';
+        return;
+      }
+
+      const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+      practiceRecognition = new SpeechRecognition();
+      practiceRecognition.continuous = false;
+      practiceRecognition.interimResults = false;
+
+      const currentLangCode = localStorage.getItem('selectedLanguage') || 'English';
+      const langMapLocal = { 'English': 'en-US', 'Telugu': 'te-IN', 'Hindi': 'hi-IN', 'Tamil': 'ta-IN', 'Kannada': 'kn-IN', 'Malayalam': 'ml-IN', 'Marathi': 'mr-IN' };
+      practiceRecognition.lang = langMapLocal[currentLangCode] || 'en-US';
+
+      practiceRecognition.onstart = function () {
+        isRecordingPractice = true;
+        micBtn.style.background = '#ef4444';
+        micBtn.innerHTML = '⏹️ Listening...';
+      };
+
+      practiceRecognition.onresult = function (event) {
+        const transcript = event.results[0][0].transcript;
+        ansInput.value = ansInput.value ? (ansInput.value + ' ' + transcript) : transcript;
+      };
+
+      practiceRecognition.onerror = function (event) {
+        console.warn('Speech error:', event.error);
+        isRecordingPractice = false;
+        micBtn.style.background = 'var(--surface)';
+        micBtn.innerHTML = '🎤 Speak';
+      };
+
+      practiceRecognition.onend = function () {
+        isRecordingPractice = false;
+        micBtn.style.background = 'var(--surface)';
+        micBtn.innerHTML = '🎤 Speak';
+      };
+
+      practiceRecognition.start();
     }
 
     function closePracticeModal() {
       document.getElementById('practiceModal').style.display = 'none';
+      if (isRecordingPractice && practiceRecognition) {
+        practiceRecognition.stop();
+      }
       practiceSessionId = null;
     }
-    
-</script>
+  </script>
 
   <!-- Pitch Practice Modal -->
-  <div id="practiceModal" class="modal-overlay" style="display:none;">
-    <div class="modal-content" style="max-width:600px;">
-      <div style="display:flex; justify-content:space-between; align-items:center;">
-        <h2 style="margin:0;">🎤 AI Pitch Practice</h2>
-        <button onclick="closePracticeModal()" style="background:none; border:none; color:var(--text); font-size:1.5rem; cursor:pointer;">&times;</button>
+  <div id="practiceModal" class="modal-overlay"
+    style="display:none; z-index:10000; align-items:center; justify-content:center;">
+    <div class="modal-content"
+      style="max-width:680px; width:92%; max-height:88vh; display:flex; flex-direction:column; border-radius:16px; background:#0b1120; border:1px solid #1e293b; box-shadow:0 20px 50px rgba(0,0,0,0.6);">
+      <!-- Header -->
+      <div
+        style="display:flex; justify-content:space-between; align-items:center; border-bottom:1px solid #1e293b; padding-bottom:0.75rem;">
+        <div style="display:flex; align-items:center; gap:10px;">
+          <h3 style="margin:0; font-size:1.15rem; color:#f8fafc; display:flex; align-items:center; gap:8px;">
+            <span>🎤</span> AI Pitch Practice Simulator
+          </h3>
+          <span id="practiceTurnBadge"
+            style="font-size:0.75rem; padding:3px 10px; border-radius:12px; background:rgba(99,102,241,0.2); color:#c7d2fe; font-weight:600;">Ready</span>
+        </div>
+        <button onclick="closePracticeModal()"
+          style="background:none; border:none; color:#94a3b8; font-size:1.6rem; cursor:pointer; line-height:1;">&times;</button>
       </div>
+
       <input type="hidden" id="practicePlanId">
-      <div style="margin-top:15px; display:flex; gap:10px;">
-        <select id="practicePersona" style="padding:8px; border-radius:5px; background:var(--surface); color:var(--text); border:1px solid var(--border);">
-          <option value="seed_vc">Seed VC Partner</option>
-          <option value="series_a">Series A Investor</option>
-          <option value="angel">Angel Investor</option>
-          <option value="technical">Technical VC</option>
+
+      <!-- Persona Selector Bar -->
+      <div id="practiceStartArea"
+        style="margin-top:12px; display:flex; gap:10px; flex-wrap:wrap; align-items:center; background:rgba(255,255,255,0.02); padding:10px; border-radius:10px; border:1px solid #1e293b;">
+        <label style="font-size:0.85rem; color:#94a3b8; font-weight:600;">Investor Persona:</label>
+        <select id="practicePersona"
+          style="flex:1; min-width:200px; padding:8px 12px; border-radius:8px; background:#1e293b; color:#f1f5f9; border:1px solid #334155; font-size:0.88rem;">
+          <option value="aggressive_vc">Aggressive VC (Market size, moats, unit economics)</option>
+          <option value="technical_angel">Technical Angel (AI feasibility, architecture, risk)</option>
+          <option value="market_focused">Market-Focused Investor (CAC, pricing tiers, GTM)</option>
+          <option value="skeptical_generalist">Skeptical Generalist (Why pay? Real user problem)</option>
+          <option value="academic_examiner">Academic Examiner (Methodology, ethics, limitations)</option>
+          <option value="technical_reviewer">Technical Reviewer (Algorithms, schema, scaling)</option>
         </select>
-        <button onclick="startPractice()" class="generate-btn" style="width:auto; padding:8px 15px;">Start Pitch</button>
+        <button id="startPracticeBtn" onclick="startPractice()" class="generate-btn"
+          style="width:auto; padding:8px 18px; border-radius:8px; background:linear-gradient(135deg, var(--green, #10b981), var(--teal, #14b8a6)); color:#fff; font-weight:600;">Start
+          Pitch</button>
       </div>
-      
-      <div id="practiceChat" style="margin-top:15px; padding:15px; height:300px; overflow-y:auto; background:var(--surface); border-radius:5px; border:1px solid var(--border);">
-        <i>Select a persona and click Start Pitch.</i>
+
+      <!-- Chat / Turns Area -->
+      <div id="practiceChat"
+        style="margin-top:12px; padding:12px; flex:1; height:360px; min-height:280px; overflow-y:auto; background:rgba(0,0,0,0.25); border-radius:10px; border:1px solid #1e293b;">
       </div>
-      
-      <div style="margin-top:15px; display:flex; gap:10px;">
-        <input type="text" id="practiceAnswer" placeholder="Type your answer..." style="flex:1; padding:10px; border-radius:5px; background:var(--surface); color:var(--text); border:1px solid var(--border);" onkeypress="if(event.key==='Enter') sendPracticeAnswer()">
-        <button onclick="sendPracticeAnswer()" class="generate-btn" style="width:auto; padding:10px 15px;">Send</button>
+
+      <!-- Input Area -->
+      <div id="practiceInputArea" style="display:none; margin-top:12px; gap:8px; align-items:flex-end;">
+        <textarea id="practiceAnswer" rows="2"
+          placeholder="Type your answer to the investor (ground it in your business plan)..."
+          style="flex:1; padding:10px 12px; border-radius:8px; background:#1e293b; color:#f1f5f9; border:1px solid #334155; resize:none; font-family:inherit; font-size:0.9rem;"
+          onkeydown="if(event.key==='Enter' && !event.shiftKey){event.preventDefault(); sendPracticeAnswer();}"></textarea>
+        <button id="practiceMicBtn" type="button" onclick="togglePracticeMic()" class="generate-btn"
+          style="width:auto; padding:10px 14px; border-radius:8px; background:var(--surface); border:1px solid #334155; color:#cbd5e1; font-size:0.85rem;"
+          title="Voice speech-to-text">🎤 Speak</button>
+        <button id="sendAnswerBtn" onclick="sendPracticeAnswer()" class="generate-btn"
+          style="width:auto; padding:10px 18px; border-radius:8px; background:linear-gradient(135deg, var(--primary, #6366f1), var(--cyan, #06b6d4)); color:#fff; font-weight:600;">Send</button>
       </div>
     </div>
   </div>
 
 </body>
+
 </html>
