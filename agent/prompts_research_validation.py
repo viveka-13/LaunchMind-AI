@@ -36,8 +36,8 @@ Idea: {startup_idea}
 Research Brief:
 {research_brief}
 
-Base your sizing strictly on the provided research. Do not invent random TAM/SAM/SOM numbers.
-If exact numbers cannot be determined, provide a realistic estimate based on the data or explicitly state null if completely unknowable.
+Base your sizing on the provided research. If exact numbers cannot be determined from research, provide a realistic estimate based on known industry benchmarks, market reports, and logical reasoning.
+You MUST always provide TAM, SAM, and SOM estimates — never return null. If you have limited data, state the estimate with your assumptions clearly.
 You MUST include a detailed calculation methodology and state your core assumptions.
 
 Your output MUST be ONLY valid JSON in this exact format:
@@ -46,9 +46,10 @@ Your output MUST be ONLY valid JSON in this exact format:
   "sam": "e.g., $2B (US market for X)",
   "som": "e.g., $50M (Initial 5% capture of SAM)",
   "methodology": "Detailed step-by-step calculation explanation.",
-  "assumptions": ["Assumption 1 (e.g. ARPU is $100/yr)", "Assumption 2 (e.g. 10% penetration)"]
+  "assumptions": ["Assumption 1 (e.g. ARPU is $100/yr)", "Assumption 2 (e.g. 10% penetration)"],
+  "growth_rate": "e.g., 15% CAGR"
 }}
-Note: tam, sam, and som can be null if not available.
+Note: All values must be non-empty strings. Do NOT use null.
 """
 
 COMPETITOR_SWOT_PROMPT = """You are a Competitive Strategy Expert.

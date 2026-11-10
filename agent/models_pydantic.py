@@ -2,7 +2,7 @@
 # Pydantic models for structured node output validation
 
 from typing import List, Dict, Any, Optional
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, ConfigDict
 
 
 class TaskDecompositionModel(BaseModel):
@@ -13,14 +13,19 @@ class ResearchBriefModel(BaseModel):
     executive_summary: str = ""
     key_findings: List[str] = Field(default_factory=list)
     market_sentiment: str = ""
+    data_gaps: Optional[List[str]] = Field(default_factory=list)
 
 
 class CompetitorItem(BaseModel):
+    """Accepts both prompt keys (singular) and canonical keys (plural) via aliases."""
+    model_config = ConfigDict(populate_by_name=True)
+
     name: str = ""
-    strengths: str = ""
-    weaknesses: str = ""
-    pricing: Optional[str] = ""
+    strengths: str = Field(default="", alias="strength")
+    weaknesses: str = Field(default="", alias="weakness")
+    pricing: Optional[str] = Field(default="", alias="price_point")
     market_position: Optional[str] = ""
+    opportunity: Optional[str] = ""
 
 
 class SWOTAnalysis(BaseModel):
@@ -31,16 +36,20 @@ class SWOTAnalysis(BaseModel):
 
 
 class CompetitorSwotModel(BaseModel):
-    competitors: List[CompetitorItem] = Field(default_factory=list)
-    swot_analysis: SWOTAnalysis = Field(default_factory=SWOTAnalysis)
+    """Accepts both prompt keys (competitor_matrix/swot) and canonical keys (competitors/swot_analysis)."""
+    model_config = ConfigDict(populate_by_name=True)
+
+    competitors: List[CompetitorItem] = Field(default_factory=list, alias="competitor_matrix")
+    swot_analysis: SWOTAnalysis = Field(default_factory=SWOTAnalysis, alias="swot")
 
 
 class MarketSizingModel(BaseModel):
-    tam: str = ""
-    sam: str = ""
-    som: str = ""
+    tam: Optional[str] = None
+    sam: Optional[str] = None
+    som: Optional[str] = None
     methodology: str = ""
     growth_rate: Optional[str] = ""
+    assumptions: Optional[List[str]] = Field(default_factory=list)
 
 
 class PricingTier(BaseModel):
@@ -48,12 +57,21 @@ class PricingTier(BaseModel):
     monthly_price: float
     target_segment: Optional[str] = ""
     features: Optional[List[str]] = Field(default_factory=list)
+    adoption_pct: Optional[float] = None
+    monthly_growth_rate: Optional[float] = None
+    churn_rate: Optional[float] = None
 
 
 class PricingModel(BaseModel):
     tiers: List[PricingTier] = Field(default_factory=list)
     currency: str = "USD"
     total_addressable_customers: Optional[int] = None
+
+
+class HireItem(BaseModel):
+    role: str = ""
+    monthly_salary: float = 0.0
+    start_month: int = 1
 
 
 class FinancialProjectionModel(BaseModel):
@@ -63,6 +81,8 @@ class FinancialProjectionModel(BaseModel):
     expense_growth_rate: Optional[float] = 0.05
     revenue_assumptions: Optional[str] = ""
     initial_cash: Optional[float] = 100000.0
+    hires: Optional[List[HireItem]] = Field(default_factory=list)
+    currency: Optional[str] = "USD"
 
 
 class CapTableModel(BaseModel):

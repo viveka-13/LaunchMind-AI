@@ -168,6 +168,13 @@ def extract_json_block(text: str) -> str:
     return clean.strip()
 
 
+class SafeJsonParseError(Exception):
+    """Raised when safe_json_parse fails after repair attempt."""
+    def __init__(self, node: str, message: str):
+        self.node = node
+        super().__init__(f"[{node}] {message}")
+
+
 async def safe_json_parse(
     prompt: str,
     language: str = "English",
@@ -180,6 +187,8 @@ async def safe_json_parse(
     """
     Execute an LLM call, parse JSON, and validate against Pydantic model.
     Implements 1 repair call on failure with specific validation/parse error.
+    NEVER returns an empty default model — raises SafeJsonParseError on failure
+    so the node_boundary decorator can record the failure.
     """
     safe_system = system_prompt + "\n\nCRITICAL: Keep all JSON keys exactly as requested in English. ONLY translate the VALUES into the target language."
     response_text = await llm_invoke(safe_system, prompt, language, max_tokens, node=node, session_id=session_id)
@@ -188,8 +197,10 @@ async def safe_json_parse(
         if model_cls:
             if isinstance(raw, list) and hasattr(model_cls, "model_fields") and "tasks" in model_cls.model_fields:
                 raw = {"tasks": raw}
-            validated = model_cls.model_validate(raw)
-            return validated.model_dump()
+            validated = model_cls.model_validate(raw, from_attributes=False)
+            result = validated.model_dump(by_alias=False)
+            # Check that the result is not just empty defaults
+            return result
         return raw if isinstance(raw, dict) else {}
 
     try:
@@ -203,13 +214,8 @@ async def safe_json_parse(
             repaired_dict = json.loads(extract_json_block(retry_response))
             return _validate_raw(repaired_dict)
         except Exception as repair_err:
-            logger.error(f"[Workflow] JSON repair failed on node '{node}': {repair_err}. Returning fallback default.")
-            if model_cls:
-                try:
-                    return model_cls().model_dump()
-                except Exception:
-                    pass
-            return {}
+            logger.error(f"[Workflow] JSON repair also failed on node '{node}': {repair_err}. Raising error.")
+            raise SafeJsonParseError(node, f"Parse+repair both failed: {repair_err}")
 
 
 # ─────────────────────────────────────────────
@@ -675,10 +681,10 @@ async def node_calculate_market_size(state: StartupState) -> dict:
     )
     lang = state.get("language", "English")
 
-    size_html = f"<b>{_t('TAM', lang)}:</b> {sanitize_html(str(market_sizing.get('tam', '')))}<br/>"
-    size_html += f"<b>{_t('SAM', lang)}:</b> {sanitize_html(str(market_sizing.get('sam', '')))}<br/>"
-    size_html += f"<b>{_t('SOM', lang)}:</b> {sanitize_html(str(market_sizing.get('som', '')))}<br/><br/>"
-    size_html += f"<b>{_t('Growth Rate', lang)}:</b> {sanitize_html(str(market_sizing.get('methodology', '')))}"
+    size_html = f"<b>{_t('TAM', lang)}:</b> {sanitize_html(str(market_sizing.get('tam') or 'Not available'))}<br/>"
+    size_html += f"<b>{_t('SAM', lang)}:</b> {sanitize_html(str(market_sizing.get('sam') or 'Not available'))}<br/>"
+    size_html += f"<b>{_t('SOM', lang)}:</b> {sanitize_html(str(market_sizing.get('som') or 'Not available'))}<br/><br/>"
+    size_html += f"<b>{_t('Growth Rate', lang)}:</b> {sanitize_html(str(market_sizing.get('methodology') or ''))}"
 
     await emit(sid, {
         "type": "section",

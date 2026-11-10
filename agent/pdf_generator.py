@@ -132,12 +132,15 @@ def _raw_generate_business_plan_pdf(plan_data: dict, file_path: str, images: lis
         else:
             cs_data = comp_swot
             
-        competitors = cs_data.get("competitor_matrix", [])
-        swot = cs_data.get("swot", {})
+        competitors = cs_data.get("competitors", cs_data.get("competitor_matrix", []))
+        swot = cs_data.get("swot_analysis", cs_data.get("swot", {}))
         
         cs_content = "Competitors:\n"
         for i, comp in enumerate(competitors[:5]):
-            cs_content += f"- {comp.get('name', 'N/A')}: {comp.get('strength', '')} (Weakness: {comp.get('weakness', '')}, Price: {comp.get('price_point', '')})\n"
+            c_str = comp.get('strengths', comp.get('strength', ''))
+            c_wk = comp.get('weaknesses', comp.get('weakness', ''))
+            c_pr = comp.get('pricing', comp.get('price_point', ''))
+            cs_content += f"- {comp.get('name', 'N/A')}: {c_str} (Weakness: {c_wk}, Price: {c_pr})\n"
         
         cs_content += "\nSWOT Analysis:\n"
         cs_content += f"Strengths: {', '.join(swot.get('strengths', []))}\n"
