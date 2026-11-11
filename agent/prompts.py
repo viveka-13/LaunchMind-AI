@@ -35,12 +35,20 @@ Market Research Data:
 Competitor Analysis:
 {competitor_analysis}
 
+Market Sizing Data:
+{market_sizing}
+
 Based on this research, identify the TOP 3 market gaps and opportunities. Be specific and data-driven.
+
+CRITICAL ACCURACY RULES:
+- Do NOT quote or invent any market-size numbers (such as TAM, SAM, SOM, CAGR, dollar amounts, or transaction volume) that are not explicitly provided in the Market Research Data or Market Sizing Data above.
+- Do NOT contradict any numbers in the Market Sizing Data.
+- If specific market sizing figures are unavailable or marked as estimates, discuss the strategic opportunity qualitatively without inventing unverified dollar values.
 
 Format your response as a clear paragraph (2-3 sentences per gap) covering:
 1. What is missing in the current market
 2. Why existing solutions fail to address it
-3. The opportunity size
+3. The opportunity size / nature of the opportunity (based ONLY on the provided research and sizing data)
 
 Keep it concise and actionable. Maximum 200 words."""
 

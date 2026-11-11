@@ -29,58 +29,121 @@ Your output MUST be ONLY valid JSON in this exact format:
 """
 
 MARKET_SIZING_PROMPT = """You are a Startup Financial Modeler.
-Calculate the TAM (Total Addressable Market), SAM (Serviceable Available Market), and SOM (Serviceable Obtainable Market) for this idea.
+Calculate the TAM (Total Addressable Market), SAM (Serviceable Available Market), and SOM (Serviceable Obtainable Market) for this startup idea based on the research.
 
 Idea: {startup_idea}
 
 Research Brief:
 {research_brief}
 
-Base your sizing on the provided research. If exact numbers cannot be determined from research, provide a realistic estimate based on known industry benchmarks, market reports, and logical reasoning.
-You MUST always provide TAM, SAM, and SOM estimates — never return null. If you have limited data, state the estimate with your assumptions clearly.
-You MUST include a detailed calculation methodology and state your core assumptions.
+RULES FOR MARKET SIZING:
+1. For each of TAM, SAM, and SOM, provide an object with:
+   - "value": A concise dollar figure with market scope, e.g. "$10B (Global female safety tech)". Set to null if and only if completely unknowable and unjustified.
+   - "basis": Must be one of:
+       * "sourced" (if explicit market size numbers are provided in the research brief)
+       * "estimate" (if derived through a logical calculation chain, e.g. target population * ARPU)
+       * "unavailable" (if research contains no data and a realistic estimate cannot be justified)
+   - "assumptions": When basis is "estimate", you MUST state the step-by-step calculation chain (e.g. "50M female commuters in Tier 1 cities * $4/month app subscription = $2.4B"). If basis is "sourced", cite the source.
+   - "confidence": "high", "medium", or "low".
+   - "reason_if_null": If "value" is null, explain specifically why an estimate could not be justified. Otherwise null.
+2. If the research brief has no market figures, DO NOT invent wild numbers without a calculation chain. Provide a bottom-up estimate with a clear calculation chain and mark "basis": "estimate", OR return "value": null with a clear reason in "reason_if_null".
+3. "methodology": Detailed step-by-step calculation explanation (at least 20 words).
+4. "assumptions": List at least 2 core assumptions.
 
 Your output MUST be ONLY valid JSON in this exact format:
 {{
-  "tam": "e.g., $10B (Global market for X)",
-  "sam": "e.g., $2B (US market for X)",
-  "som": "e.g., $50M (Initial 5% capture of SAM)",
-  "methodology": "Detailed step-by-step calculation explanation.",
-  "assumptions": ["Assumption 1 (e.g. ARPU is $100/yr)", "Assumption 2 (e.g. 10% penetration)"],
-  "growth_rate": "e.g., 15% CAGR"
+  "tam": {{
+    "value": "$10B",
+    "basis": "sourced",
+    "assumptions": "Industry report from Research Brief",
+    "confidence": "high",
+    "reason_if_null": null
+  }},
+  "sam": {{
+    "value": "$2B",
+    "basis": "estimate",
+    "assumptions": "Calculation: 40M target addressable users in target region * $50/yr",
+    "confidence": "medium",
+    "reason_if_null": null
+  }},
+  "som": {{
+    "value": "$50M",
+    "basis": "estimate",
+    "assumptions": "Calculation: 2.5% market share capture of SAM within Years 1-3",
+    "confidence": "medium",
+    "reason_if_null": null
+  }},
+  "methodology": "Step-by-step explanation of sizing methodology and data sources used.",
+  "assumptions": ["Assumption 1 (e.g. Target market size and adoption rate)", "Assumption 2 (e.g. Annual contract value or ARPU)"],
+  "growth_rate": "e.g., 14% CAGR"
 }}
-Note: All values must be non-empty strings. Do NOT use null.
 """
 
 COMPETITOR_SWOT_PROMPT = """You are a Competitive Strategy Expert.
 Build a competitor matrix and SWOT analysis based on the research.
-DO NOT return an empty SWOT. If direct competitors are unknown, infer indirect or substitute competitors based on the market context.
+DO NOT return an empty competitor list or an empty SWOT. If direct competitors are not named in the research brief, identify indirect competitors, legacy solutions, or substitute workflows.
 
 Idea: {startup_idea}
 
 Research Brief:
 {research_brief}
+
+REQUIREMENTS:
+1. "competitor_matrix" MUST contain at least 3 distinct competitors (between 3 and 5).
+2. Each competitor MUST have non-empty "name", "strength", and "weakness".
+3. "swot" MUST contain at least 3 distinct, specific items in EVERY quadrant (strengths >= 3, weaknesses >= 3, opportunities >= 3, threats >= 3).
 
 Your output MUST be ONLY valid JSON in this exact format:
 {{
   "competitor_matrix": [
     {{
       "name": "Competitor 1",
-      "strength": "Their main advantage",
-      "weakness": "Their main flaw",
-      "price_point": "High/Med/Low Pricing Strategy",
-      "market_position": "e.g., Enterprise leader, Budget option",
-      "opportunity": "How to beat them"
+      "strength": "Their primary advantage in the market",
+      "weakness": "Their primary limitation or customer pain point",
+      "price_point": "High / Moderate / Freemium",
+      "market_position": "e.g. Incumbent market leader",
+      "opportunity": "How our startup wins against them"
+    }},
+    {{
+      "name": "Competitor 2",
+      "strength": "Their advantage",
+      "weakness": "Their limitation",
+      "price_point": "Pricing info",
+      "market_position": "Market position",
+      "opportunity": "Differentiation angle"
+    }},
+    {{
+      "name": "Competitor 3",
+      "strength": "Their advantage",
+      "weakness": "Their limitation",
+      "price_point": "Pricing info",
+      "market_position": "Market position",
+      "opportunity": "Differentiation angle"
     }}
   ],
   "swot": {{
-    "strengths": ["Our internal strength 1", "Our internal strength 2"],
-    "weaknesses": ["Our internal weakness 1", "Our internal weakness 2"],
-    "opportunities": ["External market opportunity 1", "External market opportunity 2"],
-    "threats": ["External threat 1", "External threat 2"]
+    "strengths": [
+      "Internal strength 1 (e.g. proprietary tech)",
+      "Internal strength 2 (e.g. low-cost structure)",
+      "Internal strength 3 (e.g. superior UX)"
+    ],
+    "weaknesses": [
+      "Internal weakness 1 (e.g. early stage lack of brand)",
+      "Internal weakness 2 (e.g. capital constraints)",
+      "Internal weakness 3 (e.g. dependency on third-party APIs)"
+    ],
+    "opportunities": [
+      "External opportunity 1 (e.g. growing regulatory requirement)",
+      "External opportunity 2 (e.g. untapped SMB segment)",
+      "External opportunity 3 (e.g. enterprise integrations)"
+    ],
+    "threats": [
+      "External threat 1 (e.g. incumbent feature copy)",
+      "External threat 2 (e.g. customer churn risk)",
+      "External threat 3 (e.g. platform privacy changes)"
+    ]
   }}
 }}
-Note: Provide up to 5 competitors in the matrix.
 """
 
 DEVILS_ADVOCATE_PROMPT = """You are a Senior Venture Capital Analyst, Startup Advisor, and Business Model Expert.

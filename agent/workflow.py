@@ -635,6 +635,7 @@ async def node_analyze_gaps(state: StartupState) -> dict:
         idea=state.get("idea", ""),
         market_research=full_market[:800],
         competitor_analysis=state.get("competitor_swot", state.get("competitor_analysis", ""))[:600],
+        market_sizing=state.get("market_sizing", "Not available yet")[:600],
     )
 
     market_gap = await llm_invoke(
@@ -681,10 +682,44 @@ async def node_calculate_market_size(state: StartupState) -> dict:
     )
     lang = state.get("language", "English")
 
-    size_html = f"<b>{_t('TAM', lang)}:</b> {sanitize_html(str(market_sizing.get('tam') or 'Not available'))}<br/>"
-    size_html += f"<b>{_t('SAM', lang)}:</b> {sanitize_html(str(market_sizing.get('sam') or 'Not available'))}<br/>"
-    size_html += f"<b>{_t('SOM', lang)}:</b> {sanitize_html(str(market_sizing.get('som') or 'Not available'))}<br/><br/>"
-    size_html += f"<b>{_t('Growth Rate', lang)}:</b> {sanitize_html(str(market_sizing.get('methodology') or ''))}"
+    def _render_metric_html(metric_data, label: str) -> str:
+        if not metric_data:
+            return f"<b>{_t(label, lang)}:</b> <span style='color:#94a3b8;'>Not available (no justifiable estimate)</span><br/>"
+        if isinstance(metric_data, dict):
+            val = metric_data.get("value")
+            basis = metric_data.get("basis", "estimate")
+            assumptions = metric_data.get("assumptions", "")
+            confidence = metric_data.get("confidence", "")
+            reason = metric_data.get("reason_if_null", "")
+        else:
+            val = getattr(metric_data, "value", None)
+            basis = getattr(metric_data, "basis", "estimate")
+            assumptions = getattr(metric_data, "assumptions", "")
+            confidence = getattr(metric_data, "confidence", "")
+            reason = getattr(metric_data, "reason_if_null", "")
+
+        if not val or str(val).lower() in ("null", "none", "n/a"):
+            reason_str = f": {sanitize_html(str(reason))}" if reason else ""
+            return f"<b>{_t(label, lang)}:</b> <span style='color:#ef4444;'>Not available{reason_str}</span><br/>"
+
+        if basis == "estimate":
+            badge = "<span style='display:inline-block; padding:2px 8px; border-radius:10px; font-size:11px; font-weight:600; background:rgba(245,158,11,0.15); color:#fbbf24; border:1px solid rgba(245,158,11,0.3); margin-left:6px;'>Estimate (not from sources)</span>"
+            conf_str = f" <span style='font-size:11px; color:#94a3b8;'>[Confidence: {confidence}]</span>" if confidence else ""
+            calc_str = f"<br/><small style='color:#94a3b8; margin-left:14px;'>↳ Calculation chain: {sanitize_html(str(assumptions))}</small>" if assumptions else ""
+            return f"<b>{_t(label, lang)}:</b> {sanitize_html(str(val))} {badge}{conf_str}{calc_str}<br/>"
+        elif basis == "sourced":
+            badge = "<span style='display:inline-block; padding:2px 8px; border-radius:10px; font-size:11px; font-weight:600; background:rgba(16,185,129,0.15); color:#34d399; border:1px solid rgba(16,185,129,0.3); margin-left:6px;'>Sourced</span>"
+            src_str = f"<br/><small style='color:#94a3b8; margin-left:14px;'>↳ Source: {sanitize_html(str(assumptions))}</small>" if assumptions else ""
+            return f"<b>{_t(label, lang)}:</b> {sanitize_html(str(val))} {badge}{src_str}<br/>"
+        else:
+            return f"<b>{_t(label, lang)}:</b> {sanitize_html(str(val))}<br/>"
+
+    size_html = _render_metric_html(market_sizing.get("tam"), "TAM")
+    size_html += _render_metric_html(market_sizing.get("sam"), "SAM")
+    size_html += _render_metric_html(market_sizing.get("som"), "SOM")
+    size_html += "<br/>"
+    size_html += f"<b>{_t('Growth Rate', lang)}:</b> {sanitize_html(str(market_sizing.get('growth_rate') or 'N/A'))}<br/>"
+    size_html += f"<b>Methodology:</b> {sanitize_html(str(market_sizing.get('methodology') or ''))}"
 
     await emit(sid, {
         "type": "section",
@@ -839,10 +874,28 @@ async def node_pricing_model(state: StartupState) -> dict:
         session_id=sid,
     )
     
+    # Build rich HTML with features
+    tier_html = "<div style='display:grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap:12px; margin-top:8px;'>"
+    for t in pricing_data.get("tiers", []):
+        t_name = sanitize_html(str(t.get("name", "")))
+        t_price = sanitize_html(str(t.get("monthly_price", 0)))
+        t_seg = sanitize_html(str(t.get("target_segment", "")))
+        t_feats = t.get("features", [])
+        feats_list = "".join([f"<li style='margin-bottom:3px;'>{sanitize_html(str(f))}</li>" for f in t_feats])
+        tier_html += f"""
+        <div style='background:rgba(255,255,255,0.03); border:1px solid rgba(255,255,255,0.1); border-radius:8px; padding:12px;'>
+            <div style='font-weight:700; font-size:1.05rem; color:#818cf8;'>{t_name}</div>
+            <div style='font-size:1.3rem; font-weight:800; margin:6px 0; color:#34d399;'>${t_price}<span style='font-size:0.75rem; color:#94a3b8; font-weight:400;'>/mo</span></div>
+            <div style='font-size:0.8rem; color:#94a3b8; margin-bottom:8px;'>Target: {t_seg}</div>
+            <div style='font-size:0.8rem; font-weight:600; color:#e2e8f0; margin-bottom:4px;'>Features:</div>
+            <ul style='font-size:0.82rem; color:#cbd5e1; padding-left:16px; margin:0;'>{feats_list}</ul>
+        </div>"""
+    tier_html += "</div>"
+    
     await emit(sid, {
         "type": "section",
         "label": "Pricing Scenarios",
-        "content": f"<pre>{json.dumps(pricing_data, indent=2)}</pre>",
+        "content": tier_html,
     })
 
     return {"pricing_model": json.dumps(pricing_data)}
@@ -1475,9 +1528,9 @@ def build_graph() -> StateGraph:
     workflow.add_edge("research_competitors", "synthesize_research")
     workflow.add_edge("synthesize_research", "competitor_swot")
     workflow.add_edge("competitor_swot", "store_research")
-    workflow.add_edge("store_research", "analyze_gaps")
-    workflow.add_edge("analyze_gaps", "calculate_market_size")
-    workflow.add_edge("calculate_market_size", "generate_solution")
+    workflow.add_edge("store_research", "calculate_market_size")
+    workflow.add_edge("calculate_market_size", "analyze_gaps")
+    workflow.add_edge("analyze_gaps", "generate_solution")
     workflow.add_edge("generate_solution", "generate_features")
     workflow.add_edge("generate_features", "generate_revenue")
     workflow.add_edge("generate_revenue", "pricing_model")

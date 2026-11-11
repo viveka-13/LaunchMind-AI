@@ -19,6 +19,11 @@ Return ONLY valid JSON in this EXACT format:
       "name": "Basic",
       "monthly_price": 29,
       "target_segment": "Small businesses",
+      "features": [
+        "Core feature access for up to 3 users",
+        "Essential automated workflows",
+        "Standard email and community support"
+      ],
       "adoption_pct": 0.05,
       "monthly_growth_rate": 0.08,
       "churn_rate": 0.03
@@ -27,6 +32,12 @@ Return ONLY valid JSON in this EXACT format:
       "name": "Pro",
       "monthly_price": 79,
       "target_segment": "Medium businesses",
+      "features": [
+        "Advanced automation and real-time alerts",
+        "Up to 15 team members with role-based access",
+        "Custom API integrations and webhooks",
+        "Priority 24/7 support with SLA"
+      ],
       "adoption_pct": 0.03,
       "monthly_growth_rate": 0.06,
       "churn_rate": 0.02
@@ -35,6 +46,12 @@ Return ONLY valid JSON in this EXACT format:
       "name": "Enterprise",
       "monthly_price": 199,
       "target_segment": "Large companies",
+      "features": [
+        "Unlimited users and multi-organization management",
+        "Dedicated account manager and onboarding assistance",
+        "Custom security, SSO, and compliance audit logs",
+        "Enterprise uptime SLA and custom feature development"
+      ],
       "adoption_pct": 0.01,
       "monthly_growth_rate": 0.04,
       "churn_rate": 0.01
@@ -45,12 +62,13 @@ Return ONLY valid JSON in this EXACT format:
 }}
 
 Rules:
-- Generate 2-3 tiers with realistic prices for this specific market.
+- You MUST generate exactly 3 tiers (Basic, Pro, Enterprise) with realistic prices for this specific startup market.
+- Each tier MUST include a non-empty "features" list with at least 3 specific, differentiated features.
 - adoption_pct is the percentage of total_addressable_customers that sign up in month 1.
 - monthly_growth_rate is the month-over-month customer acquisition growth rate (decimal, e.g. 0.08 = 8%).
 - churn_rate is the monthly customer churn rate (decimal, e.g. 0.02 = 2%).
 - total_addressable_customers must be a realistic number for this startup's first-year target market.
-- All numbers must be plain numbers, NOT strings.
+- All numeric fields (monthly_price, adoption_pct, monthly_growth_rate, churn_rate, total_addressable_customers) must be plain numbers, NOT strings.
 """
 
 FINANCIAL_PROJECTION_PROMPT = """You are a startup CFO.

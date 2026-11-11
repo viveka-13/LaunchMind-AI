@@ -316,16 +316,39 @@ def generate_pitch_deck_ppt(plan_data: dict, file_path: str,
         else:
             ms_data = market_sizing
             
-        tam = ms_data.get("tam", "Not available from research")
-        sam = ms_data.get("sam", "Not available from research")
-        som = ms_data.get("som", "Not available from research")
+        def _format_metric_text(metric):
+            if not metric:
+                return "Not available (no justifiable estimate)"
+            if isinstance(metric, dict):
+                val = metric.get("value")
+                basis = metric.get("basis", "estimate")
+                assumptions = metric.get("assumptions", "")
+                reason = metric.get("reason_if_null", "")
+            else:
+                val = getattr(metric, "value", None)
+                basis = getattr(metric, "basis", "estimate")
+                assumptions = getattr(metric, "assumptions", "")
+                reason = getattr(metric, "reason_if_null", "")
+            
+            if not val or str(val).lower() in ("null", "none", "n/a"):
+                return f"Not available ({reason or 'no justifiable data'})"
+            if basis == "estimate":
+                calc = f"\n  ↳ Calculation chain: {assumptions}" if assumptions else ""
+                return f"{val} [Estimate (not from sources)]{calc}"
+            elif basis == "sourced":
+                src = f"\n  ↳ Source: {assumptions}" if assumptions else ""
+                return f"{val} [Sourced]{src}"
+            return str(val)
+
+        tam = _format_metric_text(ms_data.get("tam"))
+        sam = _format_metric_text(ms_data.get("sam"))
+        som = _format_metric_text(ms_data.get("som"))
         methodology = ms_data.get("methodology", "Not available from research")
-        if tam is None: tam = "Not available from research"
-        if sam is None: sam = "Not available from research"
-        if som is None: som = "Not available from research"
+        growth_rate = ms_data.get("growth_rate", "")
+        growth_line = f"\n\nGrowth Rate:\n{growth_rate}" if growth_rate else ""
         
-        content = f"TAM (Total Addressable Market):\n{tam}\n\nSAM (Serviceable Available Market):\n{sam}\n\nSOM (Serviceable Obtainable Market):\n{som}\n\nMethodology:\n{methodology}"
-        _body_text(s, content, font_size=13)
+        content = f"TAM (Total Addressable Market):\n{tam}\n\nSAM (Serviceable Available Market):\n{sam}\n\nSOM (Serviceable Obtainable Market):\n{som}\n\nMethodology:\n{methodology}{growth_line}"
+        _body_text(s, content, font_size=11)
     except Exception:
         _body_text(s, _smart_truncate(str(market_sizing), 700), font_size=13)
 

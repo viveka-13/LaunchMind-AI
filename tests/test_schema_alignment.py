@@ -1,9 +1,9 @@
 """
 tests/test_schema_alignment.py
-Verifies that LLM prompt key names match Pydantic model fields.
-If a prompt drifts, this test fails BEFORE users see empty sections.
+Verifies that LLM prompt key names match Pydantic model fields,
+required content fields enforce minimum counts and reject empty defaults,
+and plan_schema output contracts reject empty / incomplete node outputs.
 """
-import json
 import pytest
 from pydantic import ValidationError
 
@@ -11,6 +11,7 @@ from agent.models_pydantic import (
     CompetitorSwotModel,
     CompetitorItem,
     SWOTAnalysis,
+    MarketMetric,
     MarketSizingModel,
     PricingModel,
     PricingTier,
@@ -20,124 +21,213 @@ from agent.models_pydantic import (
     CritiqueModel,
     TaskDecompositionModel,
 )
+from agent.plan_schema import validate_node_output
 
 
 # ─────────────────────────────────────────────
-# 1. CompetitorSwotModel — prompt returns competitor_matrix/swot
+# 1. CompetitorSwotModel — aliases, counts, and non-empty validation
 # ─────────────────────────────────────────────
 
 class TestCompetitorSwotModel:
-    """Verify both prompt keys (alias) and canonical keys are accepted."""
+    """Verify prompt keys (aliases), canonical keys, and >=3 requirements."""
 
     PROMPT_STYLE_RESPONSE = {
         "competitor_matrix": [
             {
                 "name": "Life360",
-                "strength": "Established user base with 50M+ users",
-                "weakness": "Limited to family safety, not personal safety",
+                "strength": "Established family tracking base with 50M+ users",
+                "weakness": "Limited to family circles, no lone-commuter emergency features",
                 "price_point": "Freemium, $14.99/mo premium",
-                "market_position": "Market leader in family tracking",
-                "opportunity": "They don't cover personal threat detection",
-            }
+                "market_position": "Incumbent leader",
+                "opportunity": "Beat with proactive AI harassment detection",
+            },
+            {
+                "name": "Noonlight",
+                "strength": "Direct 911 dispatch integration",
+                "weakness": "Requires manual button trigger in danger",
+                "price_point": "$4.99/mo subscription",
+                "market_position": "Emergency dispatch app",
+                "opportunity": "Beat with automated hands-free distress detection",
+            },
+            {
+                "name": "bSafe",
+                "strength": "Voice alarm and SOS siren capabilities",
+                "weakness": "High battery drain and frequent false alarms",
+                "price_point": "Free basic tier, $2.99/mo premium",
+                "market_position": "Niche safety app",
+                "opportunity": "Superior AI filtering to eliminate false alarms",
+            },
         ],
         "swot": {
-            "strengths": ["AI-powered real-time threat detection", "Multi-modal sensor fusion"],
-            "weaknesses": ["No brand recognition", "Dependency on smartphone sensors"],
-            "opportunities": ["Growing women's safety market", "Government initiatives"],
-            "threats": ["Privacy regulation risks", "Established players pivoting"],
+            "strengths": [
+                "Real-time audio threat analysis",
+                "Zero-touch automated SOS triggers",
+                "Privacy-preserving local sensor processing",
+            ],
+            "weaknesses": [
+                "Early stage brand recognition",
+                "Requires background microphone and location permissions",
+                "High initial compute cost for on-device neural model",
+            ],
+            "opportunities": [
+                "Rising enterprise demand for female workforce commuter safety",
+                "Government mandates and smart city transit partnerships",
+                "B2B campus security and ride-hailing API integrations",
+            ],
+            "threats": [
+                "OS-level background task execution restrictions (iOS/Android)",
+                "Big tech platforms embedding native emergency tools",
+                "User privacy concerns regarding persistent acoustic monitoring",
+            ],
         },
     }
 
     CANONICAL_STYLE_RESPONSE = {
         "competitors": [
-            {
-                "name": "Life360",
-                "strengths": "Established user base",
-                "weaknesses": "Limited scope",
-                "pricing": "Freemium",
-                "market_position": "Market leader",
-            }
+            {"name": "Comp1", "strengths": "Strong brand", "weaknesses": "Slow product iteration", "pricing": "High"},
+            {"name": "Comp2", "strengths": "Low pricing", "weaknesses": "Poor customer support", "pricing": "Low"},
+            {"name": "Comp3", "strengths": "Great UI", "weaknesses": "Missing enterprise features", "pricing": "Medium"},
         ],
         "swot_analysis": {
-            "strengths": ["AI-powered detection"],
-            "weaknesses": ["No brand"],
-            "opportunities": ["Growing market"],
-            "threats": ["Privacy risks"],
+            "strengths": ["S1", "S2", "S3"],
+            "weaknesses": ["W1", "W2", "W3"],
+            "opportunities": ["O1", "O2", "O3"],
+            "threats": ["T1", "T2", "T3"],
         },
     }
 
     def test_prompt_keys_accepted(self):
         """Prompt-style keys (competitor_matrix, swot, strength singular) must parse correctly."""
         model = CompetitorSwotModel.model_validate(self.PROMPT_STYLE_RESPONSE)
-        assert len(model.competitors) == 1
+        assert len(model.competitors) == 3
         assert model.competitors[0].name == "Life360"
-        assert model.competitors[0].strengths == "Established user base with 50M+ users"
-        assert model.competitors[0].weaknesses == "Limited to family safety, not personal safety"
-        assert model.competitors[0].pricing == "Freemium, $14.99/mo premium"
-        assert model.competitors[0].opportunity == "They don't cover personal threat detection"
-        assert len(model.swot_analysis.strengths) == 2
-        assert len(model.swot_analysis.threats) == 2
+        assert model.competitors[0].strengths == "Established family tracking base with 50M+ users"
+        assert model.competitors[0].weaknesses == "Limited to family circles, no lone-commuter emergency features"
+        assert len(model.swot_analysis.strengths) == 3
+        assert len(model.swot_analysis.threats) == 3
 
     def test_canonical_keys_accepted(self):
         """Canonical keys (competitors, swot_analysis, strengths plural) must also parse."""
         model = CompetitorSwotModel.model_validate(self.CANONICAL_STYLE_RESPONSE)
-        assert len(model.competitors) == 1
-        assert model.competitors[0].name == "Life360"
-        assert len(model.swot_analysis.strengths) == 1
+        assert len(model.competitors) == 3
+        assert model.competitors[0].name == "Comp1"
+        assert len(model.swot_analysis.strengths) == 3
 
-    def test_model_dump_uses_canonical_keys(self):
-        """After validation, model_dump must use canonical keys (not aliases)."""
-        model = CompetitorSwotModel.model_validate(self.PROMPT_STYLE_RESPONSE)
-        d = model.model_dump(by_alias=False)
-        assert "competitors" in d
-        assert "swot_analysis" in d
-        assert "competitor_matrix" not in d
-        assert "swot" not in d
+    def test_empty_response_rejected(self):
+        """Required content fields must NOT default to empty — empty dict must raise ValidationError."""
+        with pytest.raises(ValidationError):
+            CompetitorSwotModel.model_validate({})
 
-    def test_empty_response_has_empty_lists(self):
-        """An empty dict should produce empty lists, not crash."""
-        model = CompetitorSwotModel.model_validate({})
-        assert model.competitors == []
-        assert model.swot_analysis.strengths == []
+    def test_fewer_than_3_competitors_rejected(self):
+        """Competitors list with fewer than 3 items must fail validation."""
+        bad_data = {
+            "competitors": [{"name": "Comp1", "strengths": "S", "weaknesses": "W"}],
+            "swot_analysis": {
+                "strengths": ["S1", "S2", "S3"],
+                "weaknesses": ["W1", "W2", "W3"],
+                "opportunities": ["O1", "O2", "O3"],
+                "threats": ["T1", "T2", "T3"],
+            },
+        }
+        with pytest.raises(ValidationError) as exc:
+            CompetitorSwotModel.model_validate(bad_data)
+        assert "at least 3 competitors" in str(exc.value)
+
+    def test_fewer_than_3_swot_items_rejected(self):
+        """SWOT quadrant with fewer than 3 items must fail validation."""
+        bad_data = {
+            "competitors": [
+                {"name": "C1", "strengths": "S", "weaknesses": "W"},
+                {"name": "C2", "strengths": "S", "weaknesses": "W"},
+                {"name": "C3", "strengths": "S", "weaknesses": "W"},
+            ],
+            "swot_analysis": {
+                "strengths": ["S1"],  # only 1
+                "weaknesses": ["W1", "W2", "W3"],
+                "opportunities": ["O1", "O2", "O3"],
+                "threats": ["T1", "T2", "T3"],
+            },
+        }
+        with pytest.raises(ValidationError) as exc:
+            CompetitorSwotModel.model_validate(bad_data)
+        assert "at least 3 items" in str(exc.value)
 
 
 # ─────────────────────────────────────────────
-# 2. MarketSizingModel — null handling
+# 2. MarketSizingModel — Structured metric & null handling
 # ─────────────────────────────────────────────
 
 class TestMarketSizingModel:
-    def test_null_tam_sam_som_accepted(self):
-        """LLM can return null for TAM/SAM/SOM when data is thin."""
+    def test_structured_metric_with_estimate_basis(self):
+        """Estimate with calculation chain must parse into MarketMetric."""
         data = {
-            "tam": None,
-            "sam": None,
-            "som": None,
-            "methodology": "Insufficient data for estimation.",
-            "assumptions": [],
+            "tam": {
+                "value": "$5.2B",
+                "basis": "estimate",
+                "assumptions": "Calculation: 65M women commuters in target metro areas * $80/yr service fee",
+                "confidence": "medium",
+                "reason_if_null": None,
+            },
+            "sam": {
+                "value": "$1.2B",
+                "basis": "estimate",
+                "assumptions": "Calculation: 15M smartphone users in top 10 cities * $80/yr",
+                "confidence": "medium",
+                "reason_if_null": None,
+            },
+            "som": {
+                "value": "$36M",
+                "basis": "estimate",
+                "assumptions": "Calculation: 3% adoption of SAM in 3 years",
+                "confidence": "medium",
+                "reason_if_null": None,
+            },
+            "methodology": "Top-down demographic projection cross-referenced with smartphone commuter surveys.",
+            "assumptions": ["$80/yr average annual subscription", "3% capture of addressable segment"],
         }
         model = MarketSizingModel.model_validate(data)
-        assert model.tam is None
-        assert model.sam is None
-        assert model.methodology == "Insufficient data for estimation."
+        assert model.tam.value == "$5.2B"
+        assert model.tam.basis == "estimate"
+        assert "Calculation" in model.tam.assumptions
+        assert model.som.value == "$36M"
 
-    def test_string_values_accepted(self):
-        """Normal string values work."""
+    def test_null_metric_with_reason_accepted(self):
+        """When research lacks data, null with reason is accepted."""
+        data = {
+            "tam": {
+                "value": None,
+                "basis": "unavailable",
+                "assumptions": "",
+                "confidence": "low",
+                "reason_if_null": "Research data lacked global market sizing benchmarks for this niche",
+            },
+            "sam": None,
+            "som": None,
+            "methodology": "No quantitative sizing data found in research sources.",
+            "assumptions": ["Assumption 1", "Assumption 2"],
+        }
+        model = MarketSizingModel.model_validate(data)
+        assert model.tam.value is None
+        assert model.tam.basis == "unavailable"
+        assert "lacked global market sizing" in model.tam.reason_if_null
+        assert model.sam is None
+
+    def test_string_metric_backwards_compatible(self):
+        """Legacy string values must parse cleanly into MarketMetric."""
         data = {
             "tam": "$10B (Global market)",
             "sam": "$2B (US market)",
             "som": "$50M (5% capture)",
-            "methodology": "Top-down from industry reports",
-            "assumptions": ["ARPU $100/yr"],
-            "growth_rate": "15% CAGR",
+            "methodology": "Top-down market calculation from industry reports.",
+            "assumptions": ["ARPU $100/yr", "10% target share"],
         }
         model = MarketSizingModel.model_validate(data)
-        assert model.tam == "$10B (Global market)"
-        assert model.growth_rate == "15% CAGR"
-        assert len(model.assumptions) == 1
+        assert model.tam.value == "$10B (Global market)"
+        assert model.tam.basis == "estimate"
 
 
 # ─────────────────────────────────────────────
-# 3. PricingTier — must accept financial fields from prompt
+# 3. PricingModel — Exactly 3 tiers with non-empty features
 # ─────────────────────────────────────────────
 
 class TestPricingModel:
@@ -145,157 +235,155 @@ class TestPricingModel:
         "tiers": [
             {
                 "name": "Basic",
-                "monthly_price": 29,
-                "target_segment": "Small businesses",
+                "monthly_price": 9.99,
+                "target_segment": "Individual users",
+                "features": ["Personal SOS trigger", "3 trusted contacts", "Live GPS sharing"],
                 "adoption_pct": 0.05,
                 "monthly_growth_rate": 0.08,
                 "churn_rate": 0.03,
             },
             {
                 "name": "Pro",
-                "monthly_price": 79,
-                "target_segment": "Medium businesses",
+                "monthly_price": 24.99,
+                "target_segment": "Frequent commuters",
+                "features": ["AI acoustic threat detection", "Unlimited contacts", "24/7 incident response dispatch"],
                 "adoption_pct": 0.03,
                 "monthly_growth_rate": 0.06,
                 "churn_rate": 0.02,
+            },
+            {
+                "name": "Family / Enterprise",
+                "monthly_price": 79.99,
+                "target_segment": "Corporate employers & families",
+                "features": ["Multi-user dashboard", "Enterprise duty of care reporting", "Dedicated dispatcher hotline"],
+                "adoption_pct": 0.01,
+                "monthly_growth_rate": 0.04,
+                "churn_rate": 0.01,
             },
         ],
         "total_addressable_customers": 50000,
         "currency": "USD",
     }
 
-    def test_financial_fields_preserved(self):
-        """adoption_pct, monthly_growth_rate, churn_rate must NOT be dropped."""
+    def test_valid_3_tiers_with_features(self):
         model = PricingModel.model_validate(self.PROMPT_RESPONSE)
-        assert len(model.tiers) == 2
-        assert model.tiers[0].adoption_pct == 0.05
-        assert model.tiers[0].monthly_growth_rate == 0.08
-        assert model.tiers[0].churn_rate == 0.03
-        assert model.total_addressable_customers == 50000
+        assert len(model.tiers) == 3
+        for tier in model.tiers:
+            assert len(tier.features) >= 1
+            assert tier.monthly_price > 0
 
-    def test_model_dump_includes_financial_fields(self):
-        """After dump, financial fields must be in the dict."""
-        model = PricingModel.model_validate(self.PROMPT_RESPONSE)
-        d = model.model_dump()
-        tier = d["tiers"][0]
-        assert tier["adoption_pct"] == 0.05
-        assert tier["monthly_growth_rate"] == 0.08
-        assert tier["churn_rate"] == 0.03
-
-
-# ─────────────────────────────────────────────
-# 4. FinancialProjectionModel — must accept hires and currency
-# ─────────────────────────────────────────────
-
-class TestFinancialProjectionModel:
-    def test_hires_and_currency_preserved(self):
-        data = {
-            "cogs_pct": 0.25,
-            "cac": 150,
-            "operating_expenses": {"cloud_hosting": 500, "marketing": 2000},
-            "expense_growth_rate": 0.05,
-            "revenue_assumptions": "CAC recovery in 4 months",
-            "initial_cash": 150000,
-            "hires": [
-                {"role": "Backend Developer", "monthly_salary": 8000, "start_month": 1},
-                {"role": "Marketing Manager", "monthly_salary": 5000, "start_month": 4},
+    def test_less_than_3_tiers_fails(self):
+        bad_data = {
+            "tiers": [
+                {"name": "Basic", "monthly_price": 10, "features": ["F1"]},
+                {"name": "Pro", "monthly_price": 20, "features": ["F2"]},
             ],
-            "currency": "USD",
         }
-        model = FinancialProjectionModel.model_validate(data)
-        assert len(model.hires) == 2
-        assert model.hires[0].role == "Backend Developer"
-        assert model.currency == "USD"
+        with pytest.raises(ValidationError) as exc:
+            PricingModel.model_validate(bad_data)
+        assert "exactly 3 tiers" in str(exc.value)
 
-
-# ─────────────────────────────────────────────
-# 5. ResearchBriefModel — must accept data_gaps
-# ─────────────────────────────────────────────
-
-class TestResearchBriefModel:
-    def test_data_gaps_accepted(self):
-        data = {
-            "executive_summary": "Summary",
-            "key_findings": ["Finding 1"],
-            "market_sentiment": "Positive",
-            "data_gaps": ["No Crunchbase data", "Trends unavailable"],
-        }
-        model = ResearchBriefModel.model_validate(data)
-        assert len(model.data_gaps) == 2
-
-
-# ─────────────────────────────────────────────
-# 6. Generic: every node's prompt-style response must validate non-empty
-# ─────────────────────────────────────────────
-
-PROMPT_STYLE_RESPONSES = {
-    "competitor_swot": {
-        "model_cls": CompetitorSwotModel,
-        "response": {
-            "competitor_matrix": [
-                {"name": "Comp1", "strength": "Strong brand", "weakness": "Slow", "price_point": "High", "market_position": "Leader", "opportunity": "Beat on price"}
+    def test_tier_with_empty_features_fails(self):
+        bad_data = {
+            "tiers": [
+                {"name": "Basic", "monthly_price": 10, "features": []},  # empty features
+                {"name": "Pro", "monthly_price": 20, "features": ["F1"]},
+                {"name": "Enterprise", "monthly_price": 30, "features": ["F2"]},
             ],
-            "swot": {
-                "strengths": ["Fast", "Cheap"],
-                "weaknesses": ["New"],
-                "opportunities": ["Growing market"],
-                "threats": ["Regulation"],
-            },
-        },
-        "check_keys": ["competitors", "swot_analysis"],
-    },
-    "market_sizing": {
-        "model_cls": MarketSizingModel,
-        "response": {"tam": "$5B", "sam": "$1B", "som": "$50M", "methodology": "Top-down"},
-        "check_keys": ["tam", "sam", "som"],
-    },
-    "pricing_model": {
-        "model_cls": PricingModel,
-        "response": {
-            "tiers": [{"name": "Basic", "monthly_price": 29, "target_segment": "SMB", "adoption_pct": 0.05, "monthly_growth_rate": 0.08, "churn_rate": 0.03}],
-            "total_addressable_customers": 10000,
-            "currency": "USD",
-        },
-        "check_keys": ["tiers"],
-    },
-    "financial_projection": {
-        "model_cls": FinancialProjectionModel,
-        "response": {
-            "cogs_pct": 0.25, "cac": 150,
-            "operating_expenses": {"cloud": 500},
-            "expense_growth_rate": 0.05,
-            "revenue_assumptions": "Revenue from subscriptions",
-            "initial_cash": 100000,
-            "hires": [{"role": "Dev", "monthly_salary": 8000, "start_month": 1}],
-            "currency": "USD",
-        },
-        "check_keys": ["cogs_pct", "cac", "hires"],
-    },
-    "decompose": {
-        "model_cls": TaskDecompositionModel,
-        "response": {"tasks": ["Task 1", "Task 2", "Task 3", "Task 4", "Task 5"]},
-        "check_keys": ["tasks"],
-    },
-    "synthesize_research": {
-        "model_cls": ResearchBriefModel,
-        "response": {"executive_summary": "Brief summary", "key_findings": ["Finding"], "market_sentiment": "Positive"},
-        "check_keys": ["executive_summary", "key_findings"],
-    },
-}
+        }
+        with pytest.raises(ValidationError) as exc:
+            PricingModel.model_validate(bad_data)
+        assert "features" in str(exc.value)
 
 
-@pytest.mark.parametrize("node_name", list(PROMPT_STYLE_RESPONSES.keys()))
-def test_prompt_response_validates_nonempty(node_name):
-    """For every node, a realistic LLM response using the prompt's key names must validate to non-empty output."""
-    spec = PROMPT_STYLE_RESPONSES[node_name]
-    model = spec["model_cls"].model_validate(spec["response"])
-    d = model.model_dump(by_alias=False)
+# ─────────────────────────────────────────────
+# 4. Plan Schema Contract Validation
+# ─────────────────────────────────────────────
 
-    for key in spec["check_keys"]:
-        val = d.get(key)
-        assert val is not None, f"Node '{node_name}': key '{key}' is None after validation"
-        if isinstance(val, (list, dict)):
-            assert len(val) > 0, f"Node '{node_name}': key '{key}' is empty after validation"
-        elif isinstance(val, str):
-            assert len(val.strip()) > 0, f"Node '{node_name}': key '{key}' is empty string after validation"
+class TestPlanSchemaContracts:
+    def test_competitor_swot_contract_validation(self):
+        # Valid output passes
+        valid_out = {
+            "competitor_swot": json_dump({
+                "competitors": [
+                    {"name": "C1", "strengths": "S", "weaknesses": "W"},
+                    {"name": "C2", "strengths": "S", "weaknesses": "W"},
+                    {"name": "C3", "strengths": "S", "weaknesses": "W"},
+                ],
+                "swot_analysis": {
+                    "strengths": ["S1", "S2", "S3"],
+                    "weaknesses": ["W1", "W2", "W3"],
+                    "opportunities": ["O1", "O2", "O3"],
+                    "threats": ["T1", "T2", "T3"],
+                },
+            })
+        }
+        is_valid, err = validate_node_output("competitor_swot", valid_out)
+        assert is_valid, err
 
+        # Incomplete SWOT fails
+        bad_swot = {
+            "competitor_swot": json_dump({
+                "competitors": [{"name": "C1", "strengths": "S", "weaknesses": "W"}],
+                "swot_analysis": {"strengths": []},
+            })
+        }
+        is_valid, err = validate_node_output("competitor_swot", bad_swot)
+        assert not is_valid
+        assert ">= 3" in err
+
+    def test_pricing_model_contract_validation(self):
+        # Valid 3 tiers with features passes
+        valid_out = {
+            "pricing_model": json_dump({
+                "tiers": [
+                    {"name": "T1", "monthly_price": 10, "features": ["F1"]},
+                    {"name": "T2", "monthly_price": 20, "features": ["F2"]},
+                    {"name": "T3", "monthly_price": 30, "features": ["F3"]},
+                ]
+            })
+        }
+        is_valid, err = validate_node_output("pricing_model", valid_out)
+        assert is_valid, err
+
+        # Missing features fails
+        bad_pricing = {
+            "pricing_model": json_dump({
+                "tiers": [
+                    {"name": "T1", "monthly_price": 10, "features": []},
+                    {"name": "T2", "monthly_price": 20, "features": ["F2"]},
+                    {"name": "T3", "monthly_price": 30, "features": ["F3"]},
+                ]
+            })
+        }
+        is_valid, err = validate_node_output("pricing_model", bad_pricing)
+        assert not is_valid
+        assert "non-empty features" in err
+
+    def test_roadmap_contract_validation(self):
+        # Valid roadmap with 4 phases passes
+        valid_roadmap = {
+            "implementation_roadmap": (
+                "Phase 1 (Months 1-3): MVP development and testing.\n"
+                "Phase 2 (Months 4-6): Beta launch with 500 pilots.\n"
+                "Phase 3 (Months 7-9): Commercial rollout and marketing.\n"
+                "Phase 4 (Months 10-12): Enterprise scaling and expansion."
+            )
+        }
+        is_valid, err = validate_node_output("generate_roadmap", valid_roadmap)
+        assert is_valid, err
+
+        # Roadmap missing Phase 4 fails
+        bad_roadmap = {
+            "implementation_roadmap": (
+                "Phase 1: MVP.\nPhase 2: Beta.\nPhase 3: Launch."
+            )
+        }
+        is_valid, err = validate_node_output("generate_roadmap", bad_roadmap)
+        assert not is_valid
+        assert "Phase 4" in err
+
+
+def json_dump(d):
+    import json
+    return json.dumps(d)

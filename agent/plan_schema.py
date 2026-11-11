@@ -2,6 +2,8 @@
 agent/plan_schema.py
 Single source of truth for plan section keys, output contracts, and node validation.
 """
+import json
+import re
 from typing import Dict, List, Tuple, Optional, Any
 
 PLAN_SECTION_KEYS = [
@@ -118,9 +120,23 @@ NODE_OUTPUT_CONTRACTS: Dict[str, Dict[str, Any]] = {
 }
 
 
+def _safe_load_json(val: Any) -> Optional[dict]:
+    if isinstance(val, dict):
+        return val
+    if isinstance(val, str):
+        try:
+            parsed = json.loads(val)
+            if isinstance(parsed, dict):
+                return parsed
+        except Exception:
+            pass
+    return None
+
+
 def validate_node_output(node_name: str, output: Optional[dict]) -> Tuple[bool, Optional[str]]:
     """
-    Validate that a node produced its contractually required output keys and minimum content lengths.
+    Validate that a node produced its contractually required output keys, minimum content lengths,
+    and semantic completeness (e.g. non-empty SWOT quadrants, 3 pricing tiers with features, 4 roadmap phases).
     Returns (is_valid, error_reason).
     """
     if output is None or not isinstance(output, dict):
@@ -151,6 +167,48 @@ def validate_node_output(node_name: str, output: Optional[dict]) -> Tuple[bool, 
         items = output.get(key, [])
         if not isinstance(items, list) or len(items) < min_count:
             return False, f"Key '{key}' in node '{node_name}' has {len(items)} items, minimum {min_count} required"
+
+    # Semantic non-empty checks for specific nodes
+    if node_name == "competitor_swot":
+        cs_data = _safe_load_json(output.get("competitor_swot"))
+        if not cs_data:
+            return False, "Node 'competitor_swot' output is not valid JSON"
+        comps = cs_data.get("competitors") or cs_data.get("competitor_matrix") or []
+        if len(comps) < 3:
+            return False, f"Competitor analysis must have >= 3 competitors, got {len(comps)}"
+        swot = cs_data.get("swot_analysis") or cs_data.get("swot") or {}
+        for q in ["strengths", "weaknesses", "opportunities", "threats"]:
+            items = swot.get(q) or []
+            if len(items) < 3:
+                return False, f"SWOT quadrant '{q}' must have >= 3 items, got {len(items)}"
+
+    elif node_name == "pricing_model":
+        p_data = _safe_load_json(output.get("pricing_model"))
+        if not p_data:
+            return False, "Node 'pricing_model' output is not valid JSON"
+        tiers = p_data.get("tiers") or []
+        if len(tiers) != 3:
+            return False, f"Pricing model must have exactly 3 tiers, got {len(tiers)}"
+        for i, t in enumerate(tiers):
+            feats = t.get("features") or []
+            if len(feats) < 1:
+                return False, f"Pricing tier {i+1} ('{t.get('name')}') must have non-empty features list"
+
+    elif node_name == "generate_roadmap":
+        roadmap_text = str(output.get("implementation_roadmap", ""))
+        for phase_num in ["1", "2", "3", "4"]:
+            if not re.search(rf"Phase\s*{phase_num}", roadmap_text, re.IGNORECASE):
+                return False, f"Roadmap must contain Phase {phase_num}"
+
+    elif node_name == "calculate_market_size":
+        ms_data = _safe_load_json(output.get("market_sizing"))
+        if not ms_data:
+            return False, "Node 'calculate_market_size' output is not valid JSON"
+        if not ms_data.get("methodology") or len(str(ms_data.get("methodology")).strip()) < 20:
+            return False, "Market sizing methodology is missing or too short (min 20 chars)"
+        assump = ms_data.get("assumptions") or []
+        if len(assump) < 2:
+            return False, f"Market sizing must have >= 2 assumptions, got {len(assump)}"
 
     return True, None
 

@@ -2451,6 +2451,22 @@
         `);
           break;
 
+        case 'node_error':
+          addSection(`❌ Error: ${event.node || 'Node'} Failed`, `
+          <div style="padding:1rem; background:rgba(239,68,68,0.1); border:1px solid #ef4444; border-radius:8px; color:#f87171;">
+            <b>Node Execution Failed:</b> ${escapeHtml(event.reason || 'Validation or execution error')}
+          </div>
+        `);
+          break;
+
+        case 'node_skipped':
+          addSection(`⚠️ Skipped: ${event.node || 'Node'}`, `
+          <div style="padding:0.75rem 1rem; background:rgba(245,158,11,0.08); border:1px solid #f59e0b; border-radius:8px; color:#fbbf24; font-size:0.9rem;">
+            <b>Node Skipped:</b> ${escapeHtml(event.reason || 'Missing dependency')}
+          </div>
+        `);
+          break;
+
         case 'done':
           // Final cleanup
           isGenerating = false;
