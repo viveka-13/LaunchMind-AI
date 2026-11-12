@@ -24,7 +24,14 @@ if not os.getenv("GROQ_API_KEY"):
     print("[WARNING] GROQ_API_KEY not set. Please create a .env file.")
 
 # Initialize database on startup via lifespan
-from agent.memory import init_database, get_all_plans, get_plan_by_id, DatabaseError
+from agent.memory import (
+    init_database,
+    get_all_plans,
+    get_plan_by_id,
+    delete_plan_by_id,
+    deduplicate_history,
+    DatabaseError,
+)
 from agent.investor_database import init_investor_db
 from agent.pitch_practice import generate_pitch_question, evaluate_pitch_answer
 from agent.language import validate_language
@@ -166,6 +173,22 @@ async def get_history():
     """Return all previously generated startup plans (summary list)."""
     plans = get_all_plans()
     return {"plans": plans, "count": len(plans)}
+
+
+@app.delete("/api/history/{plan_id}")
+async def delete_history_plan(plan_id: str):
+    """Delete a generated startup plan by its ID."""
+    deleted = delete_plan_by_id(plan_id)
+    if not deleted:
+        raise HTTPException(status_code=404, detail="Plan not found or could not be deleted.")
+    return {"status": "ok", "deleted_id": plan_id}
+
+
+@app.post("/api/history/deduplicate")
+async def deduplicate_history_plans():
+    """Remove redundant test duplicate plans, keeping the most recent copy."""
+    deleted_count = deduplicate_history()
+    return {"status": "ok", "deleted_count": deleted_count}
 
 
 @app.get("/api/idea/{plan_id}")

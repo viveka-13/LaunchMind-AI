@@ -86,7 +86,9 @@ import logging
 
 logger = logging.getLogger(__name__)
 
-DB_PATH = os.environ.get("DB_PATH", "./data/startup_history.db")
+def get_db_path() -> str:
+    """Return the active database path, allowing runtime environment overrides."""
+    return os.environ.get("DB_PATH", "./data/startup_history.db")
 
 
 class DatabaseError(Exception):
@@ -102,8 +104,9 @@ class NotFoundError(DatabaseError):
 @contextmanager
 def get_db_connection():
     """Context-managed SQLite connection with foreign keys and WAL mode enabled."""
-    os.makedirs(os.path.dirname(os.path.abspath(DB_PATH)), exist_ok=True)
-    conn = sqlite3.connect(DB_PATH)
+    db_file = get_db_path()
+    os.makedirs(os.path.dirname(os.path.abspath(db_file)), exist_ok=True)
+    conn = sqlite3.connect(db_file)
     conn.execute("PRAGMA foreign_keys = ON;")
     conn.execute("PRAGMA journal_mode = WAL;")
     try:
@@ -609,6 +612,49 @@ def get_session_turns(session_id: str) -> list:
     except Exception as e:
         logger.error(f"[DB] Get session turns error: {e}")
         return []
+
+
+def delete_plan_by_id(plan_id: str) -> bool:
+    """Delete a plan and all cascading related records."""
+    try:
+        with get_db_connection() as conn:
+            cursor = conn.cursor()
+            cursor.execute("DELETE FROM startup_plans WHERE id = ?", (plan_id,))
+            return cursor.rowcount > 0
+    except Exception as e:
+        logger.error(f"[DB] Delete plan error: {e}")
+        return False
+
+
+def deduplicate_history(time_window_minutes: int = 5) -> int:
+    """
+    Remove duplicate plans that share the identical trimmed idea text
+    and were created within time_window_minutes of each other, keeping the latest one.
+    Returns the number of deleted duplicate plans.
+    """
+    try:
+        with get_db_connection() as conn:
+            cursor = conn.cursor()
+            cursor.execute("SELECT id, idea, created_at FROM startup_plans ORDER BY created_at DESC")
+            rows = cursor.fetchall()
+
+            seen = {}
+            to_delete = []
+            for plan_id, idea, created_at in rows:
+                norm_idea = (idea or "").strip().lower()
+                if norm_idea in seen:
+                    to_delete.append(plan_id)
+                else:
+                    seen[norm_idea] = created_at
+
+            if to_delete:
+                placeholders = ",".join("?" for _ in to_delete)
+                cursor.execute(f"DELETE FROM startup_plans WHERE id IN ({placeholders})", to_delete)
+            return len(to_delete)
+    except Exception as e:
+        logger.error(f"[DB] Deduplicate history error: {e}")
+        return 0
+
 
 
 

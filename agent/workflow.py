@@ -113,6 +113,9 @@ class StartupState(TypedDict, total=False):
     cap_table: str
     matched_investors: str
     narration_status: dict
+    canonical_facts: Optional[dict]
+    facts_block: Optional[str]
+    consistency_report: Optional[dict]
     errors: List[dict]
     completed_nodes: List[str]
     failed_nodes: List[str]
@@ -122,18 +125,42 @@ class StartupState(TypedDict, total=False):
 
 
 # ─────────────────────────────────────────────
+# Named Token Limits across Workflow Nodes
+# ─────────────────────────────────────────────
+
+MAX_TOKENS_DECOMPOSE: int = 2500
+MAX_TOKENS_RESEARCH_SYNTHESIS: int = 3000
+MAX_TOKENS_COMPETITOR_SWOT: int = 3500
+MAX_TOKENS_MARKET_SIZING: int = 3000
+MAX_TOKENS_SOLUTION: int = 2500
+MAX_TOKENS_FEATURES: int = 2500
+MAX_TOKENS_PRICING: int = 3000
+MAX_TOKENS_FINANCIAL_PROJECTION: int = 3500
+MAX_TOKENS_CAP_TABLE: int = 2500
+MAX_TOKENS_REVENUE: int = 3000
+MAX_TOKENS_INVESTOR_MATCHING: int = 4096
+MAX_TOKENS_ROADMAP: int = 3000
+MAX_TOKENS_PITCH: int = 3500
+MAX_TOKENS_EXECUTIVE_SUMMARY: int = 3000
+MAX_TOKENS_CRITIQUE: int = 4096
+MAX_TOKENS_STUDIO_ASSETS: int = 3500
+
+TOTAL_STEPS: int = 22
+
+
+# ─────────────────────────────────────────────
 # Resilient LLM Wrappers
 # ─────────────────────────────────────────────
 
-async def llm_invoke(
+async def llm_invoke_result(
     system_prompt: str,
     user_content: str,
     language: str = "English",
     max_tokens: int = 1500,
     node: str = "workflow_node",
     session_id: Optional[str] = None
-) -> str:
-    """Call the LLM via unified wrapper and return the response text."""
+) -> LLMResult:
+    """Call the LLM via unified wrapper and return the complete LLMResult."""
     system_prompt += f"\n\nCRITICAL: Respond entirely in the {language} language. Do not mix English unless the user explicitly uses English words, technical terms, or product names."
     messages = [
         SystemMessage(content=system_prompt),
@@ -148,13 +175,25 @@ async def llm_invoke(
             except Exception:
                 pass
 
-    res = await llm_call(
+    return await llm_call(
         messages,
         node=node,
         max_tokens=max_tokens,
         session_id=session_id,
         retry_callback=retry_cb,
     )
+
+
+async def llm_invoke(
+    system_prompt: str,
+    user_content: str,
+    language: str = "English",
+    max_tokens: int = 1500,
+    node: str = "workflow_node",
+    session_id: Optional[str] = None
+) -> str:
+    """Call the LLM via unified wrapper and return the response text."""
+    res = await llm_invoke_result(system_prompt, user_content, language, max_tokens, node, session_id)
     return res.text
 
 
@@ -186,23 +225,51 @@ async def safe_json_parse(
 ) -> dict:
     """
     Execute an LLM call, parse JSON, and validate against Pydantic model.
-    Implements 1 repair call on failure with specific validation/parse error.
-    NEVER returns an empty default model — raises SafeJsonParseError on failure
-    so the node_boundary decorator can record the failure.
+    - If response was truncated due to length/token limit, retries once with higher limit and concise instructions.
+    - If parsing/validation fails, attempts 1 repair call.
+    - NEVER returns an empty default model — raises SafeJsonParseError on failure.
     """
     safe_system = system_prompt + "\n\nCRITICAL: Keep all JSON keys exactly as requested in English. ONLY translate the VALUES into the target language."
-    response_text = await llm_invoke(safe_system, prompt, language, max_tokens, node=node, session_id=session_id)
     
     def _validate_raw(raw):
         if model_cls:
             if isinstance(raw, list) and hasattr(model_cls, "model_fields") and "tasks" in model_cls.model_fields:
                 raw = {"tasks": raw}
             validated = model_cls.model_validate(raw, from_attributes=False)
-            result = validated.model_dump(by_alias=False)
-            # Check that the result is not just empty defaults
-            return result
+            return validated.model_dump(by_alias=False)
         return raw if isinstance(raw, dict) else {}
 
+    res = await llm_invoke_result(safe_system, prompt, language, max_tokens, node=node, session_id=session_id)
+    response_text = res.text
+    finish_reason = getattr(res, "finish_reason", None)
+
+    # 1. Truncation handling: If finished due to length/token limits, retry with higher limit & concise prompt
+    if finish_reason in ("length", "max_tokens"):
+        logger.warning(
+            f"[Workflow] Response truncated (finish_reason='{finish_reason}') on node '{node}'. "
+            f"Retrying once with higher token limit and concise instructions..."
+        )
+        retry_limit = min(max_tokens * 2, 8000)
+        concise_prompt = (
+            f"{prompt}\n\n"
+            f"CRITICAL: The previous output was cut off because it exceeded the output limit. "
+            f"Be concise, keep explanations brief, and output complete, valid JSON matching the exact schema."
+        )
+        try:
+            res_retry = await llm_invoke_result(
+                safe_system,
+                concise_prompt,
+                language,
+                retry_limit,
+                node=f"{node}_truncation_retry",
+                session_id=session_id,
+            )
+            raw_dict = json.loads(extract_json_block(res_retry.text))
+            return _validate_raw(raw_dict)
+        except Exception as retry_err:
+            logger.warning(f"[Workflow] Truncation retry did not produce valid JSON on node '{node}': {retry_err}. Falling back to standard parse/repair.")
+
+    # 2. Standard parse & Pydantic validation with 1 repair attempt
     try:
         raw_dict = json.loads(extract_json_block(response_text))
         return _validate_raw(raw_dict)
@@ -210,8 +277,8 @@ async def safe_json_parse(
         logger.warning(f"[Workflow] JSON parse/validate error on node '{node}': {e}. Attempting 1 repair...")
         retry_prompt = f"{prompt}\n\nYOUR LAST RESPONSE WAS NOT VALID JSON OR FAILED VALIDATION.\nError: {str(e)}\nReturn ONLY valid JSON matching the requested schema."
         try:
-            retry_response = await llm_invoke(safe_system, retry_prompt, language, max_tokens, node=f"{node}_repair", session_id=session_id)
-            repaired_dict = json.loads(extract_json_block(retry_response))
+            retry_res = await llm_invoke_result(safe_system, retry_prompt, language, max_tokens, node=f"{node}_repair", session_id=session_id)
+            repaired_dict = json.loads(extract_json_block(retry_res.text))
             return _validate_raw(repaired_dict)
         except Exception as repair_err:
             logger.error(f"[Workflow] JSON repair also failed on node '{node}': {repair_err}. Raising error.")
@@ -382,7 +449,7 @@ async def node_decompose_idea(state: StartupState) -> dict:
     await emit(sid, {
         "type": "step",
         "step": 1,
-        "total": 19,
+        "total": TOTAL_STEPS,
         "icon": "🧠",
         "title": "Decomposing Idea into Subtasks",
         "message": f"Analyzing '{state['idea']}' and breaking it into research subtasks...",
@@ -392,6 +459,7 @@ async def node_decompose_idea(state: StartupState) -> dict:
     res = await safe_json_parse(
         prompt,
         state.get("language", "English"),
+        max_tokens=MAX_TOKENS_DECOMPOSE,
         model_cls=TaskDecompositionModel,
         node="decompose",
         session_id=sid,
@@ -399,6 +467,19 @@ async def node_decompose_idea(state: StartupState) -> dict:
     tasks = res.get("tasks", [])
     if not tasks:
         raise LLMCallError("decompose", "Task decomposition returned empty or invalid tasks", False, 1)
+
+    # Filter/relabel impossible offline human fieldwork tasks
+    cleaned_tasks = []
+    fieldwork_triggers = ["interview", "field survey", "in-person survey", "on-ground", "door-to-door", "physical visit", "call 30", "interview 30"]
+    for t in tasks:
+        t_str = str(t).strip()
+        t_lower = t_str.lower()
+        if any(trig in t_lower for trig in fieldwork_triggers):
+            if not t_str.startswith("Recommended Founder Validation Step"):
+                t_sub = re.sub(r"^Task\s*\d+\s*:\s*", "", t_str, flags=re.IGNORECASE).strip()
+                t_str = f"Recommended Founder Validation Step (Post-AI): {t_sub}"
+        cleaned_tasks.append(t_str)
+    tasks = cleaned_tasks
 
     await emit(sid, {
         "type": "tasks",
@@ -418,7 +499,7 @@ async def node_research_market(state: StartupState) -> dict:
     await emit(sid, {
         "type": "step",
         "step": 2,
-        "total": 19,
+        "total": TOTAL_STEPS,
         "icon": "🔍",
         "title": "Researching Market",
         "message": f"Selecting tool: [{selected_tool}] → Searching market data for '{state['idea']}'...",
@@ -448,7 +529,7 @@ async def node_research_competitors(state: StartupState) -> dict:
     await emit(sid, {
         "type": "step",
         "step": 3,
-        "total": 19,
+        "total": TOTAL_STEPS,
         "icon": "⚔️",
         "title": "Analyzing Competitors",
         "message": f"Selecting tool: [{selected_tool}] → Finding competitors for '{state['idea']}'...",
@@ -476,7 +557,7 @@ async def node_synthesize_research(state: StartupState) -> dict:
     await emit(sid, {
         "type": "step",
         "step": 4,
-        "total": 19,
+        "total": TOTAL_STEPS,
         "icon": "🧠",
         "title": "Synthesizing Research",
         "message": "Aggregating data from DuckDuckGo, Crunchbase, Google Trends, and Sentiment APIs...",
@@ -506,6 +587,7 @@ async def node_synthesize_research(state: StartupState) -> dict:
     brief = await safe_json_parse(
         prompt,
         state.get("language", "English"),
+        max_tokens=MAX_TOKENS_RESEARCH_SYNTHESIS,
         model_cls=ResearchBriefModel,
         node="synthesize_research",
         session_id=sid,
@@ -534,7 +616,7 @@ async def node_competitor_swot(state: StartupState) -> dict:
     await emit(sid, {
         "type": "step",
         "step": 5,
-        "total": 19,
+        "total": TOTAL_STEPS,
         "icon": "📊",
         "title": "Building Competitor Analysis",
         "message": "Generating Competitor Matrix and SWOT Analysis...",
@@ -548,6 +630,7 @@ async def node_competitor_swot(state: StartupState) -> dict:
     swot_data = await safe_json_parse(
         prompt,
         state.get("language", "English"),
+        max_tokens=MAX_TOKENS_COMPETITOR_SWOT,
         model_cls=CompetitorSwotModel,
         node="competitor_swot",
         session_id=sid,
@@ -583,7 +666,7 @@ async def node_store_research(state: StartupState) -> dict:
     await emit(sid, {
         "type": "step",
         "step": 6,
-        "total": 19,
+        "total": TOTAL_STEPS,
         "icon": "💾",
         "title": "Storing Research in Vector Memory",
         "message": "Embedding research data into ChromaDB for RAG retrieval...",
@@ -607,62 +690,14 @@ async def node_store_research(state: StartupState) -> dict:
     return {}
 
 
-@node_boundary("analyze_gaps", required_fields=["market_research"])
-async def node_analyze_gaps(state: StartupState) -> dict:
-    """Node 7: Identify Market Gaps"""
+@node_boundary("calculate_market_size", required_fields=["idea"])
+async def node_calculate_market_size(state: StartupState) -> dict:
+    """Node 7: TAM / SAM / SOM Calculator"""
     sid = state.get("session_id", "")
     await emit(sid, {
         "type": "step",
         "step": 7,
-        "total": 19,
-        "icon": "🎯",
-        "title": "Identifying Market Gaps",
-        "message": "Retrieving context from ChromaDB → Analyzing gaps with LLM...",
-    })
-
-    loop = asyncio.get_event_loop()
-    rag_context = await loop.run_in_executor(
-        None, retrieve_similar,
-        f"market gap opportunity {state.get('idea', '')}", state.get("session_id", "")
-    )
-
-    full_market = state.get("market_research", "")
-    research_brief = state.get("research_brief", "")
-    if rag_context:
-        full_market = f"[RAG Retrieved Context]\n{rag_context}\n\n[Research Brief]\n{research_brief}\n\n[Full Research]\n{full_market}"
-
-    gap_prompt = MARKET_GAP_PROMPT.format(
-        idea=state.get("idea", ""),
-        market_research=full_market[:800],
-        competitor_analysis=state.get("competitor_swot", state.get("competitor_analysis", ""))[:600],
-        market_sizing=state.get("market_sizing", "Not available yet")[:600],
-    )
-
-    market_gap = await llm_invoke(
-        "You are a strategic market analyst. Be specific and insightful.",
-        gap_prompt,
-        state.get("language", "English"),
-        node="analyze_gaps",
-        session_id=sid,
-    )
-
-    await emit(sid, {
-        "type": "section",
-        "label": "Market Gap Analysis",
-        "content": sanitize_html(market_gap),
-    })
-
-    return {"market_gap": market_gap}
-
-
-@node_boundary("calculate_market_size", required_fields=["idea"])
-async def node_calculate_market_size(state: StartupState) -> dict:
-    """Node 8: TAM / SAM / SOM Calculator"""
-    sid = state.get("session_id", "")
-    await emit(sid, {
-        "type": "step",
-        "step": 8,
-        "total": 19,
+        "total": TOTAL_STEPS,
         "icon": "📈",
         "title": "Calculating Market Size",
         "message": "Estimating TAM, SAM, and SOM...",
@@ -676,6 +711,7 @@ async def node_calculate_market_size(state: StartupState) -> dict:
     market_sizing = await safe_json_parse(
         prompt,
         state.get("language", "English"),
+        max_tokens=MAX_TOKENS_MARKET_SIZING,
         model_cls=MarketSizingModel,
         node="calculate_market_size",
         session_id=sid,
@@ -717,9 +753,8 @@ async def node_calculate_market_size(state: StartupState) -> dict:
     size_html = _render_metric_html(market_sizing.get("tam"), "TAM")
     size_html += _render_metric_html(market_sizing.get("sam"), "SAM")
     size_html += _render_metric_html(market_sizing.get("som"), "SOM")
-    size_html += "<br/>"
-    size_html += f"<b>{_t('Growth Rate', lang)}:</b> {sanitize_html(str(market_sizing.get('growth_rate') or 'N/A'))}<br/>"
-    size_html += f"<b>Methodology:</b> {sanitize_html(str(market_sizing.get('methodology') or ''))}"
+    if market_sizing.get("cagr"):
+        size_html += f"<b>{_t('CAGR', lang)}:</b> {sanitize_html(str(market_sizing.get('cagr')))}<br/>"
 
     await emit(sid, {
         "type": "section",
@@ -730,6 +765,54 @@ async def node_calculate_market_size(state: StartupState) -> dict:
     return {"market_sizing": json.dumps(market_sizing, ensure_ascii=False)}
 
 
+@node_boundary("analyze_gaps", required_fields=["market_research"])
+async def node_analyze_gaps(state: StartupState) -> dict:
+    """Node 8: Identify Market Gaps"""
+    sid = state.get("session_id", "")
+    await emit(sid, {
+        "type": "step",
+        "step": 8,
+        "total": TOTAL_STEPS,
+        "icon": "🎯",
+        "title": "Identifying Market Gaps",
+        "message": "Retrieving context from ChromaDB → Analyzing gaps with LLM...",
+    })
+
+    loop = asyncio.get_event_loop()
+    rag_context = await loop.run_in_executor(
+        None, retrieve_similar,
+        f"market gap opportunity {state.get('idea', '')}", state.get("session_id", "")
+    )
+
+    full_market = state.get("market_research", "")
+    research_brief = state.get("research_brief", "")
+    if rag_context:
+        full_market = f"[RAG Retrieved Context]\n{rag_context}\n\n[Research Brief]\n{research_brief}\n\n[Full Research]\n{full_market}"
+
+    gap_prompt = MARKET_GAP_PROMPT.format(
+        idea=state.get("idea", ""),
+        market_research=full_market[:800],
+        competitor_analysis=state.get("competitor_swot", state.get("competitor_analysis", ""))[:600],
+        market_sizing=state.get("market_sizing", "Not available yet")[:600],
+    )
+
+    market_gap = await llm_invoke(
+        "You are a strategic market analyst. Be specific and insightful.",
+        gap_prompt,
+        state.get("language", "English"),
+        node="analyze_gaps",
+        session_id=sid,
+    )
+
+    await emit(sid, {
+        "type": "section",
+        "label": "Market Gap Analysis",
+        "content": sanitize_html(market_gap),
+    })
+
+    return {"market_gap": market_gap}
+
+
 @node_boundary("generate_solution", required_fields=["idea"])
 async def node_generate_solution(state: StartupState) -> dict:
     """Node 9: Generate Solution Strategy"""
@@ -737,7 +820,7 @@ async def node_generate_solution(state: StartupState) -> dict:
     await emit(sid, {
         "type": "step",
         "step": 9,
-        "total": 19,
+        "total": TOTAL_STEPS,
         "icon": "💡",
         "title": "Generating Solution Strategy",
         "message": "Designing solution based on market gap analysis...",
@@ -753,6 +836,7 @@ async def node_generate_solution(state: StartupState) -> dict:
         "You are a visionary product strategist. Be compelling and specific.",
         solution_prompt,
         state.get("language", "English"),
+        max_tokens=MAX_TOKENS_SOLUTION,
         node="generate_solution",
         session_id=sid,
     )
@@ -779,7 +863,7 @@ async def node_generate_features(state: StartupState) -> dict:
     await emit(sid, {
         "type": "step",
         "step": 10,
-        "total": 19,
+        "total": TOTAL_STEPS,
         "icon": "⚡",
         "title": "Designing Core Features",
         "message": "Generating product features based on solution strategy...",
@@ -792,9 +876,10 @@ async def node_generate_features(state: StartupState) -> dict:
     )
 
     features = await llm_invoke(
-        "You are a senior product manager. Create practical, valuable features.",
+        "You are a technical product manager. Be concise and structured.",
         features_prompt,
         state.get("language", "English"),
+        max_tokens=MAX_TOKENS_FEATURES,
         node="generate_features",
         session_id=sid,
     )
@@ -808,59 +893,22 @@ async def node_generate_features(state: StartupState) -> dict:
     return {"core_features": features}
 
 
-@node_boundary("generate_revenue", required_fields=["idea"])
-async def node_generate_revenue(state: StartupState) -> dict:
-    """Node 11: Generate Revenue Model"""
+@node_boundary("pricing_model", required_fields=["idea"])
+async def node_pricing_model(state: StartupState) -> dict:
+    """Node 11: Generate Pricing Model (JSON)"""
     sid = state.get("session_id", "")
     await emit(sid, {
         "type": "step",
         "step": 11,
-        "total": 19,
-        "icon": "💰",
-        "title": "Modeling Revenue Streams",
-        "message": "Creating revenue model and business model...",
-    })
-
-    revenue_prompt = REVENUE_PROMPT.format(
-        idea=state.get("idea", ""),
-        solution=state.get("solution_strategy", "")[:500],
-        market_research=state.get("market_research", "")[:500] + "\nSizing: " + state.get("market_sizing", "")[:300],
-    )
-
-    revenue = await llm_invoke(
-        "You are a startup financial strategist. Be specific with numbers.",
-        revenue_prompt,
-        state.get("language", "English"),
-        node="generate_revenue",
-        session_id=sid,
-    )
-
-    await emit(sid, {
-        "type": "section",
-        "label": "Revenue Model",
-        "content": sanitize_html(revenue),
-    })
-
-    return {"revenue_model": revenue, "business_model": revenue}
-
-
-@node_boundary("pricing_model", required_fields=["idea"])
-async def node_pricing_model(state: StartupState) -> dict:
-    """Node 12: Generate Pricing Model (JSON)"""
-    sid = state.get("session_id", "")
-    await emit(sid, {
-        "type": "step",
-        "step": 12,
-        "total": 19,
+        "total": TOTAL_STEPS,
         "icon": "💲",
         "title": "Simulating Pricing Model",
         "message": "Generating pricing tiers and MRR projections...",
     })
 
-    revenue_ctx = state.get("revenue_model") or state.get("idea", "")
     prompt = PRICING_MODEL_PROMPT.format(
         idea=state.get("idea", ""),
-        revenue_model=revenue_ctx[:500],
+        revenue_model=state.get("solution_strategy", "")[:500],
         market_sizing=state.get("market_sizing", "")[:300],
         competitor_analysis=state.get("competitor_analysis", "")[:300],
     )
@@ -868,7 +916,7 @@ async def node_pricing_model(state: StartupState) -> dict:
     pricing_data = await safe_json_parse(
         prompt,
         language="English",
-        max_tokens=1500,
+        max_tokens=MAX_TOKENS_PRICING,
         model_cls=PricingModel,
         node="pricing_model",
         session_id=sid,
@@ -903,22 +951,22 @@ async def node_pricing_model(state: StartupState) -> dict:
 
 @node_boundary("financial_projection", required_fields=["idea"])
 async def node_financial_projection(state: StartupState) -> dict:
-    """Node 13: Generate 3-Year P&L Projection (JSON)"""
+    """Node 12: Generate 3-Year P&L Projection (JSON)"""
     sid = state.get("session_id", "")
     await emit(sid, {
         "type": "step",
-        "step": 13,
-        "total": 19,
+        "step": 12,
+        "total": TOTAL_STEPS,
         "icon": "📊",
         "title": "Building Financial Projections",
         "message": "Calculating 3-year P&L, burn rate, and hiring costs...",
     })
 
-    revenue_ctx = state.get("revenue_model") or state.get("idea", "")
+    pricing_ctx = state.get("pricing_model") or state.get("idea", "")
     features_ctx = state.get("core_features") or state.get("idea", "")
     prompt = FINANCIAL_PROJECTION_PROMPT.format(
         idea=state.get("idea", ""),
-        revenue_model=revenue_ctx[:500],
+        revenue_model=pricing_ctx[:500],
         core_features=features_ctx[:400],
         market_sizing=state.get("market_sizing", "")[:300],
     )
@@ -926,7 +974,7 @@ async def node_financial_projection(state: StartupState) -> dict:
     proj_data = await safe_json_parse(
         prompt,
         language="English",
-        max_tokens=1500,
+        max_tokens=MAX_TOKENS_FINANCIAL_PROJECTION,
         model_cls=FinancialProjectionModel,
         node="financial_projection",
         session_id=sid,
@@ -943,12 +991,12 @@ async def node_financial_projection(state: StartupState) -> dict:
 
 @node_boundary("cap_table", required_fields=["idea"])
 async def node_cap_table(state: StartupState) -> dict:
-    """Node 14: Generate Cap Table & Funding Ask (JSON)"""
+    """Node 13: Generate Cap Table & Funding Ask (JSON)"""
     sid = state.get("session_id", "")
     await emit(sid, {
         "type": "step",
-        "step": 14,
-        "total": 19,
+        "step": 13,
+        "total": TOTAL_STEPS,
         "icon": "🏦",
         "title": "Structuring Cap Table",
         "message": "Generating funding ask, equity split, and use of funds...",
@@ -962,10 +1010,10 @@ async def node_cap_table(state: StartupState) -> dict:
         initial_cash = 100000
         burn = 10000
 
-    revenue_ctx = state.get("revenue_model") or state.get("idea", "")
+    pricing_ctx = state.get("pricing_model") or state.get("idea", "")
     prompt = CAP_TABLE_PROMPT.format(
         idea=state.get("idea", ""),
-        revenue_model=revenue_ctx[:500],
+        revenue_model=pricing_ctx[:500],
         market_sizing=state.get("market_sizing", "")[:300],
         initial_cash=initial_cash,
         monthly_burn=burn,
@@ -974,7 +1022,7 @@ async def node_cap_table(state: StartupState) -> dict:
     cap_data = await safe_json_parse(
         prompt,
         language="English",
-        max_tokens=1500,
+        max_tokens=MAX_TOKENS_CAP_TABLE,
         model_cls=CapTableModel,
         node="cap_table",
         session_id=sid,
@@ -989,14 +1037,79 @@ async def node_cap_table(state: StartupState) -> dict:
     return {"cap_table": json.dumps(cap_data)}
 
 
-@node_boundary("investor_matching", required_fields=["idea"])
-async def node_investor_matching(state: StartupState) -> dict:
-    """Node 15: AI Investor Matching Engine"""
+@node_boundary("build_canonical_facts", required_fields=["idea"])
+async def node_build_canonical_facts(state: StartupState) -> dict:
+    """Node 14: Construct Canonical Project Facts (Single Source of Truth)"""
+    sid = state.get("session_id", "")
+    await emit(sid, {
+        "type": "step",
+        "step": 14,
+        "total": TOTAL_STEPS,
+        "icon": "📐",
+        "title": "Establishing Canonical Project Facts",
+        "message": "Computing deterministic unit economics, milestone revenues, and break-even...",
+    })
+
+    from agent.canonical_facts import build_canonical_facts
+    canonical_res = build_canonical_facts(state)
+
+    return {
+        "canonical_facts": canonical_res,
+        "facts_block": canonical_res["facts_block"],
+    }
+
+
+@node_boundary("generate_revenue", required_fields=["idea"])
+async def node_generate_revenue(state: StartupState) -> dict:
+    """Node 15: Generate Revenue Model Narrative using Canonical Facts"""
     sid = state.get("session_id", "")
     await emit(sid, {
         "type": "step",
         "step": 15,
-        "total": 20,
+        "total": TOTAL_STEPS,
+        "icon": "💰",
+        "title": "Modeling Revenue Streams",
+        "message": "Creating revenue narrative grounded in canonical pricing and unit economics...",
+    })
+
+    facts_block = state.get("facts_block") or ""
+    if not facts_block:
+        from agent.canonical_facts import build_canonical_facts
+        facts_block = build_canonical_facts(state)["facts_block"]
+
+    revenue_prompt = REVENUE_PROMPT.format(
+        idea=state.get("idea", ""),
+        solution=state.get("solution_strategy", "")[:500],
+        market_research=state.get("market_research", "")[:500] + "\nSizing: " + state.get("market_sizing", "")[:300],
+        canonical_facts=facts_block,
+    )
+
+    revenue = await llm_invoke(
+        "You are a startup financial strategist. Cite the canonical pricing tiers and arithmetic verbatim.",
+        revenue_prompt,
+        state.get("language", "English"),
+        max_tokens=MAX_TOKENS_REVENUE,
+        node="generate_revenue",
+        session_id=sid,
+    )
+
+    await emit(sid, {
+        "type": "section",
+        "label": "Revenue Model",
+        "content": sanitize_html(revenue),
+    })
+
+    return {"revenue_model": revenue, "business_model": revenue}
+
+
+@node_boundary("investor_matching", required_fields=["idea"])
+async def node_investor_matching(state: StartupState) -> dict:
+    """Node 16: AI Investor Matching Engine"""
+    sid = state.get("session_id", "")
+    await emit(sid, {
+        "type": "step",
+        "step": 16,
+        "total": TOTAL_STEPS,
         "icon": "🤝",
         "title": "Matching Investors",
         "message": "Finding VC and Angel investors suitable for your startup...",
@@ -1016,6 +1129,7 @@ async def node_investor_matching(state: StartupState) -> dict:
         core_features=features_ctx,
         initial_cash=str(initial_cash),
         language=state.get("language", "English"),
+        session_id=sid,
     )
     
     return {"matched_investors": json.dumps(matched)}
@@ -1023,16 +1137,26 @@ async def node_investor_matching(state: StartupState) -> dict:
 
 @node_boundary("generate_roadmap", required_fields=["idea"])
 async def node_generate_roadmap(state: StartupState) -> dict:
-    """Node 16: Generate Implementation Roadmap"""
+    """Node 17: Generate Implementation Roadmap"""
     sid = state.get("session_id", "")
     await emit(sid, {
         "type": "step",
-        "step": 16,
-        "total": 19,
+        "step": 17,
+        "total": TOTAL_STEPS,
         "icon": "🗺️",
         "title": "Building Implementation Roadmap",
         "message": "Planning 12-month execution roadmap...",
     })
+
+    facts_block = state.get("facts_block") or ""
+    if not facts_block:
+        from agent.canonical_facts import build_canonical_facts
+        facts_block = build_canonical_facts(state)["facts_block"]
+
+    from datetime import datetime
+    now = datetime.now()
+    current_date = now.strftime("%B %Y")
+    current_year = now.year
 
     features_ctx = state.get("core_features") or state.get("idea", "")
     revenue_ctx = state.get("revenue_model") or state.get("idea", "")
@@ -1040,13 +1164,16 @@ async def node_generate_roadmap(state: StartupState) -> dict:
         idea=state.get("idea", ""),
         features=features_ctx[:400],
         revenue=revenue_ctx[:400],
+        canonical_facts=facts_block,
+        current_date=current_date,
+        current_year=current_year,
     )
 
     roadmap = await llm_invoke(
-        "You are a startup CTO. Create realistic, achievable milestones.",
+        "You are a startup CTO. Create realistic, achievable milestones scheduled from {current_year} onwards.",
         roadmap_prompt,
         state.get("language", "English"),
-        max_tokens=2500,
+        max_tokens=MAX_TOKENS_ROADMAP,
         node="generate_roadmap",
         session_id=sid,
     )
@@ -1062,16 +1189,28 @@ async def node_generate_roadmap(state: StartupState) -> dict:
 
 @node_boundary("generate_pitch", required_fields=["idea"])
 async def node_generate_pitch(state: StartupState) -> dict:
-    """Node 17: Generate Pitch Deck Outline"""
+    """Node 18: Generate Pitch Deck Outline"""
     sid = state.get("session_id", "")
     await emit(sid, {
         "type": "step",
-        "step": 17,
-        "total": 19,
+        "step": 18,
+        "total": TOTAL_STEPS,
         "icon": "🎤",
         "title": "Creating Pitch Deck Outline",
         "message": "Structuring investor pitch deck...",
     })
+
+    facts_block = state.get("facts_block") or ""
+    facts = state.get("canonical_facts", {}).get("facts", {})
+    if not facts_block:
+        from agent.canonical_facts import build_canonical_facts
+        canon = build_canonical_facts(state)
+        facts_block = canon["facts_block"]
+        facts = canon["facts"]
+
+    from datetime import datetime
+    current_year = facts.get("current_year", datetime.now().year)
+    funding_ask_str = f"${facts.get('funding_ask', 150000):,.0f}"
 
     solution_ctx = state.get("solution_strategy") or state.get("idea", "")
     revenue_ctx = state.get("revenue_model") or state.get("idea", "")
@@ -1080,12 +1219,16 @@ async def node_generate_pitch(state: StartupState) -> dict:
         solution=solution_ctx[:400],
         revenue=revenue_ctx[:400],
         market_research=state.get("market_research", "")[:500],
+        canonical_facts=facts_block,
+        funding_ask=funding_ask_str,
+        current_year=current_year,
     )
 
     pitch = await llm_invoke(
-        "You are a top startup pitch coach. Create a compelling narrative.",
+        "You are a top startup pitch coach. Create a compelling narrative strictly grounded in canonical facts.",
         pitch_prompt,
         state.get("language", "English"),
+        max_tokens=MAX_TOKENS_PITCH,
         node="generate_pitch",
         session_id=sid,
     )
@@ -1101,16 +1244,26 @@ async def node_generate_pitch(state: StartupState) -> dict:
 
 @node_boundary("compile_plan", required_fields=["idea"])
 async def node_compile_plan(state: StartupState) -> dict:
-    """Node 18: Compile Final Plan"""
+    """Node 19: Compile Final Plan"""
     sid = state.get("session_id", "")
     await emit(sid, {
         "type": "step",
-        "step": 18,
-        "total": 19,
+        "step": 19,
+        "total": TOTAL_STEPS,
         "icon": "📋",
         "title": "Compiling Executive Summary",
         "message": "Synthesizing all research into final startup report...",
     })
+
+    facts_block = state.get("facts_block") or ""
+    facts = state.get("canonical_facts", {}).get("facts", {})
+    if not facts_block:
+        from agent.canonical_facts import build_canonical_facts
+        canon = build_canonical_facts(state)
+        facts_block = canon["facts_block"]
+        facts = canon["facts"]
+
+    funding_ask_str = f"${facts.get('funding_ask', 150000):,.0f}"
 
     all_context = f"""
 Market Research: {state.get('market_research', '')[:400]}
@@ -1125,12 +1278,15 @@ Roadmap: {state.get('implementation_roadmap', '')[:300]}
     compile_prompt = COMPILE_PROMPT.format(
         idea=state.get("idea", ""),
         all_context=all_context,
+        canonical_facts=facts_block,
+        funding_ask=funding_ask_str,
     )
 
     compiled = await llm_invoke(
         "You are a senior business analyst. Be compelling and precise.",
         compile_prompt,
         state.get("language", "English"),
+        max_tokens=MAX_TOKENS_EXECUTIVE_SUMMARY,
         node="compile_plan",
         session_id=sid,
     )
@@ -1205,12 +1361,12 @@ Roadmap: {state.get('implementation_roadmap', '')[:300]}
 
 @node_boundary("adversarial_review", required_fields=["idea"])
 async def node_adversarial_review(state: StartupState) -> dict:
-    """Node 19: Devil's Advocate / Adversarial Review"""
+    """Node 20: Devil's Advocate / Adversarial Review"""
     sid = state.get("session_id", "")
     await emit(sid, {
         "type": "step",
-        "step": 19,
-        "total": 20,
+        "step": 20,
+        "total": TOTAL_STEPS,
         "icon": "⚖️",
         "title": "Running Investor Review",
         "message": "Performing adversarial review to find critical flaws...",
@@ -1227,7 +1383,7 @@ async def node_adversarial_review(state: StartupState) -> dict:
     critique = await safe_json_parse(
         prompt,
         state.get("language", "English"),
-        max_tokens=2000,
+        max_tokens=MAX_TOKENS_CRITIQUE,
         model_cls=CritiqueModel,
         node="adversarial_review",
         session_id=sid,
@@ -1265,16 +1421,60 @@ async def node_adversarial_review(state: StartupState) -> dict:
     return {"critique": json.dumps(critique, ensure_ascii=False)}
 
 
+@node_boundary("validate_consistency", required_fields=["idea"])
+async def node_validate_consistency(state: StartupState) -> dict:
+    """Node 21: Cross-Section Consistency Validation & Auto-Repair"""
+    sid = state.get("session_id", "")
+    await emit(sid, {
+        "type": "step",
+        "step": 21,
+        "total": TOTAL_STEPS,
+        "icon": "⚖️",
+        "title": "Validating Cross-Section Consistency",
+        "message": "Auditing pricing, funding asks, milestone dates, and revenue math...",
+    })
+
+    from agent.canonical_facts import build_canonical_facts
+    canonical_res = state.get("canonical_facts")
+    if not canonical_res:
+        canonical_res = build_canonical_facts(state)
+
+    from agent.consistency_validator import validate_plan_consistency, auto_repair_inconsistencies
+    is_valid, issues = validate_plan_consistency(state, canonical_res)
+
+    updates = {}
+    if not is_valid:
+        logger.warning(f"[Consistency] Inconsistencies detected: {issues}. Performing auto-repair...")
+        repaired = await auto_repair_inconsistencies(state, canonical_res, issues)
+        if repaired:
+            updates.update(repaired)
+            new_state = {**state, **repaired}
+            is_valid, issues = validate_plan_consistency(new_state, canonical_res)
+
+    report = {
+        "passed": is_valid,
+        "issue_count": len(issues),
+        "issues": issues,
+    }
+
+    await emit(sid, {
+        "type": "consistency_report",
+        "report": report,
+    })
+
+    return {**updates, "consistency_report": report}
+
+
 @node_boundary("save_plan", required_fields=["plan_id"])
 async def node_save_plan(state: StartupState) -> dict:
-    """Node 20: Save to SQLite Memory & Generate Documents"""
+    """Node 22: Save to SQLite Memory & Generate Documents"""
     sid = state.get("session_id", "")
     doc_format = state.get("doc_format", "ppt")
 
     await emit(sid, {
         "type": "step",
-        "step": 20,
-        "total": 21,
+        "step": 22,
+        "total": TOTAL_STEPS,
         "icon": "[OK]",
         "title": f"Saving Plan & Generating {doc_format.upper()} Document",
         "message": "Storing complete plan in SQLite. Generating your professional document...",
@@ -1398,6 +1598,7 @@ async def node_save_plan(state: StartupState) -> dict:
                 "status": "ok",
                 "audio_url": f"/api/pitch/audio/{state['plan_id']}",
                 "duration_seconds": narration_status.get("duration_seconds"),
+                "script": narration_status.get("script"),
             })
         elif narration_status.get("status") == "skipped":
             await emit(sid, {
@@ -1467,9 +1668,8 @@ async def node_generate_assets(state: StartupState) -> dict:
 
     async def emit_progress(msg: str):
         await emit(sid, {
-            "type": "section",
-            "label": "Asset Generator",
-            "content": f"<p>{sanitize_html(msg)}</p>",
+            "type": "asset_progress",
+            "status": sanitize_html(msg),
         })
 
     assets = {}
@@ -1495,33 +1695,35 @@ async def node_generate_assets(state: StartupState) -> dict:
 # ─────────────────────────────────────────────
 
 def build_graph() -> StateGraph:
-    """Build and compile the LangGraph state machine."""
+    """Build and compile the LangGraph state machine with 22 ordered, isolated nodes."""
     workflow = StateGraph(StartupState)
 
-    # Add all 21 nodes
+    # 1. Register all nodes
     workflow.add_node("decompose", node_decompose_idea)
     workflow.add_node("research_market", node_research_market)
     workflow.add_node("research_competitors", node_research_competitors)
     workflow.add_node("synthesize_research", node_synthesize_research)
     workflow.add_node("competitor_swot", node_competitor_swot)
     workflow.add_node("store_research", node_store_research)
-    workflow.add_node("analyze_gaps", node_analyze_gaps)
     workflow.add_node("calculate_market_size", node_calculate_market_size)
+    workflow.add_node("analyze_gaps", node_analyze_gaps)
     workflow.add_node("generate_solution", node_generate_solution)
     workflow.add_node("generate_features", node_generate_features)
-    workflow.add_node("generate_revenue", node_generate_revenue)
     workflow.add_node("pricing_model", node_pricing_model)
     workflow.add_node("financial_projection", node_financial_projection)
     workflow.add_node("cap_table", node_cap_table)
+    workflow.add_node("build_canonical_facts", node_build_canonical_facts)
+    workflow.add_node("generate_revenue", node_generate_revenue)
     workflow.add_node("investor_matching", node_investor_matching)
     workflow.add_node("generate_roadmap", node_generate_roadmap)
     workflow.add_node("generate_pitch", node_generate_pitch)
     workflow.add_node("compile_plan", node_compile_plan)
     workflow.add_node("adversarial_review", node_adversarial_review)
+    workflow.add_node("validate_consistency", node_validate_consistency)
     workflow.add_node("save_plan", node_save_plan)
     workflow.add_node("generate_assets", node_generate_assets)
 
-    # Sequential edges
+    # 2. Sequential edges: numeric first -> canonical facts -> narratives -> validation -> save -> studio
     workflow.set_entry_point("decompose")
     workflow.add_edge("decompose", "research_market")
     workflow.add_edge("research_market", "research_competitors")
@@ -1532,16 +1734,18 @@ def build_graph() -> StateGraph:
     workflow.add_edge("calculate_market_size", "analyze_gaps")
     workflow.add_edge("analyze_gaps", "generate_solution")
     workflow.add_edge("generate_solution", "generate_features")
-    workflow.add_edge("generate_features", "generate_revenue")
-    workflow.add_edge("generate_revenue", "pricing_model")
+    workflow.add_edge("generate_features", "pricing_model")
     workflow.add_edge("pricing_model", "financial_projection")
     workflow.add_edge("financial_projection", "cap_table")
-    workflow.add_edge("cap_table", "investor_matching")
+    workflow.add_edge("cap_table", "build_canonical_facts")
+    workflow.add_edge("build_canonical_facts", "generate_revenue")
+    workflow.add_edge("generate_revenue", "investor_matching")
     workflow.add_edge("investor_matching", "generate_roadmap")
     workflow.add_edge("generate_roadmap", "generate_pitch")
     workflow.add_edge("generate_pitch", "compile_plan")
     workflow.add_edge("compile_plan", "adversarial_review")
-    workflow.add_edge("adversarial_review", "save_plan")
+    workflow.add_edge("adversarial_review", "validate_consistency")
+    workflow.add_edge("validate_consistency", "save_plan")
     workflow.add_edge("save_plan", "generate_assets")
     workflow.add_edge("generate_assets", END)
 

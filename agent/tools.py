@@ -30,12 +30,44 @@ def search_web(query: str, max_results: int = 4) -> str:
         return f"Search encountered an issue: {str(e)}. Using available knowledge instead."
 
 
+import re
+
+def derive_market_keywords(idea: str) -> str:
+    """
+    Derives industry category and domain search terms from startup idea / brand name.
+    Preserves literal brand names for competitor searches while providing realistic
+    industry categories for market size, growth, and demographic research.
+    """
+    cleaned = (idea or "").strip()
+    lower = cleaned.lower()
+    
+    domain_hints = []
+    if any(k in lower for k in ("agro", "farm", "crop", "agri", "harvest")):
+        domain_hints.append("agriculture smart farming agritech crop diagnostics")
+    if any(k in lower for k in ("safe", "guard", "protect", "women", "female", "security")):
+        domain_hints.append("personal safety emergency alert wearable security")
+    if any(k in lower for k in ("invoice", "bill", "pay", "finance", "fintech", "b2b", "accounting")):
+        domain_hints.append("B2B invoice automation accounts payable fintech SaaS")
+    if any(k in lower for k in ("health", "med", "doctor", "clinic", "patient", "clinical")):
+        domain_hints.append("digital healthcare telemedicine medical software")
+    if any(k in lower for k in ("edu", "learn", "tutor", "school", "student", "teach")):
+        domain_hints.append("edtech online learning education platforms")
+
+    # Remove generic brand suffixes (AI, App, SaaS, Platform, Tool)
+    base_terms = re.sub(r"\b(ai|app|saas|platform|tool|startup|inc|tech|technologies)\b", "", cleaned, flags=re.IGNORECASE).strip()
+
+    if domain_hints:
+        return f"{domain_hints[0]} {base_terms}".strip()
+    return base_terms if len(base_terms) >= 3 else cleaned
+
+
 def research_market(idea: str) -> str:
-    """Tool: Research market size, trends, and opportunities for an idea."""
+    """Tool: Research market size, trends, and opportunities for an idea using category keywords."""
+    cat = derive_market_keywords(idea)
     queries = [
-        f"{idea} market size 2024",
-        f"{idea} industry trends growth",
-        f"{idea} target customers demand",
+        f"{cat} market size 2024 2026",
+        f"{cat} industry growth CAGR report",
+        f"{cat} target customers demand",
     ]
     all_results = []
     for q in queries:
@@ -45,11 +77,12 @@ def research_market(idea: str) -> str:
 
 
 def research_competitors(idea: str) -> str:
-    """Tool: Research existing competitors and their offerings."""
+    """Tool: Research existing competitors using both category and brand name."""
+    cat = derive_market_keywords(idea)
     queries = [
-        f"{idea} top companies startups 2024",
-        f"best apps platforms for {idea}",
-        f"{idea} existing solutions problems",
+        f"{cat} top competitors companies startups",
+        f"best platforms alternatives for {cat}",
+        f"{idea} competitors",
     ]
     all_results = []
     for q in queries:

@@ -32,6 +32,7 @@ class LLMResult:
     model: str
     input_tokens: Optional[int] = None
     output_tokens: Optional[int] = None
+    finish_reason: Optional[str] = None
 
 
 class LLMCallError(Exception):
@@ -306,6 +307,7 @@ async def llm_call(
             model=model_name,
             input_tokens=in_tokens,
             output_tokens=out_tokens,
+            finish_reason=finish_reason,
         )
 
     # 3. Primary execution with Tenacity retry loop

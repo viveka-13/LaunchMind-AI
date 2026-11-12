@@ -283,39 +283,60 @@ def clean_spoken_text(text: str) -> str:
 
 def build_narration_script(plan_data: dict, max_words: int = 500) -> str:
     """
-    Build spoken pitch deck script from slide title + key points per slide.
-    Targets ~2-4 minutes total (~300-500 words).
+    Build a comprehensive spoken pitch deck script from:
+    1. Pitch deck outline (handling markdown tables, headers, and bullet points)
+    2. Fallback or enrichment from key plan sections (Problem, Solution, Target Audience, Market Gap, Revenue Model)
+    Targets ~250-450 spoken words (~1.5 to 3.5 minutes of audio).
     """
     title = plan_data.get("startup_title") or plan_data.get("idea") or "Our Startup"
-    intro = f"This is the pitch for {title}."
-    outro = f"Thank you for listening to the pitch for {title}."
+    intro = f"Welcome to the investor pitch presentation for {title}."
+    outro = f"Thank you for your time. We look forward to partnering with you on {title}."
 
     pitch_deck = plan_data.get("pitch_deck_outline", "")
     slides_content: List[str] = []
 
     if pitch_deck:
-        # Parse slide sections
-        raw_slides = re.split(r'\n(?=\s*(?:Slide\s*\d+|#+\s*Slide))', pitch_deck, flags=re.IGNORECASE)
-        for s in raw_slides:
-            s_clean = clean_spoken_text(s)
-            if s_clean:
-                # Keep slide title plus first 2 sentences / points
-                sentences = re.split(r'(?<=[.!?])\s+', s_clean)
-                slides_content.append(" ".join(sentences[:3]))
-    else:
-        # Fallback to key plan fields if no pitch deck outline
+        # Check if markdown table format
+        lines = pitch_deck.strip().split("\n")
+        table_rows = [line.strip() for line in lines if line.strip().startswith("|") and not re.match(r"^\|\s*[-:]+\s*\|", line.strip())]
+        
+        # If markdown table rows exist (skipping header)
+        if len(table_rows) >= 2:
+            # Table format: | Slide | Title | Key Points |
+            for row in table_rows[1:]:
+                cols = [c.strip() for c in row.split("|")[1:-1] if c.strip()]
+                if len(cols) >= 2:
+                    slide_title = cols[1] if len(cols) >= 2 else cols[0]
+                    points = cols[2] if len(cols) >= 3 else (cols[1] if len(cols) >= 2 else "")
+                    clean_title = clean_spoken_text(slide_title)
+                    clean_pts = clean_spoken_text(points)
+                    if clean_title and clean_title.lower() not in ("slide title", "title", "slide", "#"):
+                        slides_content.append(f"{clean_title}. {clean_pts}")
+        else:
+            # Section headers format (e.g. ## Slide 1: ...)
+            raw_slides = re.split(r'\n(?=\s*(?:Slide\s*\d+|#+\s*Slide|\d+\.\s+Slide))', pitch_deck, flags=re.IGNORECASE)
+            for s in raw_slides:
+                s_clean = clean_spoken_text(s)
+                if s_clean:
+                    sentences = re.split(r'(?<=[.!?])\s+', s_clean)
+                    slides_content.append(" ".join(sentences[:3]))
+
+    # If slides_content is short (< 150 words), enrich with core plan fields
+    current_word_count = sum(len(s.split()) for s in slides_content)
+    if current_word_count < 150:
         fields = [
             ("The Problem", plan_data.get("problem_statement", "")),
-            ("The Solution", plan_data.get("solution", "")),
-            ("Key Features", plan_data.get("core_features", "")),
-            ("Business Model", plan_data.get("business_model", "") or plan_data.get("revenue_model", "")),
-            ("Market Opportunity", plan_data.get("market_gap", "")),
+            ("Our Solution", plan_data.get("solution", "")),
+            ("Target Market & Customer", plan_data.get("target_audience", "")),
+            ("Market Gap & Opportunity", plan_data.get("market_gap", "")),
+            ("Core Product Features", plan_data.get("core_features", "")),
+            ("Business & Revenue Model", plan_data.get("revenue_model", "") or plan_data.get("business_model", "")),
         ]
         for heading, body in fields:
             if body:
                 b_clean = clean_spoken_text(body)
                 sentences = re.split(r'(?<=[.!?])\s+', b_clean)
-                slides_content.append(f"{heading}. " + " ".join(sentences[:2]))
+                slides_content.append(f"{heading}: " + " ".join(sentences[:2]))
 
     # Join and enforce word boundary limit
     body_text = " ".join(slides_content)
@@ -469,6 +490,7 @@ def synthesize_pitch_narration(
 
     # 3. Build script
     script = build_narration_script(plan_data)
+    word_count = len(script.split())
     if not script.strip():
         return {
             "status": "failed",
@@ -477,6 +499,17 @@ def synthesize_pitch_narration(
             "duration_seconds": None,
             "provider": provider.name,
             "voice": voice,
+            "script": "",
+        }
+    if word_count < 80:
+        return {
+            "status": "failed",
+            "reason": f"Pitch script too short ({word_count} words; minimum required is 80 words)",
+            "path": None,
+            "duration_seconds": None,
+            "provider": provider.name,
+            "voice": voice,
+            "script": script,
         }
 
     # 4. Chunk script
@@ -558,6 +591,7 @@ def synthesize_pitch_narration(
             "duration_seconds": round(duration, 2) if duration else None,
             "provider": provider.name,
             "voice": voice,
+            "script": script,
         }
 
     finally:
