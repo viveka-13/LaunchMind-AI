@@ -26,7 +26,10 @@ GAP_ANALYSIS_PROMPT = """You are an elite product strategist and market analyst.
 Startup Idea: {idea}
 
 Synthesized Research Findings:
-{research_brief}
+{market_research}
+
+Competitor Analysis:
+{competitor_analysis}
 
 Market Sizing Data:
 {market_sizing}
@@ -40,6 +43,9 @@ CRITICAL CONSISTENCY INSTRUCTION:
 Do NOT state that the company has existing customers if it does not.
 If citing market sizing figures, use ONLY the numbers provided above in Market Sizing Data. DO NOT invent contradictory market size estimates.
 Maximum 250 words."""
+
+MARKET_GAP_PROMPT = GAP_ANALYSIS_PROMPT
+
 
 SOLUTION_PROMPT = """You are an innovative startup founder and product architect.
 

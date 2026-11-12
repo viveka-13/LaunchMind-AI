@@ -127,7 +127,7 @@ def build_canonical_facts(state: Dict[str, Any]) -> Dict[str, Any]:
         except Exception:
             cap_data = {}
 
-    funding_ask = _parse_currency_num(cap_data.get("target_raise") or cap_data.get("initial_cash") or 150_000)
+    funding_ask = _parse_currency_num(cap_data.get("funding_amount") or cap_data.get("target_raise") or cap_data.get("initial_cash") or 150_000)
     if funding_ask <= 0:
         funding_ask = 150_000.0
 
@@ -223,7 +223,22 @@ def build_canonical_facts(state: Dict[str, Any]) -> Dict[str, Any]:
         f"  - {t['name']}: {_format_currency(t['price'], currency_symbol)} / {t['billing']}"
         for t in tiers
     ]
-    use_funds_lines = [f"  - {k}: {v}%" for k, v in use_of_funds.items()]
+    use_funds_lines = []
+    if isinstance(use_of_funds, list):
+        for item in use_of_funds:
+            if isinstance(item, dict):
+                cat = item.get("category") or item.get("name") or "General"
+                pct = item.get("allocation_pct") or item.get("pct") or 0.0
+                if pct <= 1.0 and pct > 0:
+                    pct = pct * 100
+                use_funds_lines.append(f"  - {cat}: {pct:.0f}%")
+            else:
+                use_funds_lines.append(f"  - {item}")
+    elif isinstance(use_of_funds, dict):
+        for k, v in use_of_funds.items():
+            use_funds_lines.append(f"  - {k}: {v}%")
+    else:
+        use_funds_lines = ["  - Product & Engineering: 45%", "  - Go-to-Market & Sales: 25%", "  - Operations: 15%", "  - Reserve: 15%"]
 
     block = f"""
 ================================================================================

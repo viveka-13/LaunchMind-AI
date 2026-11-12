@@ -829,7 +829,7 @@ async def node_generate_solution(state: StartupState) -> dict:
     solution_prompt = SOLUTION_PROMPT.format(
         idea=state.get("idea", ""),
         market_gap=state.get("market_gap", "Unaddressed customer workflow bottlenecks")[:500],
-        market_research=(state.get("market_research", "")[:600] + "\nCompetitors: " + state.get("competitor_swot", "")[:300]) or state.get("idea", ""),
+        competitor_analysis=state.get("competitor_swot", state.get("competitor_analysis", ""))[:600] or state.get("idea", ""),
     )
 
     solution = await llm_invoke(

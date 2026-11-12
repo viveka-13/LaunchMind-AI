@@ -65,6 +65,6 @@ def test_consistency_validator_passes_consistent_plan():
     }
 
     is_valid, issues = validate_plan_consistency(clean_state, canon)
-    assert is_valid
+    assert is_valid, f"Unexpected issues found: {issues}"
     assert len(issues) == 0
 

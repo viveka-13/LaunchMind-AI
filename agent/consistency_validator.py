@@ -41,15 +41,16 @@ def validate_plan_consistency(
     gap_text = str(state.get("market_gap") or "")
 
     # 1. Check for conflicting pricing numbers in Revenue Narrative
-    # Extract dollar amounts mentioned in revenue_text
-    found_prices = [float(m) for m in re.findall(r"\$\s*(\d+(?:\.\d+)?)", revenue_text)]
+    # Extract dollar amounts mentioned in revenue_text (handle comma-formatted numbers like $305,000)
+    found_matches = re.findall(r"\$\s*([\d,]+(?:\.\d+)?)", revenue_text)
+    found_prices = [float(m.replace(",", "")) for m in found_matches if m.replace(",", "").replace(".", "").isdigit()]
     # Filter for numbers likely to be subscription tier prices (< $1000)
     sub_prices = [p for p in found_prices if 5 <= p <= 500]
     for sp in sub_prices:
-        # Check if this price is close to any canonical tier price (allow within $2)
-        if not any(abs(sp - cp) <= 2.0 for cp in canonical_prices):
-            # Check if it's an ARPU or milestone number
-            if abs(sp - float(facts.get("blended_arpu", 0))) > 2.0:
+        # Check if this price matches any canonical tier price (exact match within $0.5)
+        if not any(abs(sp - cp) < 0.5 for cp in canonical_prices):
+            # Check if it's the blended ARPU
+            if abs(sp - float(facts.get("blended_arpu", 0))) > 0.5:
                 issues.append(
                     f"Pricing mismatch: Revenue section cites ${sp:.0f}/mo, which contradicts canonical tiers ({canonical_prices})."
                 )
@@ -57,9 +58,9 @@ def validate_plan_consistency(
 
     # 2. Check Funding Ask Consistency in Pitch Deck & Executive Summary
     # If canonical raise is e.g. $150,000, flag if pitch deck claims "$2 M" or "$5M"
-    ask_b_or_m = re.findall(r"\$\s*(\d+(?:\.\d+)?)\s*(?:M|Million|B|Billion)\s*(?:Series\s*[A-Z]|raise|funding|seed)", pitch_text + " " + exec_summary, re.IGNORECASE)
+    ask_b_or_m = re.findall(r"\$\s*([\d,]+(?:\.\d+)?)\s*(?:M|Million|B|Billion)\s*(?:Series\s*[A-Z]|raise|funding|seed)", pitch_text + " " + exec_summary, re.IGNORECASE)
     for num_str in ask_b_or_m:
-        val_m = float(num_str) * 1_000_000
+        val_m = float(num_str.replace(",", "")) * 1_000_000
         if canonical_ask < 1_000_000 and val_m >= 1_000_000:
             issues.append(
                 f"Funding ask mismatch: Pitch/Executive summary cites ${num_str}M raise, but canonical cap table raises ${canonical_ask:,.0f}."
@@ -86,14 +87,19 @@ def validate_plan_consistency(
 
     # 5. Check Gross Revenue Arithmetic
     # Look for obvious math errors like '5,000 users ($1.8 M / month)' for a $30 tier
-    rev_math_pattern = re.findall(r"(\d[\d,]*)\s+(?:users|customers|subscribers)\s*(?:\([^)]*\))?\s*(?:->|=|yields?|at)\s*\$\s*(\d+(?:\.\d+)?)\s*(M|k|thousand|million)?", revenue_text, re.IGNORECASE)
+    rev_math_pattern = re.findall(
+        r"(\d[\d,]*)\s+(?:users|customers|subscribers)\s*(?:\([^)]*\))?\s*(?:->|=|yields?|at)\s*\$\s*([\d,]+(?:\.\d+)?)\s*(M|k|thousand|million)?",
+        revenue_text,
+        re.IGNORECASE,
+    )
     for u_str, amt_str, unit in rev_math_pattern:
         u_count = float(u_str.replace(",", ""))
+        clean_amt = float(amt_str.replace(",", ""))
         mult = 1_000_000 if (unit and unit.lower().startswith("m")) else (1_000 if (unit and unit.lower().startswith("k")) else 1)
-        stated_rev = float(amt_str) * mult
+        stated_rev = clean_amt * mult
         expected_min = u_count * min(canonical_prices)
         expected_max = u_count * max(canonical_prices)
-        if stated_rev < expected_min * 0.5 or stated_rev > expected_max * 2.0:
+        if stated_rev < expected_min * 0.7 or stated_rev > expected_max * 1.3:
             issues.append(
                 f"Revenue math error: {u_str} users claimed at ${amt_str}{unit or ''}/month, but with tiers {canonical_prices} expected range is ${expected_min:,.0f} - ${expected_max:,.0f}/mo."
             )
