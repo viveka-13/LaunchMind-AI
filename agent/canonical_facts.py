@@ -71,7 +71,7 @@ def build_canonical_facts(state: Dict[str, Any]) -> Dict[str, Any]:
     if raw_tiers:
         for idx, t in enumerate(raw_tiers):
             t_name = t.get("name") or f"Tier {chr(65 + idx)}"
-            t_price_raw = t.get("price") or 0.0
+            t_price_raw = t.get("monthly_price") if t.get("monthly_price") is not None else (t.get("price") or 0.0)
             t_price = _parse_currency_num(t_price_raw)
             if "$" in str(t_price_raw):
                 currency_symbol = "$"

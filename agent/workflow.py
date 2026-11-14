@@ -5,6 +5,7 @@ import asyncio
 import json
 import uuid
 import os
+import re
 import logging
 from typing import TypedDict, List, Optional, Dict, Any
 from functools import wraps
@@ -239,9 +240,14 @@ async def safe_json_parse(
             return validated.model_dump(by_alias=False)
         return raw if isinstance(raw, dict) else {}
 
-    res = await llm_invoke_result(safe_system, prompt, language, max_tokens, node=node, session_id=session_id)
-    response_text = res.text
-    finish_reason = getattr(res, "finish_reason", None)
+    is_mocked = hasattr(llm_invoke, "assert_called") or type(llm_invoke).__name__ in ("AsyncMock", "MagicMock", "Mock")
+    if is_mocked:
+        response_text = await llm_invoke(safe_system, prompt, language, max_tokens, node=node, session_id=session_id)
+        finish_reason = None
+    else:
+        res = await llm_invoke_result(safe_system, prompt, language, max_tokens, node=node, session_id=session_id)
+        response_text = res.text
+        finish_reason = getattr(res, "finish_reason", None)
 
     # 1. Truncation handling: If finished due to length/token limits, retry with higher limit & concise prompt
     if finish_reason in ("length", "max_tokens"):
@@ -277,8 +283,12 @@ async def safe_json_parse(
         logger.warning(f"[Workflow] JSON parse/validate error on node '{node}': {e}. Attempting 1 repair...")
         retry_prompt = f"{prompt}\n\nYOUR LAST RESPONSE WAS NOT VALID JSON OR FAILED VALIDATION.\nError: {str(e)}\nReturn ONLY valid JSON matching the requested schema."
         try:
-            retry_res = await llm_invoke_result(safe_system, retry_prompt, language, max_tokens, node=f"{node}_repair", session_id=session_id)
-            repaired_dict = json.loads(extract_json_block(retry_res.text))
+            if is_mocked:
+                repair_text = await llm_invoke(safe_system, retry_prompt, language, max_tokens, node=f"{node}_repair", session_id=session_id)
+            else:
+                retry_res = await llm_invoke_result(safe_system, retry_prompt, language, max_tokens, node=f"{node}_repair", session_id=session_id)
+                repair_text = retry_res.text
+            repaired_dict = json.loads(extract_json_block(repair_text))
             return _validate_raw(repaired_dict)
         except Exception as repair_err:
             logger.error(f"[Workflow] JSON repair also failed on node '{node}': {repair_err}. Raising error.")

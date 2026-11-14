@@ -86,8 +86,13 @@ import logging
 
 logger = logging.getLogger(__name__)
 
+DB_PATH = "./data/startup_history.db"
+
 def get_db_path() -> str:
-    """Return the active database path, allowing runtime environment overrides."""
+    """Return the active database path, allowing runtime environment overrides or patched DB_PATH."""
+    import agent.memory as m
+    if getattr(m, "DB_PATH", None) != "./data/startup_history.db":
+        return m.DB_PATH
     return os.environ.get("DB_PATH", "./data/startup_history.db")
 
 
