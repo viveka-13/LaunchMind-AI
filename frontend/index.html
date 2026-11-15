@@ -2420,17 +2420,49 @@
           const container = document.getElementById('stepsContainer');
           const lastStep = container.lastElementChild;
           if (lastStep) {
-            const taskHtml = event.tasks.map((t, i) => `
+            let taskHtml = event.tasks.map((t, i) => `
             <div class="task-row">
               <span class="task-num">${i + 1}.</span>
               <span>${t.replace(/^Task \d+:\s*/i, '')}</span>
             </div>
           `).join('');
+
+            if (event.validation_steps && event.validation_steps.length > 0) {
+              taskHtml += `
+                <div style="margin-top:10px; padding:8px 10px; background:rgba(245,158,11,0.08); border-left:3px solid #f59e0b; border-radius:4px;">
+                  <div style="font-weight:700; color:#f59e0b; font-size:0.75rem; text-transform:uppercase; margin-bottom:4px;">Recommended Founder Validation Steps (Post-AI):</div>
+                  ${event.validation_steps.map(vs => `<div style="font-size:0.75rem; color:#cbd5e1; margin-bottom:2px;">• ${vs.replace(/^\[Founder Fieldwork\]\s*/i, '')}</div>`).join('')}
+                </div>
+              `;
+            }
+
             const taskDiv = document.createElement('div');
             taskDiv.className = 'tasks-list';
             taskDiv.innerHTML = taskHtml;
             lastStep.querySelector('.step-content').appendChild(taskDiv);
           }
+          break;
+
+        case 'idea_understanding':
+          addSection('🎯 Market Category & Query Plan', `
+            <div style="padding:0.85rem 1.15rem; background:rgba(56,189,248,0.08); border:1px solid rgba(56,189,248,0.25); border-radius:10px; display:flex; flex-direction:column; gap:8px;">
+              <div style="display:flex; align-items:center; gap:8px;">
+                <span style="background:#0284c7; color:#fff; font-size:0.7rem; font-weight:800; padding:2px 8px; border-radius:12px; text-transform:uppercase;">${event.idea_type === 'named_product' ? 'Named Brand' : 'Descriptive'}</span>
+                <span style="font-size:0.95rem; color:#f1f5f9; font-weight:700;">Vertical: ${event.category}</span>
+              </div>
+              ${event.queries && event.queries.length ? `<div style="font-size:0.8rem; color:#94a3b8;"><b>Target Queries:</b> ${event.queries.slice(0, 3).map(q => `<code style="background:rgba(0,0,0,0.3); padding:2px 6px; border-radius:4px;">${q}</code>`).join(' ')}</div>` : ''}
+            </div>
+          `);
+          break;
+
+        case 'data_thin':
+          addSection('⚠️ Research Data Notice', `
+            <div style="padding:0.75rem 1rem; background:rgba(245,158,11,0.08); border-left:3px solid #f59e0b; border-radius:8px; margin-top:4px;">
+              <div style="font-size:0.85rem; color:#f59e0b; font-weight:700;">Limited Empirical Web Results: ${event.section}</div>
+              <div style="font-size:0.8rem; color:#cbd5e1; margin-top:4px;">${event.message}</div>
+              ${event.gaps && event.gaps.length ? `<div style="font-size:0.75rem; color:#94a3b8; margin-top:4px;">• ${event.gaps.join('<br/>• ')}</div>` : ''}
+            </div>
+          `);
           break;
 
         case 'data':

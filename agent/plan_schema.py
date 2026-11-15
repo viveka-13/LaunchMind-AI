@@ -35,6 +35,9 @@ NODE_OUTPUT_CONTRACTS: Dict[str, Dict[str, Any]] = {
         "required_keys": ["tasks"],
         "min_list_count": {"tasks": 5},
     },
+    "understand_idea": {
+        "required_keys": ["idea_understanding"],
+    },
     "research_market": {
         "required_keys": ["market_research"],
         "min_lengths": {"market_research": 50},

@@ -7,6 +7,7 @@ import uuid
 import os
 import re
 import logging
+from datetime import datetime
 from typing import TypedDict, List, Optional, Dict, Any
 from functools import wraps
 
@@ -21,6 +22,7 @@ from agent.sanitizer import sanitize_html
 from agent.language import validate_language
 from agent.models_pydantic import (
     TaskDecompositionModel,
+    IdeaUnderstandingModel,
     ResearchBriefModel,
     CompetitorSwotModel,
     MarketSizingModel,
@@ -39,6 +41,7 @@ from agent.tools import (
 from agent.memory import store_research, retrieve_similar, save_startup_plan
 from agent.prompts import (
     DECOMPOSE_PROMPT,
+    IDEA_UNDERSTANDING_PROMPT,
     MARKET_GAP_PROMPT,
     SOLUTION_PROMPT,
     FEATURES_PROMPT,
@@ -123,6 +126,10 @@ class StartupState(TypedDict, total=False):
     skipped_nodes: List[str]
     run_summary: dict
     owner_id: Optional[str]
+    idea_understanding: Optional[dict]
+    research_plan: Optional[dict]
+    founder_validation_steps: List[str]
+    data_gaps: List[str]
 
 
 # ─────────────────────────────────────────────
@@ -130,6 +137,7 @@ class StartupState(TypedDict, total=False):
 # ─────────────────────────────────────────────
 
 MAX_TOKENS_DECOMPOSE: int = 2500
+MAX_TOKENS_IDEA_UNDERSTANDING: int = 2500
 MAX_TOKENS_RESEARCH_SYNTHESIS: int = 3000
 MAX_TOKENS_COMPETITOR_SWOT: int = 3500
 MAX_TOKENS_MARKET_SIZING: int = 3000
@@ -146,7 +154,7 @@ MAX_TOKENS_EXECUTIVE_SUMMARY: int = 3000
 MAX_TOKENS_CRITIQUE: int = 4096
 MAX_TOKENS_STUDIO_ASSETS: int = 3500
 
-TOTAL_STEPS: int = 22
+TOTAL_STEPS: int = 23
 
 
 # ─────────────────────────────────────────────
@@ -446,7 +454,53 @@ def _t(label: str, lang: str) -> str:
 
 
 # ─────────────────────────────────────────────
-# LangGraph Node Functions (21 steps)
+# Subtask Classification & Founder Fieldwork Helpers
+# ─────────────────────────────────────────────
+
+def classify_subtask(task_text: str) -> str:
+    """
+    Classifies a task into 'desk_research', 'analysis', or 'human_fieldwork'.
+    """
+    t = (task_text or "").lower()
+    fieldwork_triggers = [
+        "interview", "survey with", "in-person", "field survey", "on-ground",
+        "door-to-door", "physical visit", "call 30", "interview 30", "30+ farmers",
+        "visit farms", "sign letters of intent", "pilot agreement", "hire staff",
+        "inspect facilities", "physical setup", "cold call"
+    ]
+    if any(trig in t for trig in fieldwork_triggers) or "founder validation step" in t:
+        return "human_fieldwork"
+
+    analysis_triggers = [
+        "swot", "financial model", "unit economics", "pricing model", "cap table",
+        "positioning", "valuation", "risk assessment", "path to profitability", "break-even"
+    ]
+    if any(trig in t for trig in analysis_triggers):
+        return "analysis"
+
+    return "desk_research"
+
+
+def create_desk_proxy_for_fieldwork(task_text: str, category: str = "") -> str:
+    """
+    Converts an offline fieldwork task into a desk-research proxy the AI agent can execute.
+    """
+    clean = re.sub(r"^(?:Recommended Founder Validation Step\s*(?:\(Post-AI\))?\s*:\s*|Task\s*\d+\s*:\s*)", "", task_text, flags=re.IGNORECASE).strip()
+    clean_lower = clean.lower()
+
+    if any(k in clean_lower for k in ("farmer", "crop", "agri", "harvest")):
+        return "Analyze public agricultural community forums, extension reports, and farmer reviews for workflow pain points"
+    elif any(k in clean_lower for k in ("female", "women", "safety", "guard", "alert")):
+        return "Synthesize app store user reviews and social sentiment on women safety and emergency alert apps"
+    elif any(k in clean_lower for k in ("invoice", "accounting", "finance", "billing")):
+        return "Benchmark user complaints and AP automation forum discussions for B2B invoice processing friction"
+    else:
+        topic = category or "target users"
+        return f"Analyze online community discussions, public customer reviews, and published case studies for {topic} pain points"
+
+
+# ─────────────────────────────────────────────
+# LangGraph Node Functions (23 steps)
 # ─────────────────────────────────────────────
 
 @node_boundary("decompose", required_fields=["idea"])
@@ -454,6 +508,7 @@ async def node_decompose_idea(state: StartupState) -> dict:
     """
     Node 1: Task Decomposition
     Break the startup idea into 10 specific subtasks.
+    Filters offline human fieldwork into founder validation steps and substitutes desk proxies.
     """
     sid = state.get("session_id", "")
     await emit(sid, {
@@ -474,52 +529,120 @@ async def node_decompose_idea(state: StartupState) -> dict:
         node="decompose",
         session_id=sid,
     )
-    tasks = res.get("tasks", [])
-    if not tasks:
+    raw_tasks = res.get("tasks", [])
+    if not raw_tasks:
         raise LLMCallError("decompose", "Task decomposition returned empty or invalid tasks", False, 1)
 
-    # Filter/relabel impossible offline human fieldwork tasks
     cleaned_tasks = []
-    fieldwork_triggers = ["interview", "field survey", "in-person survey", "on-ground", "door-to-door", "physical visit", "call 30", "interview 30"]
-    for t in tasks:
+    founder_validation_steps = []
+
+    for i, t in enumerate(raw_tasks):
         t_str = str(t).strip()
-        t_lower = t_str.lower()
-        if any(trig in t_lower for trig in fieldwork_triggers):
-            if not t_str.startswith("Recommended Founder Validation Step"):
-                t_sub = re.sub(r"^Task\s*\d+\s*:\s*", "", t_str, flags=re.IGNORECASE).strip()
-                t_str = f"Recommended Founder Validation Step (Post-AI): {t_sub}"
-        cleaned_tasks.append(t_str)
-    tasks = cleaned_tasks
+        cat = classify_subtask(t_str)
+        if cat == "human_fieldwork":
+            clean_desc = re.sub(r"^(?:Recommended Founder Validation Step\s*(?:\(Post-AI\))?\s*:\s*|Task\s*\d+\s*:\s*)", "", t_str, flags=re.IGNORECASE).strip()
+            founder_validation_steps.append(f"[Founder Fieldwork] {clean_desc}")
+            proxy_task = create_desk_proxy_for_fieldwork(t_str, state.get("idea", ""))
+            cleaned_tasks.append(f"Task {i + 1}: {proxy_task}")
+        else:
+            cleaned_tasks.append(t_str)
 
     await emit(sid, {
         "type": "tasks",
-        "tasks": tasks,
-        "message": f"Identified {len(tasks)} subtasks to execute autonomously.",
+        "tasks": cleaned_tasks,
+        "validation_steps": founder_validation_steps,
+        "message": f"Identified {len(cleaned_tasks)} subtasks to execute autonomously." + (f" ({len(founder_validation_steps)} founder fieldwork steps recorded)" if founder_validation_steps else ""),
     })
 
-    return {"tasks": tasks, "plan_id": state.get("plan_id") or str(uuid.uuid4())}
+    return {
+        "tasks": cleaned_tasks,
+        "founder_validation_steps": founder_validation_steps,
+        "plan_id": state.get("plan_id") or str(uuid.uuid4())
+    }
 
 
-@node_boundary("research_market", required_fields=["idea"])
-async def node_research_market(state: StartupState) -> dict:
-    """Node 2: Market Research"""
+@node_boundary("understand_idea", required_fields=["idea"])
+async def node_understand_idea(state: StartupState) -> dict:
+    """
+    Node 2: Idea Understanding & Query Planning
+    Discovers market category, extracts problem domain, and formulates high-relevance search queries.
+    """
     sid = state.get("session_id", "")
-    selected_tool = select_tool("market size demand trends")
+    now = datetime.now()
+    current_date = now.strftime("%B %d, %Y")
+    current_year = str(now.year)
 
     await emit(sid, {
         "type": "step",
         "step": 2,
         "total": TOTAL_STEPS,
+        "icon": "🎯",
+        "title": "Categorizing Startup & Planning Research",
+        "message": f"Analyzing market vertical and planning queries for '{state['idea']}'...",
+    })
+
+    prompt = IDEA_UNDERSTANDING_PROMPT.format(
+        idea=state["idea"],
+        current_date=current_date,
+        current_year=current_year,
+    )
+
+    und = await safe_json_parse(
+        prompt,
+        state.get("language", "English"),
+        max_tokens=MAX_TOKENS_IDEA_UNDERSTANDING,
+        model_cls=IdeaUnderstandingModel,
+        node="understand_idea",
+        session_id=sid,
+    )
+
+    category = und.get("category", "")
+    idea_type = und.get("idea_type", "named_product")
+    market_queries = und.get("market_queries", [])
+
+    await emit(sid, {
+        "type": "idea_understanding",
+        "idea_type": idea_type,
+        "category": category,
+        "queries": market_queries,
+        "message": f"Researching vertical: '{category}' ({idea_type}). Formulated {len(market_queries)} category queries.",
+    })
+
+    return {
+        "idea_understanding": und,
+        "research_plan": und,
+    }
+
+
+@node_boundary("research_market", required_fields=["idea"])
+async def node_research_market(state: StartupState) -> dict:
+    """Node 3: Market Research with Category Routing and Relevance Filter"""
+    sid = state.get("session_id", "")
+    und = state.get("idea_understanding") or {}
+    queries = und.get("market_queries") or state["idea"]
+
+    await emit(sid, {
+        "type": "step",
+        "step": 3,
+        "total": TOTAL_STEPS,
         "icon": "🔍",
         "title": "Researching Market",
-        "message": f"Selecting tool: [{selected_tool}] → Searching market data for '{state['idea']}'...",
-        "tool": selected_tool,
+        "message": f"Searching category market data for '{und.get('category', state['idea'])}'...",
+        "queries": queries if isinstance(queries, list) else [queries],
     })
 
     loop = asyncio.get_event_loop()
-    market_data = await loop.run_in_executor(
-        None, AVAILABLE_TOOLS[selected_tool]["function"], state["idea"]
+    market_data, is_thin, gaps = await loop.run_in_executor(
+        None, research_market, queries, und, True
     )
+
+    if is_thin:
+        await emit(sid, {
+            "type": "data_thin",
+            "section": "market_research",
+            "message": f"Limited empirical market research data found for '{und.get('category', state['idea'])}'.",
+            "gaps": gaps,
+        })
 
     await emit(sid, {
         "type": "data",
@@ -527,29 +650,44 @@ async def node_research_market(state: StartupState) -> dict:
         "preview": market_data[:300] + "..." if len(market_data) > 300 else market_data,
     })
 
-    return {"market_research": market_data}
+    existing_gaps = list(state.get("data_gaps", []))
+    for g in gaps:
+        if g not in existing_gaps:
+            existing_gaps.append(g)
+
+    return {"market_research": market_data, "data_gaps": existing_gaps}
 
 
 @node_boundary("research_competitors", required_fields=["idea"])
 async def node_research_competitors(state: StartupState) -> dict:
-    """Node 3: Competitor Analysis"""
+    """Node 4: Competitor Analysis with Collision Check and Relevance Filter"""
     sid = state.get("session_id", "")
-    selected_tool = select_tool("competitors existing companies")
+    und = state.get("idea_understanding") or {}
+    queries = und.get("competitor_queries") or state["idea"]
+    name_check = und.get("competitor_name_check") or state["idea"]
 
     await emit(sid, {
         "type": "step",
-        "step": 3,
+        "step": 4,
         "total": TOTAL_STEPS,
         "icon": "⚔️",
         "title": "Analyzing Competitors",
-        "message": f"Selecting tool: [{selected_tool}] → Finding competitors for '{state['idea']}'...",
-        "tool": selected_tool,
+        "message": f"Finding category competitors and checking brand '{name_check}'...",
+        "queries": queries if isinstance(queries, list) else [queries],
     })
 
     loop = asyncio.get_event_loop()
-    competitor_data = await loop.run_in_executor(
-        None, AVAILABLE_TOOLS[selected_tool]["function"], state["idea"]
+    competitor_data, is_thin, gaps = await loop.run_in_executor(
+        None, research_competitors, queries, und, name_check, True
     )
+
+    if is_thin:
+        await emit(sid, {
+            "type": "data_thin",
+            "section": "competitor_analysis",
+            "message": f"Limited empirical competitor data found for '{und.get('category', state['idea'])}'.",
+            "gaps": gaps,
+        })
 
     await emit(sid, {
         "type": "data",
@@ -557,16 +695,21 @@ async def node_research_competitors(state: StartupState) -> dict:
         "preview": competitor_data[:300] + "..." if len(competitor_data) > 300 else competitor_data,
     })
 
-    return {"competitor_analysis": competitor_data}
+    existing_gaps = list(state.get("data_gaps", []))
+    for g in gaps:
+        if g not in existing_gaps:
+            existing_gaps.append(g)
+
+    return {"competitor_analysis": competitor_data, "data_gaps": existing_gaps}
 
 
 @node_boundary("synthesize_research", required_fields=["market_research", "competitor_analysis"])
 async def node_synthesize_research(state: StartupState) -> dict:
-    """Node 4: Multi-Source Research Synthesizer"""
+    """Node 5: Multi-Source Research Synthesizer with Query-Routed Trends & Company Data"""
     sid = state.get("session_id", "")
     await emit(sid, {
         "type": "step",
-        "step": 4,
+        "step": 5,
         "total": TOTAL_STEPS,
         "icon": "🧠",
         "title": "Synthesizing Research",
@@ -575,12 +718,32 @@ async def node_synthesize_research(state: StartupState) -> dict:
 
     loop = asyncio.get_event_loop()
     idea = state.get("idea", "")
-    cb_data = await loop.run_in_executor(None, search_crunchbase, idea)
-    gt_data = await loop.run_in_executor(None, search_google_trends, idea)
-    sent_data = await loop.run_in_executor(None, search_sentiment, idea)
+    und = state.get("idea_understanding") or {}
+
+    # Trends query uses category terms, never brand name
+    trends_keywords = und.get("trends_keywords") or []
+    gt_query = trends_keywords[0] if trends_keywords else und.get("category", idea)
+
+    # Sentiment query uses customer voice queries or category
+    voice_queries = und.get("customer_voice_queries") or []
+    sent_query = voice_queries[0] if voice_queries else und.get("category", idea)
+
+    # Crunchbase uses discovered competitor or category
+    comp_text = state.get("competitor_analysis", "")
+    cb_query = und.get("category", idea)
+    for line in comp_text.split("\n"):
+        if line.startswith("Title:") and "-" in line:
+            candidate = line.split("Title:")[1].split("-")[0].strip()
+            if candidate and len(candidate) < 35 and candidate.lower() not in (idea.lower(), "competitor", "top", "best", "leading"):
+                cb_query = candidate
+                break
+
+    cb_data = await loop.run_in_executor(None, search_crunchbase, cb_query)
+    gt_data = await loop.run_in_executor(None, search_google_trends, gt_query)
+    sent_data = await loop.run_in_executor(None, search_sentiment, sent_query)
 
     research_sources = {
-        "duckduckgo": (state.get("market_research", "") + "\n" + state.get("competitor_analysis", ""))[:1000],
+        "duckduckgo": (state.get("market_research", "") + "\n" + state.get("competitor_analysis", ""))[:1200],
         "crunchbase": cb_data,
         "google_trends": gt_data,
         "sentiment": sent_data,
@@ -602,6 +765,14 @@ async def node_synthesize_research(state: StartupState) -> dict:
         node="synthesize_research",
         session_id=sid,
     )
+    
+    # Merge existing data gaps from research filtering
+    all_gaps = list(brief.get("data_gaps", []))
+    for g in state.get("data_gaps", []):
+        if g not in all_gaps:
+            all_gaps.append(g)
+    brief["data_gaps"] = all_gaps
+
     lang = state.get("language", "English")
     
     brief_html = f"<b>{_t('Executive Summary', lang)}:</b><br/>{sanitize_html(brief.get('executive_summary', ''))}<br/><br/>"
@@ -609,6 +780,10 @@ async def node_synthesize_research(state: StartupState) -> dict:
     for f in brief.get('key_findings', []): brief_html += f"<li>{sanitize_html(str(f))}</li>"
     brief_html += "</ul><br/>"
     brief_html += f"<b>{_t('Market Sentiment', lang)}:</b> {sanitize_html(brief.get('market_sentiment', ''))}"
+    if all_gaps:
+        brief_html += f"<br/><br/><b>Data Gaps & Disclaimers:</b><ul>"
+        for dg in all_gaps: brief_html += f"<li>{sanitize_html(str(dg))}</li>"
+        brief_html += "</ul>"
 
     await emit(sid, {
         "type": "section",
@@ -616,16 +791,16 @@ async def node_synthesize_research(state: StartupState) -> dict:
         "content": brief_html,
     })
 
-    return {"research_by_source": research_sources, "research_brief": json.dumps(brief, ensure_ascii=False)}
+    return {"research_by_source": research_sources, "research_brief": json.dumps(brief, ensure_ascii=False), "data_gaps": all_gaps}
 
 
 @node_boundary("competitor_swot", required_fields=["idea"])
 async def node_competitor_swot(state: StartupState) -> dict:
-    """Node 5: Competitor Matrix & SWOT Analysis"""
+    """Node 6: Competitor Matrix & SWOT Analysis"""
     sid = state.get("session_id", "")
     await emit(sid, {
         "type": "step",
-        "step": 5,
+        "step": 6,
         "total": TOTAL_STEPS,
         "icon": "📊",
         "title": "Building Competitor Analysis",
@@ -671,11 +846,11 @@ async def node_competitor_swot(state: StartupState) -> dict:
 
 @node_boundary("store_research", required_fields=["market_research", "competitor_analysis"])
 async def node_store_research(state: StartupState) -> dict:
-    """Node 6: Store in ChromaDB (RAG Memory)"""
+    """Node 7: Store in ChromaDB (RAG Memory)"""
     sid = state.get("session_id", "")
     await emit(sid, {
         "type": "step",
-        "step": 6,
+        "step": 7,
         "total": TOTAL_STEPS,
         "icon": "💾",
         "title": "Storing Research in Vector Memory",
@@ -702,11 +877,11 @@ async def node_store_research(state: StartupState) -> dict:
 
 @node_boundary("calculate_market_size", required_fields=["idea"])
 async def node_calculate_market_size(state: StartupState) -> dict:
-    """Node 7: TAM / SAM / SOM Calculator"""
+    """Node 8: TAM / SAM / SOM Calculator"""
     sid = state.get("session_id", "")
     await emit(sid, {
         "type": "step",
-        "step": 7,
+        "step": 8,
         "total": TOTAL_STEPS,
         "icon": "📈",
         "title": "Calculating Market Size",
@@ -777,11 +952,11 @@ async def node_calculate_market_size(state: StartupState) -> dict:
 
 @node_boundary("analyze_gaps", required_fields=["market_research"])
 async def node_analyze_gaps(state: StartupState) -> dict:
-    """Node 8: Identify Market Gaps"""
+    """Node 9: Identify Market Gaps"""
     sid = state.get("session_id", "")
     await emit(sid, {
         "type": "step",
-        "step": 8,
+        "step": 9,
         "total": TOTAL_STEPS,
         "icon": "🎯",
         "title": "Identifying Market Gaps",
@@ -825,11 +1000,11 @@ async def node_analyze_gaps(state: StartupState) -> dict:
 
 @node_boundary("generate_solution", required_fields=["idea"])
 async def node_generate_solution(state: StartupState) -> dict:
-    """Node 9: Generate Solution Strategy"""
+    """Node 10: Generate Solution Strategy"""
     sid = state.get("session_id", "")
     await emit(sid, {
         "type": "step",
-        "step": 9,
+        "step": 10,
         "total": TOTAL_STEPS,
         "icon": "💡",
         "title": "Generating Solution Strategy",
@@ -868,11 +1043,11 @@ async def node_generate_solution(state: StartupState) -> dict:
 
 @node_boundary("generate_features", required_fields=["idea"])
 async def node_generate_features(state: StartupState) -> dict:
-    """Node 10: Generate Core Product Features"""
+    """Node 11: Generate Core Product Features"""
     sid = state.get("session_id", "")
     await emit(sid, {
         "type": "step",
-        "step": 10,
+        "step": 11,
         "total": TOTAL_STEPS,
         "icon": "⚡",
         "title": "Designing Core Features",
@@ -905,11 +1080,11 @@ async def node_generate_features(state: StartupState) -> dict:
 
 @node_boundary("pricing_model", required_fields=["idea"])
 async def node_pricing_model(state: StartupState) -> dict:
-    """Node 11: Generate Pricing Model (JSON)"""
+    """Node 12: Generate Pricing Model (JSON)"""
     sid = state.get("session_id", "")
     await emit(sid, {
         "type": "step",
-        "step": 11,
+        "step": 12,
         "total": TOTAL_STEPS,
         "icon": "💲",
         "title": "Simulating Pricing Model",
@@ -961,11 +1136,11 @@ async def node_pricing_model(state: StartupState) -> dict:
 
 @node_boundary("financial_projection", required_fields=["idea"])
 async def node_financial_projection(state: StartupState) -> dict:
-    """Node 12: Generate 3-Year P&L Projection (JSON)"""
+    """Node 13: Generate 3-Year P&L Projection (JSON)"""
     sid = state.get("session_id", "")
     await emit(sid, {
         "type": "step",
-        "step": 12,
+        "step": 13,
         "total": TOTAL_STEPS,
         "icon": "📊",
         "title": "Building Financial Projections",
@@ -1001,11 +1176,11 @@ async def node_financial_projection(state: StartupState) -> dict:
 
 @node_boundary("cap_table", required_fields=["idea"])
 async def node_cap_table(state: StartupState) -> dict:
-    """Node 13: Generate Cap Table & Funding Ask (JSON)"""
+    """Node 14: Generate Cap Table & Funding Ask (JSON)"""
     sid = state.get("session_id", "")
     await emit(sid, {
         "type": "step",
-        "step": 13,
+        "step": 14,
         "total": TOTAL_STEPS,
         "icon": "🏦",
         "title": "Structuring Cap Table",
@@ -1049,11 +1224,11 @@ async def node_cap_table(state: StartupState) -> dict:
 
 @node_boundary("build_canonical_facts", required_fields=["idea"])
 async def node_build_canonical_facts(state: StartupState) -> dict:
-    """Node 14: Construct Canonical Project Facts (Single Source of Truth)"""
+    """Node 15: Construct Canonical Project Facts (Single Source of Truth)"""
     sid = state.get("session_id", "")
     await emit(sid, {
         "type": "step",
-        "step": 14,
+        "step": 15,
         "total": TOTAL_STEPS,
         "icon": "📐",
         "title": "Establishing Canonical Project Facts",
@@ -1071,11 +1246,11 @@ async def node_build_canonical_facts(state: StartupState) -> dict:
 
 @node_boundary("generate_revenue", required_fields=["idea"])
 async def node_generate_revenue(state: StartupState) -> dict:
-    """Node 15: Generate Revenue Model Narrative using Canonical Facts"""
+    """Node 16: Generate Revenue Model Narrative using Canonical Facts"""
     sid = state.get("session_id", "")
     await emit(sid, {
         "type": "step",
-        "step": 15,
+        "step": 16,
         "total": TOTAL_STEPS,
         "icon": "💰",
         "title": "Modeling Revenue Streams",
@@ -1114,11 +1289,11 @@ async def node_generate_revenue(state: StartupState) -> dict:
 
 @node_boundary("investor_matching", required_fields=["idea"])
 async def node_investor_matching(state: StartupState) -> dict:
-    """Node 16: AI Investor Matching Engine"""
+    """Node 17: AI Investor Matching Engine"""
     sid = state.get("session_id", "")
     await emit(sid, {
         "type": "step",
-        "step": 16,
+        "step": 17,
         "total": TOTAL_STEPS,
         "icon": "🤝",
         "title": "Matching Investors",
@@ -1147,11 +1322,11 @@ async def node_investor_matching(state: StartupState) -> dict:
 
 @node_boundary("generate_roadmap", required_fields=["idea"])
 async def node_generate_roadmap(state: StartupState) -> dict:
-    """Node 17: Generate Implementation Roadmap"""
+    """Node 18: Generate Implementation Roadmap"""
     sid = state.get("session_id", "")
     await emit(sid, {
         "type": "step",
-        "step": 17,
+        "step": 18,
         "total": TOTAL_STEPS,
         "icon": "🗺️",
         "title": "Building Implementation Roadmap",
@@ -1199,11 +1374,11 @@ async def node_generate_roadmap(state: StartupState) -> dict:
 
 @node_boundary("generate_pitch", required_fields=["idea"])
 async def node_generate_pitch(state: StartupState) -> dict:
-    """Node 18: Generate Pitch Deck Outline"""
+    """Node 19: Generate Pitch Deck Outline"""
     sid = state.get("session_id", "")
     await emit(sid, {
         "type": "step",
-        "step": 18,
+        "step": 19,
         "total": TOTAL_STEPS,
         "icon": "🎤",
         "title": "Creating Pitch Deck Outline",
@@ -1254,11 +1429,11 @@ async def node_generate_pitch(state: StartupState) -> dict:
 
 @node_boundary("compile_plan", required_fields=["idea"])
 async def node_compile_plan(state: StartupState) -> dict:
-    """Node 19: Compile Final Plan"""
+    """Node 20: Compile Final Plan"""
     sid = state.get("session_id", "")
     await emit(sid, {
         "type": "step",
-        "step": 19,
+        "step": 20,
         "total": TOTAL_STEPS,
         "icon": "📋",
         "title": "Compiling Executive Summary",
@@ -1371,11 +1546,11 @@ Roadmap: {state.get('implementation_roadmap', '')[:300]}
 
 @node_boundary("adversarial_review", required_fields=["idea"])
 async def node_adversarial_review(state: StartupState) -> dict:
-    """Node 20: Devil's Advocate / Adversarial Review"""
+    """Node 21: Devil's Advocate / Adversarial Review"""
     sid = state.get("session_id", "")
     await emit(sid, {
         "type": "step",
-        "step": 20,
+        "step": 21,
         "total": TOTAL_STEPS,
         "icon": "⚖️",
         "title": "Running Investor Review",
@@ -1433,11 +1608,11 @@ async def node_adversarial_review(state: StartupState) -> dict:
 
 @node_boundary("validate_consistency", required_fields=["idea"])
 async def node_validate_consistency(state: StartupState) -> dict:
-    """Node 21: Cross-Section Consistency Validation & Auto-Repair"""
+    """Node 22: Cross-Section Consistency Validation & Auto-Repair"""
     sid = state.get("session_id", "")
     await emit(sid, {
         "type": "step",
-        "step": 21,
+        "step": 22,
         "total": TOTAL_STEPS,
         "icon": "⚖️",
         "title": "Validating Cross-Section Consistency",
@@ -1477,13 +1652,13 @@ async def node_validate_consistency(state: StartupState) -> dict:
 
 @node_boundary("save_plan", required_fields=["plan_id"])
 async def node_save_plan(state: StartupState) -> dict:
-    """Node 22: Save to SQLite Memory & Generate Documents"""
+    """Node 23: Save to SQLite Memory & Generate Documents"""
     sid = state.get("session_id", "")
     doc_format = state.get("doc_format", "ppt")
 
     await emit(sid, {
         "type": "step",
-        "step": 22,
+        "step": 23,
         "total": TOTAL_STEPS,
         "icon": "[OK]",
         "title": f"Saving Plan & Generating {doc_format.upper()} Document",
@@ -1505,6 +1680,8 @@ async def node_save_plan(state: StartupState) -> dict:
         "pitch_deck_outline": state.get("pitch_deck_outline", ""),
         "executive_summary": state.get("executive_summary", ""),
         "tasks": state.get("tasks", []),
+        "founder_validation_steps": state.get("founder_validation_steps", []),
+        "research_plan": state.get("research_plan", {}),
         "doc_format": doc_format,
         "market_sizing": state.get("market_sizing", "{}"),
         "competitor_swot": state.get("competitor_swot", "{}"),
@@ -1535,7 +1712,7 @@ async def node_save_plan(state: StartupState) -> dict:
         "errors": errors,
     }
 
-    # Persist plan to SQLite with run_summary
+    # Persist plan to SQLite with run_summary and research_plan
     await loop.run_in_executor(
         None,
         save_startup_plan,
@@ -1545,6 +1722,7 @@ async def node_save_plan(state: StartupState) -> dict:
         plan_data,
         run_summary,
         state.get("owner_id"),
+        state.get("research_plan"),
     )
 
     # ── Phase 4: Fetch images from Pexels (non-blocking) ──
@@ -1705,11 +1883,12 @@ async def node_generate_assets(state: StartupState) -> dict:
 # ─────────────────────────────────────────────
 
 def build_graph() -> StateGraph:
-    """Build and compile the LangGraph state machine with 22 ordered, isolated nodes."""
+    """Build and compile the LangGraph state machine with 23 ordered, isolated nodes."""
     workflow = StateGraph(StartupState)
 
     # 1. Register all nodes
     workflow.add_node("decompose", node_decompose_idea)
+    workflow.add_node("understand_idea", node_understand_idea)
     workflow.add_node("research_market", node_research_market)
     workflow.add_node("research_competitors", node_research_competitors)
     workflow.add_node("synthesize_research", node_synthesize_research)
@@ -1735,7 +1914,8 @@ def build_graph() -> StateGraph:
 
     # 2. Sequential edges: numeric first -> canonical facts -> narratives -> validation -> save -> studio
     workflow.set_entry_point("decompose")
-    workflow.add_edge("decompose", "research_market")
+    workflow.add_edge("decompose", "understand_idea")
+    workflow.add_edge("understand_idea", "research_market")
     workflow.add_edge("research_market", "research_competitors")
     workflow.add_edge("research_competitors", "synthesize_research")
     workflow.add_edge("synthesize_research", "competitor_swot")
@@ -1778,7 +1958,7 @@ async def run_agent(
     owner_id: Optional[str] = None
 ):
     """
-    Run the full 21-step autonomous agent workflow.
+    Run the full 23-step autonomous agent workflow.
     Events are streamed via the global event_queues dict.
     """
     initial_state: StartupState = {
@@ -1786,6 +1966,10 @@ async def run_agent(
         "idea": idea,
         "plan_id": str(uuid.uuid4()),
         "tasks": [],
+        "idea_understanding": {},
+        "research_plan": {},
+        "founder_validation_steps": [],
+        "data_gaps": [],
         "market_research": "",
         "competitor_analysis": "",
         "market_gap": "",

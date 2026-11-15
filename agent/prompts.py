@@ -21,6 +21,48 @@ Example format:
 ["Task 1: Market size analysis...", "Task 2: Competitor research...", "Task 3: Recommended Founder Validation Step (Post-AI): Survey target users in local markets..."]
 """
 
+IDEA_UNDERSTANDING_PROMPT = """You are an expert market research director and startup taxonomist.
+
+Analyze this startup idea submitted by a user:
+"{idea}"
+
+Current Date: {current_date}
+Current Year: {current_year}
+
+Your job is to understand the actual market category and problem domain, especially if the user provided a brand or product name (e.g., "AgroMind AI", "InvoiceFlow", "SafeHer").
+
+Determine:
+1. idea_type: Is this a "named_product" (a brand or product name like "AgroMind AI", "AcmeApp") or a "descriptive_idea" (describes what it does, e.g., "AI app for female protection")?
+2. category: Short market category (3-8 words, e.g., "AI-powered precision agriculture and crop diagnostics", "B2B accounts payable invoice automation SaaS", "women personal safety wearable and alert mobile app"). NEVER just repeat a brand name.
+3. problem_domain: Exactly one concise sentence summarizing the core problem being solved.
+4. target_customers: List of 1-3 primary customer groups.
+5. region_focus: "global" or specific country/region if mentioned, otherwise null.
+6. market_queries: Exactly 3-4 web search queries to find market size, TAM/SAM, CAGR, and industry growth reports for the CATEGORY.
+   CRITICAL: MUST search the category/industry, NEVER the startup's brand name. Do NOT hardcode past years like 2024; use {current_year} or omit the year.
+7. competitor_queries: Exactly 3-4 web search queries to find real competitors, alternative platforms, and market leaders in this category.
+8. customer_voice_queries: Exactly 2-3 search queries to find real user pain points, complaints, Reddit discussions, or reviews in this space.
+9. trends_keywords: Exactly 2-4 generic category keywords (1-3 words each, e.g. ["precision agriculture", "crop monitoring", "smart farming"]) for Google Trends. NEVER include the brand name.
+10. competitor_name_check: The literal product or brand name (e.g. "{idea}").
+11. known_company_with_same_name: If you know of an existing real company or product that already uses this exact or very similar name, state its name and brief description; otherwise null.
+12. confidence: Float from 0.0 to 1.0 indicating your confidence in category classification.
+
+Return ONLY a valid JSON object matching the schema below:
+{{
+  "idea_type": "named_product",
+  "category": "market category here",
+  "problem_domain": "one line problem domain",
+  "target_customers": ["customer1", "customer2"],
+  "region_focus": "global",
+  "market_queries": ["query 1", "query 2", "query 3"],
+  "competitor_queries": ["query 1", "query 2", "query 3"],
+  "customer_voice_queries": ["query 1", "query 2"],
+  "trends_keywords": ["keyword 1", "keyword 2"],
+  "competitor_name_check": "{idea}",
+  "known_company_with_same_name": null,
+  "confidence": 1.0
+}}
+"""
+
 GAP_ANALYSIS_PROMPT = """You are an elite product strategist and market analyst.
 
 Startup Idea: {idea}

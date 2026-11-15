@@ -1,7 +1,7 @@
 # agent/models_pydantic.py
 # Pydantic models for structured node output validation
 
-from typing import List, Dict, Any, Optional, Union
+from typing import List, Dict, Any, Optional, Union, Literal
 from pydantic import BaseModel, Field, ConfigDict, field_validator, model_validator
 
 
@@ -14,6 +14,41 @@ class TaskDecompositionModel(BaseModel):
         if not v or len(v) < 1:
             raise ValueError("Task decomposition must contain at least 1 task")
         return v
+
+
+class IdeaUnderstandingModel(BaseModel):
+    model_config = ConfigDict(extra="ignore")
+
+    idea_type: Literal["named_product", "descriptive_idea"]
+    category: str = Field(..., min_length=3, description="Short market category, 3-8 words")
+    problem_domain: str = Field(..., min_length=5, description="One line problem domain")
+    target_customers: List[str] = Field(..., min_length=1, description="List of target customers")
+    region_focus: Optional[str] = Field(default=None, description="global | specific region or country, or null")
+    market_queries: List[str] = Field(..., min_length=2, description="3-4 search queries for market size, growth and trends")
+    competitor_queries: List[str] = Field(..., min_length=2, description="3-4 queries for alternatives, competitors, startups")
+    customer_voice_queries: List[str] = Field(..., min_length=1, description="2-3 queries for reviews, complaints, discussions")
+    trends_keywords: List[str] = Field(..., min_length=1, description="2-4 short category terms for Google Trends, not brand name")
+    competitor_name_check: str = Field(..., min_length=2, description="The literal product name to check for existing real companies")
+    known_company_with_same_name: Optional[str] = Field(default=None, description="Name and description if company exists, or null")
+    confidence: Optional[float] = Field(default=1.0)
+
+    @field_validator("known_company_with_same_name", mode="before")
+    @classmethod
+    def clean_known_company(cls, v):
+        if v is None:
+            return None
+        if isinstance(v, str) and v.strip().lower() in ("null", "none", "n/a", "no", ""):
+            return None
+        return str(v).strip()
+
+    @field_validator("region_focus", mode="before")
+    @classmethod
+    def clean_region_focus(cls, v):
+        if v is None:
+            return None
+        if isinstance(v, str) and v.strip().lower() in ("null", "none", "n/a", ""):
+            return None
+        return str(v).strip()
 
 
 class ResearchBriefModel(BaseModel):

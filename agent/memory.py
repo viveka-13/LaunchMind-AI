@@ -223,13 +223,15 @@ def init_db():
             if col not in audio_cols:
                 cursor.execute(f"ALTER TABLE audio_generations ADD COLUMN {col} {col_type}")
 
-        # Migration 2: startup_plans run_summary & owner_id
+        # Migration 2: startup_plans run_summary & owner_id & research_plan
         cursor.execute("PRAGMA table_info(startup_plans)")
         plan_cols = {r[1] for r in cursor.fetchall()}
         if "run_summary" not in plan_cols:
             cursor.execute("ALTER TABLE startup_plans ADD COLUMN run_summary TEXT")
         if "owner_id" not in plan_cols:
             cursor.execute("ALTER TABLE startup_plans ADD COLUMN owner_id TEXT")
+        if "research_plan" not in plan_cols:
+            cursor.execute("ALTER TABLE startup_plans ADD COLUMN research_plan TEXT")
 
         # Migration 3: export_history status & reason
         cursor.execute("PRAGMA table_info(export_history)")
@@ -268,26 +270,31 @@ def save_startup_plan(
     title: str,
     plan_data: dict,
     run_summary: Optional[dict] = None,
-    owner_id: Optional[str] = None
+    owner_id: Optional[str] = None,
+    research_plan: Optional[dict] = None
 ) -> bool:
     """Save a completed startup plan to SQLite."""
     try:
         summary_json = json.dumps(run_summary) if run_summary else None
         data_json = json.dumps(plan_data, ensure_ascii=False)
+        r_plan = research_plan if research_plan is not None else plan_data.get("research_plan")
+        research_plan_json = json.dumps(r_plan, ensure_ascii=False) if isinstance(r_plan, (dict, list)) else (str(r_plan) if r_plan else None)
+
         with get_db_connection() as conn:
             cursor = conn.cursor()
             cursor.execute(
                 """
-                INSERT INTO startup_plans (id, idea, title, plan_data, run_summary, owner_id)
-                VALUES (?, ?, ?, ?, ?, ?)
+                INSERT INTO startup_plans (id, idea, title, plan_data, run_summary, owner_id, research_plan)
+                VALUES (?, ?, ?, ?, ?, ?, ?)
                 ON CONFLICT(id) DO UPDATE SET
                     idea = excluded.idea,
                     title = excluded.title,
                     plan_data = excluded.plan_data,
                     run_summary = COALESCE(excluded.run_summary, startup_plans.run_summary),
-                    owner_id = COALESCE(excluded.owner_id, startup_plans.owner_id)
+                    owner_id = COALESCE(excluded.owner_id, startup_plans.owner_id),
+                    research_plan = COALESCE(excluded.research_plan, startup_plans.research_plan)
                 """,
-                (plan_id, idea, title, data_json, summary_json, owner_id),
+                (plan_id, idea, title, data_json, summary_json, owner_id, research_plan_json),
             )
         return True
     except Exception as e:
@@ -330,16 +337,22 @@ def get_plan_by_id(plan_id: str, owner_id: Optional[str] = None) -> Optional[dic
     try:
         with get_db_connection() as conn:
             cursor = conn.cursor()
-            if owner_id:
-                cursor.execute(
-                    "SELECT id, idea, title, plan_data, created_at, run_summary, owner_id FROM startup_plans WHERE id = ? AND (owner_id = ? OR owner_id IS NULL)",
-                    (plan_id, owner_id),
-                )
+            # Check if research_plan column exists in this connection
+            cursor.execute("PRAGMA table_info(startup_plans)")
+            cols = {r[1] for r in cursor.fetchall()}
+            has_research_plan = "research_plan" in cols
+
+            if has_research_plan:
+                select_sql = "SELECT id, idea, title, plan_data, created_at, run_summary, owner_id, research_plan FROM startup_plans WHERE id = ?"
             else:
-                cursor.execute(
-                    "SELECT id, idea, title, plan_data, created_at, run_summary, owner_id FROM startup_plans WHERE id = ?",
-                    (plan_id,),
-                )
+                select_sql = "SELECT id, idea, title, plan_data, created_at, run_summary, owner_id, NULL FROM startup_plans WHERE id = ?"
+
+            if owner_id:
+                select_sql += " AND (owner_id = ? OR owner_id IS NULL)"
+                cursor.execute(select_sql, (plan_id, owner_id))
+            else:
+                cursor.execute(select_sql, (plan_id,))
+
             row = cursor.fetchone()
             if row:
                 plan = json.loads(row[3]) if row[3] else {}
@@ -349,6 +362,13 @@ def get_plan_by_id(plan_id: str, owner_id: Optional[str] = None) -> Optional[dic
                 plan["created_at"] = row[4]
                 plan["run_summary"] = json.loads(row[5]) if row[5] else None
                 plan["owner_id"] = row[6]
+                if row[7]:
+                    try:
+                        plan["research_plan"] = json.loads(row[7])
+                    except Exception:
+                        plan["research_plan"] = row[7]
+                elif "research_plan" not in plan:
+                    plan["research_plan"] = None
                 return plan
             return None
     except Exception as e:
