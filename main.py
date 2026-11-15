@@ -8,7 +8,7 @@ from pathlib import Path
 
 from dotenv import load_dotenv
 from contextlib import asynccontextmanager
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import StreamingResponse, HTMLResponse, FileResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
@@ -176,19 +176,38 @@ async def get_history():
 
 
 @app.delete("/api/history/{plan_id}")
-async def delete_history_plan(plan_id: str):
+async def delete_history_plan(plan_id: str, request: Request):
     """Delete a generated startup plan by its ID."""
-    deleted = delete_plan_by_id(plan_id)
-    if not deleted:
-        raise HTTPException(status_code=404, detail="Plan not found or could not be deleted.")
-    return {"status": "ok", "deleted_id": plan_id}
+    # 1. In-flight check: if generation is running, return 409 Conflict
+    if plan_id in event_queues:
+        raise HTTPException(
+            status_code=409,
+            detail="Plan generation is currently running and cannot be deleted. Please wait for it to complete."
+        )
+
+    # 2. Extract owner identity if auth is present
+    owner_id = request.headers.get("X-User-Id") or getattr(request.state, "user_id", None)
+
+    # 3. Perform atomic delete
+    success, message = delete_plan_by_id(plan_id, owner_id=owner_id)
+    if not success:
+        if "not found" in message.lower():
+            raise HTTPException(status_code=404, detail="Plan not found.")
+        raise HTTPException(status_code=500, detail=message)
+
+    return {"status": "ok", "deleted_id": plan_id, "message": message}
 
 
 @app.post("/api/history/deduplicate")
-async def deduplicate_history_plans():
+async def deduplicate_history_plans(request: Request):
     """Remove redundant test duplicate plans, keeping the most recent copy."""
-    deleted_count = deduplicate_history()
-    return {"status": "ok", "deleted_count": deleted_count}
+    owner_id = request.headers.get("X-User-Id") or getattr(request.state, "user_id", None)
+    deleted_count = deduplicate_history(owner_id=owner_id)
+    return {
+        "status": "ok",
+        "deleted_count": deleted_count,
+        "message": f"Successfully removed {deleted_count} duplicate plan(s)."
+    }
 
 
 @app.get("/api/idea/{plan_id}")

@@ -1433,7 +1433,7 @@
         <h2 class="section-title" id="history-title">History</h2>
         <div class="section-line"></div>
         <div style="display:flex; gap:8px;">
-          <button id="history-dedup" onclick="deduplicateHistoryPlans()"
+          <button id="history-dedup" onclick="deduplicateHistoryPlans(this)"
             style="background:rgba(239,68,68,0.08);border:1px solid rgba(239,68,68,0.25);color:#fca5a5;border-radius:8px;padding:6px 14px;cursor:pointer;font-family:'Rajdhani',sans-serif;font-size:12px;letter-spacing:1px;text-transform:uppercase;">
             Clean Duplicates
           </button>
@@ -2552,7 +2552,7 @@
         <div class="history-card" onclick="viewHistoryPlan('${p.id}')">
           <div style="display:flex; justify-content:space-between; align-items:flex-start;">
             <div class="history-title" style="flex:1;">${escapeHtml(p.title || 'Untitled Startup')}</div>
-            <button onclick="event.stopPropagation(); deleteHistoryPlan('${p.id}')" title="Delete Plan" style="background:none; border:none; color:#ef4444; font-size:1.15rem; cursor:pointer; padding:2px 6px; border-radius:4px; margin-left:8px; line-height:1;">🗑️</button>
+            <button onclick="event.stopPropagation(); deleteHistoryPlan(this, '${p.id}')" title="Delete Plan" style="background:none; border:none; color:#ef4444; font-size:1.15rem; cursor:pointer; padding:2px 6px; border-radius:4px; margin-left:8px; line-height:1;">🗑️</button>
           </div>
           <div class="history-idea">💡 ${escapeHtml(p.idea)}</div>
           <div class="history-date">${formatDate(p.created_at)}</div>
@@ -2563,28 +2563,68 @@
       }
     }
 
-    async function deleteHistoryPlan(planId) {
+    async function deleteHistoryPlan(btn, planId) {
       if (!confirm('Are you sure you want to delete this startup plan from history?')) return;
+      if (btn) {
+        btn.disabled = true;
+        btn.style.opacity = '0.35';
+        btn.style.cursor = 'not-allowed';
+      }
       try {
         const res = await fetch(`/api/history/${planId}`, { method: 'DELETE' });
+        const data = await res.json().catch(() => ({}));
         if (res.ok) {
-          loadHistory();
+          const card = btn ? btn.closest('.history-card') : null;
+          if (card) {
+            card.style.transition = 'all 0.3s ease';
+            card.style.opacity = '0';
+            card.style.transform = 'scale(0.95)';
+            setTimeout(() => card.remove(), 300);
+          } else {
+            loadHistory();
+          }
         } else {
-          alert('Failed to delete plan.');
+          const errMsg = data.detail || data.message || 'Failed to delete plan.';
+          alert(errMsg);
+          if (btn) {
+            btn.disabled = false;
+            btn.style.opacity = '1';
+            btn.style.cursor = 'pointer';
+          }
         }
       } catch (e) {
         alert('Error deleting plan: ' + e.message);
+        if (btn) {
+          btn.disabled = false;
+          btn.style.opacity = '1';
+          btn.style.cursor = 'pointer';
+        }
       }
     }
 
-    async function deduplicateHistoryPlans() {
+    async function deduplicateHistoryPlans(btn) {
+      if (!confirm('Clean up older duplicate history entries with identical ideas?')) return;
+      if (btn) {
+        btn.disabled = true;
+        btn.style.opacity = '0.5';
+      }
       try {
         const res = await fetch('/api/history/deduplicate', { method: 'POST' });
-        const data = await res.json();
-        alert(`Cleanup complete: removed ${data.deleted_count || 0} duplicate history entries.`);
-        loadHistory();
+        const data = await res.json().catch(() => ({}));
+        if (res.ok) {
+          const count = data.deleted_count || 0;
+          alert(`Cleanup complete: removed ${count} duplicate history ${count === 1 ? 'entry' : 'entries'}.`);
+          loadHistory();
+        } else {
+          alert(data.detail || data.message || 'Deduplication failed.');
+        }
       } catch (e) {
         alert('Deduplication failed: ' + e.message);
+      } finally {
+        if (btn) {
+          btn.disabled = false;
+          btn.style.opacity = '1';
+        }
       }
     }
 

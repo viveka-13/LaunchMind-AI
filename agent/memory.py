@@ -4,9 +4,10 @@
 import sqlite3
 import json
 import os
+import shutil
 import uuid
 from datetime import datetime
-from typing import Optional
+from typing import Optional, List, Tuple
 
 # ─────────────────────────────────────────────
 # ChromaDB — Vector Memory for RAG Retrieval
@@ -86,14 +87,16 @@ import logging
 
 logger = logging.getLogger(__name__)
 
-DB_PATH = "./data/startup_history.db"
+BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+DEFAULT_DB_PATH = os.path.abspath(os.path.join(BASE_DIR, "data", "startup_history.db"))
+DB_PATH = DEFAULT_DB_PATH
 
 def get_db_path() -> str:
     """Return the active database path, allowing runtime environment overrides or patched DB_PATH."""
     import agent.memory as m
-    if getattr(m, "DB_PATH", None) != "./data/startup_history.db":
+    if getattr(m, "DB_PATH", None) != DEFAULT_DB_PATH:
         return m.DB_PATH
-    return os.environ.get("DB_PATH", "./data/startup_history.db")
+    return os.environ.get("DB_PATH", DEFAULT_DB_PATH)
 
 
 class DatabaseError(Exception):
@@ -619,43 +622,180 @@ def get_session_turns(session_id: str) -> list:
         return []
 
 
-def delete_plan_by_id(plan_id: str) -> bool:
-    """Delete a plan and all cascading related records."""
+def cleanup_plan_files(plan_id: str, extra_paths: Optional[List[str]] = None) -> List[str]:
+    """
+    Safely delete all generated files associated with a plan from disk.
+    Guarantees:
+    - Path traversal protection: Paths must resolve strictly within DATA_DIR.
+    - Files already missing are safely ignored.
+    - User-supplied arbitrary paths are never accepted.
+    Returns list of paths successfully removed.
+    """
+    removed = []
+    base_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    data_dir = os.path.abspath(os.path.join(base_dir, "data"))
+
+    # Standard known file targets for a plan
+    standard_targets = [
+        os.path.join(data_dir, "presentations", f"{plan_id}.pptx"),
+        os.path.join(data_dir, "documents", f"{plan_id}.pdf"),
+        os.path.join(data_dir, "documents", f"{plan_id}.docx"),
+        os.path.join(data_dir, "documents", f"investor_report_{plan_id}.pdf"),
+        os.path.join(data_dir, "architectures", f"{plan_id}.html"),
+        os.path.join(data_dir, "architectures", f"{plan_id}.svg"),
+        os.path.join(data_dir, "roadmaps", f"{plan_id}.html"),
+        os.path.join(data_dir, "financials", f"{plan_id}.xlsx"),
+        os.path.join(data_dir, "audio", f"{plan_id}_narration.mp3"),
+        os.path.join(data_dir, "audio", f"{plan_id}.mp3"),
+    ]
+
+    all_targets = list(standard_targets)
+    if extra_paths:
+        for ep in extra_paths:
+            if ep and isinstance(ep, str):
+                resolved = os.path.abspath(os.path.join(base_dir, ep) if not os.path.isabs(ep) else ep)
+                all_targets.append(resolved)
+
+    # Process individual files
+    for target in all_targets:
+        try:
+            norm_target = os.path.abspath(target)
+            # Path traversal protection: target must be inside data_dir
+            if os.path.commonpath([data_dir, norm_target]) != data_dir:
+                logger.warning(f"[Security] Rejected deletion of path outside data root: {target}")
+                continue
+            if os.path.isfile(norm_target):
+                os.remove(norm_target)
+                removed.append(norm_target)
+        except Exception as e:
+            logger.warning(f"[Cleanup] Error deleting file {target}: {e}")
+
+    # Remove plan pitch directory if it exists: ./data/pitch/{plan_id}
+    pitch_dir = os.path.join(data_dir, "pitch", plan_id)
+    if os.path.exists(pitch_dir):
+        try:
+            norm_pitch = os.path.abspath(pitch_dir)
+            if os.path.commonpath([data_dir, norm_pitch]) == data_dir:
+                shutil.rmtree(norm_pitch, ignore_errors=True)
+                removed.append(norm_pitch)
+        except Exception as e:
+            logger.warning(f"[Cleanup] Error deleting directory {pitch_dir}: {e}")
+
+    return removed
+
+
+def cleanup_plan_chroma(plan_id: str) -> bool:
+    """Safely delete vector memory chunks for this plan/session."""
     try:
-        with get_db_connection() as conn:
-            cursor = conn.cursor()
-            cursor.execute("DELETE FROM startup_plans WHERE id = ?", (plan_id,))
-            return cursor.rowcount > 0
+        collection = get_chroma_collection()
+        if collection.count() > 0:
+            collection.delete(where={"session_id": plan_id})
+        return True
     except Exception as e:
-        logger.error(f"[DB] Delete plan error: {e}")
+        logger.warning(f"[Memory] Failed to delete ChromaDB docs for plan {plan_id}: {e}")
         return False
 
 
-def deduplicate_history(time_window_minutes: int = 5) -> int:
+def delete_plan_by_id(plan_id: str, owner_id: Optional[str] = None) -> Tuple[bool, str]:
     """
-    Remove duplicate plans that share the identical trimmed idea text
-    and were created within time_window_minutes of each other, keeping the latest one.
+    Delete a plan and all related records in one atomic DB transaction,
+    then clean up ChromaDB vectors and generated files on disk.
+    Returns (success: bool, message: str).
+    """
+    if not plan_id or not isinstance(plan_id, str):
+        return False, "Invalid plan ID"
+
+    try:
+        with get_db_connection() as conn:
+            cursor = conn.cursor()
+            # 1. Verify plan exists and check ownership if owner_id provided
+            cursor.execute("SELECT id, owner_id FROM startup_plans WHERE id = ?", (plan_id,))
+            row = cursor.fetchone()
+            if not row:
+                return False, "Plan not found"
+
+            plan_owner = row[1]
+            if owner_id and plan_owner and plan_owner != owner_id:
+                return False, "Plan not found"
+
+            # 2. Collect DB-recorded file paths for disk cleanup
+            extra_files = []
+            try:
+                cursor.execute("SELECT file_path FROM audio_generations WHERE plan_id = ?", (plan_id,))
+                for (fp,) in cursor.fetchall():
+                    if fp:
+                        extra_files.append(fp)
+            except Exception:
+                pass
+
+            try:
+                cursor.execute("SELECT transcript_path FROM pitch_sessions WHERE plan_id = ?", (plan_id,))
+                for (tp,) in cursor.fetchall():
+                    if tp:
+                        extra_files.append(tp)
+            except Exception:
+                pass
+
+            # 3. Explicitly delete child rows in cascade order to satisfy FK constraints
+            cursor.execute("""
+                DELETE FROM practice_turns 
+                WHERE session_id IN (SELECT id FROM pitch_sessions WHERE plan_id = ?)
+            """, (plan_id,))
+            cursor.execute("DELETE FROM pitch_sessions WHERE plan_id = ?", (plan_id,))
+            cursor.execute("DELETE FROM audio_generations WHERE plan_id = ?", (plan_id,))
+            cursor.execute("DELETE FROM export_history WHERE plan_id = ?", (plan_id,))
+
+            # 4. Delete the parent plan
+            cursor.execute("DELETE FROM startup_plans WHERE id = ?", (plan_id,))
+            if cursor.rowcount == 0:
+                return False, "Plan not found"
+
+    except Exception as e:
+        logger.error(f"[DB] Delete plan transaction error for {plan_id}: {e}")
+        return False, f"Database error deleting plan: {str(e)}"
+
+    # 5. DB transaction committed successfully -> clean up Chroma vectors & files
+    cleanup_plan_chroma(plan_id)
+    cleanup_plan_files(plan_id, extra_files)
+
+    return True, "Plan and all associated data deleted successfully."
+
+
+def deduplicate_history(time_window_minutes: int = 5, owner_id: Optional[str] = None) -> int:
+    """
+    Remove duplicate plans that share identical trimmed idea text,
+    keeping only the latest one. Calls delete_plan_by_id for each duplicate
+    to ensure full cascade and file cleanup.
     Returns the number of deleted duplicate plans.
     """
     try:
         with get_db_connection() as conn:
             cursor = conn.cursor()
-            cursor.execute("SELECT id, idea, created_at FROM startup_plans ORDER BY created_at DESC")
+            if owner_id:
+                cursor.execute(
+                    "SELECT id, idea, created_at FROM startup_plans WHERE owner_id = ? OR owner_id IS NULL ORDER BY created_at DESC",
+                    (owner_id,)
+                )
+            else:
+                cursor.execute("SELECT id, idea, created_at FROM startup_plans ORDER BY created_at DESC")
             rows = cursor.fetchall()
 
-            seen = {}
-            to_delete = []
-            for plan_id, idea, created_at in rows:
-                norm_idea = (idea or "").strip().lower()
-                if norm_idea in seen:
-                    to_delete.append(plan_id)
-                else:
-                    seen[norm_idea] = created_at
+        seen = {}
+        to_delete = []
+        for plan_id, idea, created_at in rows:
+            norm_idea = (idea or "").strip().lower()
+            if norm_idea in seen:
+                to_delete.append(plan_id)
+            else:
+                seen[norm_idea] = created_at
 
-            if to_delete:
-                placeholders = ",".join("?" for _ in to_delete)
-                cursor.execute(f"DELETE FROM startup_plans WHERE id IN ({placeholders})", to_delete)
-            return len(to_delete)
+        deleted_count = 0
+        for pid in to_delete:
+            ok, _ = delete_plan_by_id(pid, owner_id=owner_id)
+            if ok:
+                deleted_count += 1
+
+        return deleted_count
     except Exception as e:
         logger.error(f"[DB] Deduplicate history error: {e}")
         return 0
