@@ -2,7 +2,11 @@
 
 <div align="center">
 
-**[ LangGraph Autonomous Agents ] • [ FastAPI REST API ] • [ ChromaDB RAG Memory ] • [ Python 3.11+ ]**
+**[ 23-Node LangGraph State Machine ] • [ FastAPI & SSE Streaming ] • [ ChromaDB RAG Vector Store ] • [ Python 3.11+ ]**
+
+[![Tests](https://img.shields.io/badge/tests-89%20passed-brightgreen.svg)](#-testing--quality-assurance)
+[![Python](https://img.shields.io/badge/python-3.11+-blue.svg)](https://www.python.org/)
+[![License](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
 
 </div>
 
@@ -10,532 +14,233 @@
 
 ## 🚀 Overview
 
-**LaunchMind-AI** is a powerful autonomous AI platform built with **LangGraph** and **FastAPI** that transforms a single raw startup idea into a complete, venture-ready business platform.
+**LaunchMind-AI** is an autonomous, research-driven AI platform built with **LangGraph** and **FastAPI** that transforms a single raw startup idea into an investor-ready business platform.
 
-It conducts real-time web research, synthesizes market intelligence using **Retrieval-Augmented Generation (RAG)**, and programmatically generates financial models, brand strategies, pitch decks, business plans, system architectures, and investor-ready reports with minimal human intervention.
-
-LaunchMind-AI is more than a text generator — it is a **multi-agent orchestration pipeline designed to simulate the early-stage startup-building process.**
-
----
-
-## ✨ Core Platform Capabilities
-
-### 🧠 Autonomous Agentic Workflow
-
-Powered by a **16-node LangGraph state machine** that decomposes a raw startup idea into granular subtasks and intelligently routes work between research, analysis, synthesis, generation, and review stages.
-
-### 🔍 Real-Time Market Intelligence
-
-Uses live web research to gather current information about:
-
-* Competitors
-* Market trends
-* Customer segments
-* Industry developments
-* Pricing models
-* Market opportunities
-* Competitive positioning
-
-Research results are collected and passed into the downstream synthesis pipeline.
-
-### 🗄️ RAG-Powered Research Memory
-
-Integrates **ChromaDB** to persist research documents as vector embeddings.
-
-The system retrieves relevant source-backed context during synthesis, helping the LLM produce more grounded analysis and reducing unsupported claims.
-
-### 💼 AI Investor Matching Engine
-
-Analyzes generated startup characteristics and metrics before matching the company against a local investor database containing:
-
-* Venture Capital firms
-* Angel investors
-* Startup accelerators
-* Sector-focused funds
-* Stage-specific investors
-
-Example investor profiles include firms such as **a16z** and **Y Combinator**.
-
-### 🎤 Interactive Pitch Simulator
-
-Founders can practice pitching their startup against conversational AI investor personas such as:
-
-* **Aggressive VC**
-* **Technical Angel**
-* **Market-Focused Investor**
-* **Skeptical Generalist**
-
-The AI dynamically generates questions based on the startup's actual business plan and evaluates the founder's responses.
-
-### 📊 Programmatic Asset Generation
-
-LaunchMind-AI automatically produces a complete collection of startup assets:
-
-#### Financial Models
-
-* `.xlsx` financial projections
-* Revenue models
-* Expense projections
-* Cash-flow estimates
-* Cap tables
-* Startup KPI calculations
-
-#### Business Documents
-
-* `.pptx` investor pitch decks
-* `.docx` business plans
-* `.pdf` investor reports
-* Executive summaries
-
-#### Visual Assets
-
-* 15-stage business roadmaps
-* Mermaid system architecture diagrams
-* SVG flowcharts
-* UI/UX wireframe concepts
-
-#### Intelligent Media
-
-Uses the **Pexels API** to discover and embed relevant photography into generated presentation assets.
-
-#### Audio Narration
-
-Generates AI-powered voice narration for startup pitches and presentations.
+It autonomously conducts real-time web research, synthesizes market intelligence using **Retrieval-Augmented Generation (RAG)** in **ChromaDB**, computes synchronized financial models and cap tables, matches suitable investors, and programmatically generates comprehensive deliverables:
+- **Slide Pitch Decks** (`.pptx`) with relevant photography auto-embedded via Pexels
+- **Business Plans** (`.docx` & `.pdf`)
+- **Financial Projections & Cap Tables** (`.xlsx`)
+- **System Architecture Diagrams** (Mermaid & SVG)
+- **Voice Pitch Narration** (`.mp3`) via Edge Neural TTS or OpenAI TTS
+- **Interactive Pitch Practice Simulator** against adversarial AI investor personas
 
 ---
 
-# 🛠️ Tech Stack & Architecture
+## ✨ Key Capabilities & Architectural Innovations
 
-## Backend & Orchestration
-
-| Technology                  | Purpose                            |
-| --------------------------- | ---------------------------------- |
-| **FastAPI**                 | REST API and asynchronous backend  |
-| **LangGraph**               | Multi-agent workflow orchestration |
-| **LangChain**               | LLM/tool integration               |
-| **Anthropic Claude / Groq** | LLM inference                      |
-| **SSE**                     | Real-time workflow streaming       |
-
-## Data & Memory
-
-| Technology     | Purpose                                     |
-| -------------- | ------------------------------------------- |
-| **ChromaDB**   | Vector database and semantic retrieval      |
-| **SQLite**     | Session history and application persistence |
-| **Embeddings** | Semantic research retrieval                 |
-
-## Generation & Processing
-
-| Technology      | Purpose                     |
-| --------------- | --------------------------- |
-| **python-pptx** | PowerPoint generation       |
-| **python-docx** | Word document generation    |
-| **fpdf2**       | PDF generation              |
-| **openpyxl**    | Excel generation            |
-| **pandas**      | Data processing             |
-| **asyncio**     | Concurrent asset generation |
-
----
-
-# 🧠 Agentic StateGraph
-
-LaunchMind-AI uses a cyclic graph architecture that coordinates research, reasoning, generation, and validation.
+### 🧠 23-Node Autonomous LangGraph State Machine
+An end-to-end cyclic graph coordinating research, quantitative modeling, narrative synthesis, adversarial critique, and consistency validation.
 
 ```text
-                         User Input
-                            │
-                            ▼
-                 ┌─────────────────────┐
-                 │ Task Decomposition  │
-                 │ 10+ Parallel Tasks  │
-                 └──────────┬──────────┘
-                            │
-             ┌──────────────┴──────────────┐
-             ▼                             ▼
-    ┌─────────────────┐          ┌──────────────────┐
-    │ Market Research │          │ Competitor Deep  │
-    │   Web Search    │          │      Dive        │
-    └────────┬────────┘          └─────────┬────────┘
-             │                             │
-             └──────────────┬──────────────┘
-                            ▼
-                 ┌─────────────────────┐
-                 │   RAG Ingestion     │
-                 │      ChromaDB       │
-                 └──────────┬──────────┘
-                            ▼
-                 ┌─────────────────────┐
-                 │ Strategy Synthesis  │
-                 └──────────┬──────────┘
-                            │
-       ┌────────────────────┼────────────────────┐
-       ▼                    ▼                    ▼
-  Market Sizing       SWOT Analysis       Solution Design
-       │                    │                    │
-       └────────────────────┼────────────────────┘
-                            ▼
-                 ┌─────────────────────┐
-                 │ Revenue & Pricing   │
-                 │    Strategy         │
-                 └──────────┬──────────┘
-                            ▼
-                 ┌─────────────────────┐
-                 │ Brand + UI/UX       │
-                 │     Strategy        │
-                 └──────────┬──────────┘
-                            ▼
-                 ┌─────────────────────┐
-                 │ Concurrent Asset    │
-                 │     Generation      │
-                 └──────────┬──────────┘
-                            │
-        ┌───────────────┬───┴────┬───────────────┐
-        ▼               ▼        ▼               ▼
-     Pitch Deck      Business   Financial     Investor
-      .pptx           Plan       Model         Report
-                      .docx       .xlsx          .pdf
-        │               │          │               │
-        └───────────────┴──────────┴───────────────┘
-                            ▼
-                 ┌─────────────────────┐
-                 │ Adversarial Review  │
-                 │ & Validation        │
-                 └──────────┬──────────┘
-                            ▼
-                 ┌─────────────────────┐
-                 │ SSE Output Delivery │
-                 └─────────────────────┘
+                            User Startup Idea
+                                   │
+                                   ▼
+                        1. Decompose Subtasks
+                                   │
+                                   ▼
+                       2. Understand Idea & Category
+                                   │
+                    ┌──────────────┴──────────────┐
+                    ▼                             ▼
+          3. Market Web Research        4. Competitor Intelligence
+             & Google Trends               & SEC EDGAR / Wikidata
+                    └──────────────┬──────────────┘
+                                   ▼
+                         5. Synthesize Research
+                                   │
+                    ┌──────────────┴──────────────┐
+                    ▼                             ▼
+          6. Competitor SWOT             7. ChromaDB RAG Storage
+                    └──────────────┬──────────────┘
+                                   ▼
+                        8. Calculate Market Size
+                                   │
+                                   ▼
+                          9. Analyze Market Gaps
+                                   │
+                                   ▼
+                        10. Generate Solution
+                                   │
+                                   ▼
+                        11. Define Core Features
+                                   │
+                                   ▼
+                        12. Build Pricing Model
+                                   │
+                                   ▼
+                        13. Financial Projections
+                                   │
+                                   ▼
+                        14. Cap Table & Funding Ask
+                                   │
+                                   ▼
+                     15. Build Canonical Facts (SSOT)
+                                   │
+                                   ▼
+                        16. Generate Revenue Model
+                                   │
+                                   ▼
+                        17. AI Investor Matching
+                                   │
+                                   ▼
+                        18. Implementation Roadmap
+                                   │
+                                   ▼
+                        19. Pitch Deck Structure
+                                   │
+                                   ▼
+                        20. Compile Final Plan & Brand
+                                   │
+                                   ▼
+                        21. Adversarial VC Review
+                                   │
+                                   ▼
+                    22. Cross-Section Consistency Check
+                                   │
+                                   ▼
+                          23. Save Plan & Assets
 ```
 
-> **Note:** The diagram above is a simplified representation of the full 16-node LangGraph workflow.
+### 🔍 Category-Aware Research & Relevance Filtering
+* **Brand Name Translation**: Converts arbitrary brand names (e.g., *"AgroMind AI"*, *"InvoiceFlow"*) into clean, dynamic search queries targeting the true industry category rather than literal brand text.
+* **Intelligent Relevance Filter**: Automatically removes tax filing portals, generic listicles, job boards, and stale data using title deduplication and semantic scoring.
+* **Separation of Concerns**: Identifies physical fieldwork (e.g., *"interview 30 farmers"*) and routes it to an explicit founder validation checklist while substituting autonomous desk research proxies.
+
+### 📐 Single Source of Truth & Consistency Validator
+* **Zero Contradictions**: Node 15 (`build_canonical_facts`) establishes a single canonical record of all pricing tiers, ARPU, funding asks, valuations, use of funds, TAM/SAM/SOM metrics, and CAGR.
+* **Cross-Section Audit**: Node 22 (`validate_consistency`) verifies that numbers cited across the **Pricing Model**, **Revenue Narrative**, **Cap Table**, **Pitch Deck**, and **Executive Summary** match exactly, preventing hallucinated or conflicting figures.
+
+### 💼 AI Investor Matching & Truncation Recovery
+* Evaluates startup stage, sector, and ticket size against real investor personas (accelerators like Techstars and Y Combinator, sector-specific seed funds, and leading VCs).
+* Includes **truncation-aware LLM retry logic**: detects `finish_reason == "length"` or `"max_tokens"` and automatically retries with an expanded token budget and concise constraints.
+
+### 🎤 Interactive Pitch Practice Simulator
+* Founders can rehearse their pitch directly from the dashboard against distinct AI investor personas:
+  * **Aggressive VC**: Focuses on competition, defensibility, and market timing.
+  * **Technical Angel**: Drills down into architecture, unit economics, and scalability.
+  * **Market-Focused Investor**: Evaluates TAM, CAC/LTV, and customer acquisition channels.
+  * **Skeptical Generalist**: Probes regulatory risks, churn, and team capability.
+* Evaluates answers on relevance, persuasiveness, and confidence with actionable coaching tips.
+
+### 🗑️ Safe Plan Management & Cascading History Deletions
+* SQLite database with **WAL mode** and foreign key cascades (`PRAGMA foreign_keys = ON`).
+* Deleting a plan cleanly purges child pitch sessions, practice turns, and asset records in a single transaction, and deletes generated files (audio, presentation, docs) from disk without path traversal risk.
+* Built-in **Deduplicate History** feature cleans up accidental double submissions.
 
 ---
 
-# 🚀 Quick Start Guide
+## 🛠️ Tech Stack
 
-## Prerequisites
+| Layer | Technologies |
+| :--- | :--- |
+| **Backend Framework** | [FastAPI](https://fastapi.tiangolo.com/), Uvicorn, Python 3.11+ |
+| **Agent Orchestration** | [LangGraph](https://github.com/langchain-ai/langgraph), LangChain |
+| **Primary LLM** | [Groq](https://groq.com/) (`openai/gpt-oss-20b`, `llama-3.3-70b-versatile`) |
+| **Fallback LLM** | [Anthropic](https://www.anthropic.com/) (`claude-3-5-sonnet`) |
+| **Vector Database & RAG** | [ChromaDB](https://www.trychroma.com/) with Sentence Transformers |
+| **Relational Storage** | SQLite 3 (WAL mode, foreign key cascading constraints) |
+| **Asset Generation** | `python-pptx`, `python-docx`, `fpdf2`, `openpyxl`, `matplotlib` |
+| **Voice Narration (TTS)** | `edge-tts` (Microsoft Edge Neural Voices), OpenAI TTS |
+| **Data Enrichment** | Google Trends (`pytrends`), SEC EDGAR, Wikidata, Pexels API |
+| **Frontend** | Responsive Vanilla JS, Server-Sent Events (SSE), Web Speech API |
 
-* Python **3.11+**
-* Git
-* API keys for the services you intend to use
+---
 
-## 1. Clone & Setup
+## 🚀 Quick Start Guide
+
+### Prerequisites
+* **Python 3.11+** installed
+* A free **Groq API key** from [console.groq.com](https://console.groq.com)
+* (Optional) A free **Pexels API key** from [pexels.com/api](https://www.pexels.com/api/) for pitch deck photography
+
+### 1. Clone & Set Up Virtual Environment
 
 ```bash
 git clone https://github.com/yourusername/autostartup-ai.git
-cd autostartup-ai
+cd autostartup-ai/LaunchMind-AI
 
 # Create virtual environment
 python -m venv .venv
 
-# Windows
+# Activate on Windows:
 .venv\Scripts\activate
-
-# macOS/Linux
+# Activate on macOS/Linux:
 source .venv/bin/activate
 
 # Install dependencies
 pip install -r requirements.txt
 ```
 
-## 2. Environment Variables
+### 2. Configure Environment Variables
 
-Create a `.env` file in the project root:
+Copy the provided example file:
 
-```env
-# Required: LLM Provider
-ANTHROPIC_API_KEY=your_anthropic_api_key_here
-
-# Required for intelligent image integration
-PEXELS_API_KEY=your_pexels_api_key_here
-
-# Optional: Specialized Data APIs
-CRUNCHBASE_API_KEY=your_crunchbase_api_key
-GOOGLE_TRENDS_API_KEY=your_google_trends_api_key
-REDDIT_API_KEY=your_reddit_api_key
+```bash
+cp .env.example .env
 ```
 
-> **Security:** Never commit your `.env` file or API credentials to source control.
+Edit `.env` and provide your credentials:
 
-## 3. Run the Server
+```env
+# Primary LLM Provider (Groq)
+GROQ_API_KEY=gsk_your_groq_api_key_here
+GROQ_MODEL=openai/gpt-oss-20b
+
+# Optional: Presentation Photography
+PEXELS_API_KEY=your_pexels_key_here
+
+# Voice Narration (Default is free Edge TTS)
+TTS_PROVIDER=edge
+```
+
+### 3. Run the Application
 
 ```bash
 python main.py
 ```
 
-Once the server is running, open:
-
-```text
-http://localhost:8000
-```
-
-Interactive API documentation is available at:
-
-```text
-http://localhost:8000/docs
-```
+Open your browser at:
+- **Application UI**: [http://localhost:8000](http://localhost:8000)
+- **Interactive OpenAPI Docs**: [http://localhost:8000/docs](http://localhost:8000/docs)
 
 ---
 
-# 📡 REST API
+## 📡 REST API Reference
 
-LaunchMind-AI exposes a typed REST API through FastAPI.
-
-| Endpoint                   | Method | Purpose                                           |
-| -------------------------- | ------ | ------------------------------------------------- |
-| `/api/generate`            | `POST` | Starts the autonomous startup-generation workflow |
-| `/api/practice/start/{id}` | `POST` | Starts an interactive AI pitch session            |
-| `/api/practice/answer`     | `POST` | Submits an answer for AI evaluation               |
-| `/api/download_*`          | `GET`  | Downloads generated startup artifacts             |
-| `/api/history`             | `GET`  | Retrieves historical startup sessions             |
-
-The `/api/generate` workflow uses **Server-Sent Events (SSE)** to stream progress and generated results to the client.
-
----
-
-# 🎯 End-to-End Workflow
-
-A typical LaunchMind-AI execution follows this lifecycle:
-
-```text
-Raw Startup Idea
-       │
-       ▼
-Task Decomposition
-       │
-       ▼
-Parallel Web Research
-       │
-       ▼
-Competitor Intelligence
-       │
-       ▼
-ChromaDB RAG Ingestion
-       │
-       ▼
-Market & Customer Analysis
-       │
-       ▼
-Business Strategy
-       │
-       ▼
-Revenue & Pricing Model
-       │
-       ▼
-Brand & Product Strategy
-       │
-       ▼
-Financial Modeling
-       │
-       ▼
-Pitch Deck + Business Plan
-       │
-       ▼
-Investor Matching
-       │
-       ▼
-Adversarial Review
-       │
-       ▼
-Pitch Simulation
-       │
-       ▼
-Complete Startup Package
-```
+| Endpoint | Method | Description |
+| :--- | :---: | :--- |
+| `/api/generate` | `POST` | Initiates autonomous startup generation; streams 23-node progress via **SSE** |
+| `/api/health` | `GET` | Health check and Groq API status |
+| `/api/history` | `GET` | Lists all historical startup plans with summaries |
+| `/api/idea/{plan_id}` | `GET` | Retrieves complete data, financial metrics, and assets for a plan |
+| `/api/critique/{plan_id}` | `GET` | Retrieves the adversarial VC critique for a plan |
+| `/api/history/{plan_id}` | `DELETE` | Atomically deletes a plan, all child sessions, and disk assets |
+| `/api/history/deduplicate` | `POST` | Removes duplicate plans generated within a short time window |
+| `/api/practice/start/{plan_id}` | `POST` | Starts an interactive pitch practice session with chosen VC persona |
+| `/api/practice/answer` | `POST` | Submits an answer for real-time AI scoring and coaching |
+| `/api/download_deck/{plan_id}` | `GET` | Downloads generated PowerPoint pitch deck (`.pptx`) |
+| `/api/download_pdf/{plan_id}` | `GET` | Downloads generated PDF business report (`.pdf`) |
+| `/api/download_word/{plan_id}` | `GET` | Downloads generated Word business plan (`.docx`) |
+| `/api/download_financials/{plan_id}` | `GET` | Downloads generated financial model spreadsheet (`.xlsx`) |
+| `/api/export/notion/{plan_id}` | `POST` | Exports business plan to connected Notion workspace |
+| `/api/export/google-docs/{plan_id}` | `POST` | Exports business plan to Google Docs |
+| `/api/export/google-slides/{plan_id}` | `POST` | Exports pitch presentation to Google Slides |
 
 ---
 
-# 📦 Generated Startup Package
+## 🧪 Testing & Quality Assurance
 
-A successful generation can produce:
-
-```text
-startup/
-├── pitch_deck.pptx
-├── business_plan.docx
-├── investor_report.pdf
-├── financial_model.xlsx
-├── cap_table.xlsx
-├── roadmap.svg
-├── architecture.mmd
-├── research/
-│   └── sources/
-└── pitch/
-    └── simulation_transcript.json
-```
-
-The exact output structure can be extended as additional generators are added.
-
----
-
-# 🧩 Extensibility
-
-LaunchMind-AI is designed around modular agent and tool components.
-
-### Adding New Tools
-
-Add new Python functions to the tool layer and register them with the LangGraph workflow.
-
-```python
-@tool
-def compliance_checker(startup_data: str):
-    """
-    Analyze startup requirements for potential
-    legal and regulatory considerations.
-    """
-    ...
-```
-
-### Swapping LLM Providers
-
-The LLM interface is abstracted so providers can be changed without redesigning the entire workflow.
-
-Possible providers include:
-
-```text
-Anthropic Claude
-Groq
-OpenAI
-Local Llama models
-Other LangChain-compatible providers
-```
-
-### Extending the Graph
-
-New operational nodes can be introduced as independent workflow functions:
-
-```python
-workflow.add_node(
-    "legal_compliance_checker",
-    legal_compliance_checker
-)
-```
-
-Potential future nodes include:
-
-* Legal Compliance Checker
-* Patent Research Agent
-* Customer Persona Agent
-* SEO Research Agent
-* Go-To-Market Agent
-* Product Requirements Agent
-* Fundraising Strategy Agent
-* Due-Diligence Agent
-
----
-
-# 🧪 Quality & Validation
-
-The platform is designed to improve reliability through multiple stages of validation rather than treating LLM output as automatically correct.
-
-Potential validation layers include:
-
-* Source-backed research
-* Retrieved-context grounding
-* Structured output schemas
-* Financial calculation validation
-* Cross-agent consistency checks
-* Adversarial review
-* Investor-style questioning
-* Final artifact validation
-
-This architecture makes it possible to continuously improve the system by measuring generation quality at individual workflow stages.
-
----
-
-# 🔐 Security Considerations
-
-For production deployments, configure appropriate:
-
-* API-key protection
-* Authentication and authorization
-* CORS policies
-* Request validation
-* Rate limiting
-* Secrets management
-* Database access controls
-* File-generation restrictions
-* Logging and monitoring
-
-API credentials should always be stored securely through environment variables or a dedicated secrets-management system.
-
----
-
-# 🗺️ Future Roadmap
-
-Potential future capabilities include:
-
-* [ ] Automated customer interview simulation
-* [ ] Startup legal/compliance analysis
-* [ ] Patent and trademark research
-* [ ] Automated landing-page generation
-* [ ] Real-time startup KPI dashboards
-* [ ] Advanced VC portfolio matching
-* [ ] Multi-founder collaboration
-* [ ] Cloud deployment templates
-* [ ] Dockerized production deployment
-* [ ] Authentication and multi-user workspaces
-* [ ] Advanced evaluation and benchmarking
-* [ ] Automated investor outreach workflows
-
----
-
-# 🤝 Contributing
-
-Contributions are welcome.
-
-A typical contribution workflow:
+The test suite covers schema validation, unit math calculations, truncation recovery, database migrations, audio generation, and research filtering:
 
 ```bash
-# Fork the repository
-
-# Create a feature branch
-git checkout -b feature/my-new-agent
-
-# Make your changes
-
-# Run tests
-pytest
-
-# Commit
-git commit -m "Add new startup analysis agent"
-
-# Push
-git push origin feature/my-new-agent
+# Run all unit and integration tests
+python -m pytest tests/ -v
 ```
 
-Then open a pull request describing the changes and their impact on the agent workflow.
+Current test status: **89 passed, 0 failed**.
 
 ---
 
-# 📄 License
+## 📄 License
 
-Add your preferred open-source license here, such as **MIT**, **Apache 2.0**, or another license appropriate for the project.
-
----
-
-# ⭐ Project Vision
-
-**LaunchMind-AI aims to turn the startup-building process into an autonomous, research-driven engineering pipeline.**
-
-Instead of simply asking an LLM:
-
-> *"Give me a startup idea."*
-
-LaunchMind-AI attempts to answer:
-
-> **"What would it take to turn this idea into an investable company?"**
-
-From market research and competitive intelligence to financial modeling, investor matching, pitch simulation, and automated business artifacts — the goal is to provide founders with a single intelligent platform for exploring, validating, and communicating startup opportunities.
-
----
-
-<div align="center">
-
-### 🚀 LaunchMind-AI
-
-**From Raw Idea → Research → Strategy → Assets → Investor Simulation**
-
-**Built to push the boundaries of Autonomous AI Orchestration.**
-
-</div>
+This project is licensed under the [MIT License](LICENSE).
